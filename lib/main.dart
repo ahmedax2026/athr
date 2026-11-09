@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_and_cases.dart';
 import 'settings_and_relief.dart';
 
@@ -116,9 +117,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
                 const Icon(Icons.auto_awesome, color: gold, size: 23),
                 const SizedBox(height: 8),
-                const Text('أَثَرٌ لَا يَنْقَطِع', style: TextStyle(color: gold, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                const LiveContentText(document: 'welcome', field: 'title', fallback: 'أَثَرٌ لَا يَنْقَطِع', style: TextStyle(color: gold, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 1)),
                 const SizedBox(height: 6),
-                const Text('ذِكرى طيبة، ودعاء لا ينقطع', style: TextStyle(color: muted, fontSize: 13)),
+                const LiveContentText(document: 'welcome', field: 'subtitle', fallback: 'ذِكرى طيبة، ودعاء لا ينقطع', style: TextStyle(color: muted, fontSize: 13)),
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(7),
@@ -145,7 +146,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 const SizedBox(height: 6),
                 const Text('على روح المغفور له بإذن الله', textAlign: TextAlign.center, style: TextStyle(color: cream, fontSize: 17, height: 1.7)),
                 const SizedBox(height: 3),
-                const Text('عبدالوكيل عبدالسيد محمد', textAlign: TextAlign.center, style: TextStyle(color: gold, fontSize: 25, fontWeight: FontWeight.w800, height: 1.5)),
+                const LiveContentText(document: 'welcome', field: 'name', fallback: 'عبدالوكيل عبدالسيد محمد', style: TextStyle(color: gold, fontSize: 25, fontWeight: FontWeight.w800, height: 1.5)),
                 const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
@@ -158,7 +159,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   child: const Column(children: [
                     Icon(Icons.menu_book_outlined, color: gold, size: 22),
                     SizedBox(height: 8),
-                    Text('اللهم اغفر له وارحمه وعافه واعف عنه، وأكرم نزله ووسع مدخله', textAlign: TextAlign.center, style: TextStyle(color: cream, fontSize: 15, height: 1.5)),
+                    LiveContentText(document: 'welcome', field: 'prayer', fallback: 'اللهم اغفر له وارحمه وعافه واعف عنه، وأكرم نزله ووسع مدخله', style: TextStyle(color: cream, fontSize: 15, height: 1.5)),
                   ]),
                 ),
                 const SizedBox(height: 8),
@@ -297,7 +298,7 @@ class HomeScreen extends StatelessWidget {
                         Text('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
                             style: TextStyle(color: gold, fontSize: 13)),
                         SizedBox(height: 8),
-                        Text('أهلًا بك في أثر لا ينقطع',
+                        LiveContentText(document: 'home', field: 'greeting', fallback: 'أهلًا بك في أثر لا ينقطع',
                             style: TextStyle(color: cream, fontSize: 19, fontWeight: FontWeight.w800, height: 1.5)),
                         SizedBox(height: 5),
                         Text('صدقة جارية على روح عبدالوكيل عبدالسيد محمد',
@@ -309,7 +310,7 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 Text('أبواب الخير', style: TextStyle(color: fg, fontSize: 25, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 5),
-                Text('نورٌ يبقى، ودعاءٌ يصل.', style: TextStyle(color: secondary, fontSize: 14)),
+                LiveContentText(document: 'home', field: 'tagline', fallback: 'نورٌ يبقى، ودعاءٌ يصل.', style: TextStyle(color: secondary, fontSize: 14)),
                 const SizedBox(height: 17),
                 Wrap(spacing: 12, runSpacing: 12, children: [
                   for (final s in sections)
@@ -385,30 +386,68 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
+class LiveContentText extends StatelessWidget {
+  const LiveContentText({super.key, required this.document, required this.field,
+    required this.fallback, this.style});
+  final String document, field, fallback;
+  final TextStyle? style;
+  @override
+  Widget build(BuildContext context) => StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+    stream: FirebaseFirestore.instance.collection('content').doc(document).snapshots(),
+    builder: (context, snapshot) {
+      final data = snapshot.data?.data();
+      final value = data?['published'] == true ? data?[field] : null;
+      final display = value is String && value.trim().isNotEmpty ? value : fallback;
+      return Text(display, textAlign: TextAlign.center, style: style);
+    },
+  );
+}
+
 class ContactUsScreen extends StatelessWidget {
   const ContactUsScreen({super.key});
 
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('تواصل معنا')),
-    body: const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.support_agent_outlined, size: 72, color: gold),
-            SizedBox(height: 18),
-            Text('تواصل معنا', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            SizedBox(height: 12),
-            Text(
-              'قنوات التواصل الرسمية ستظهر هنا فور إضافتها من إدارة التطبيق.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, height: 1.7),
-            ),
-          ],
-        ),
-      ),
+    body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('settings').doc('contact').snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('تعذر تحميل وسائل التواصل'));
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final data = snapshot.data!.data();
+        final channels = <(String, String, IconData)>[
+          ('whatsapp', 'واتساب', Icons.chat_outlined),
+          ('facebook', 'فيسبوك', Icons.facebook_outlined),
+          ('messenger', 'ماسنجر', Icons.message_outlined),
+          ('telegram', 'تليجرام', Icons.send_outlined),
+        ];
+        return Center(child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: ListView(padding: const EdgeInsets.all(20), children: [
+            const Icon(Icons.support_agent_outlined, size: 70, color: gold),
+            const SizedBox(height: 16),
+            const Text('وسائل التواصل الرسمية', textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            if (data?['public'] != true ||
+                !channels.any((channel) => (data?[channel.$1] ?? '').toString().trim().isNotEmpty))
+              const Padding(padding: EdgeInsets.all(24),
+                child: Text('سيتم إضافة وسائل التواصل قريبًا', textAlign: TextAlign.center)),
+            if (data?['public'] == true)
+              for (final channel in channels)
+                if ((data?[channel.$1] ?? '').toString().trim().isNotEmpty)
+                  Card(child: ListTile(
+                    leading: Icon(channel.$3),
+                    title: Text(channel.$2),
+                    subtitle: SelectableText(data![channel.$1].toString()),
+                  )),
+          ]),
+        ));
+      },
     ),
   );
 }
