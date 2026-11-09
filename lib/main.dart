@@ -95,12 +95,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     body: DecoratedBox(
       decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [emerald, deep, Color(0xFF021C1A)])),
       child: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
-              child: Column(children: [
+        child: LayoutBuilder(builder: (context, constraints) => Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: 360,
+              child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Align(
                   alignment: Alignment.centerLeft,
                   child: IconButton(
@@ -115,7 +118,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 const Text('أَثَرٌ لَا يَنْقَطِع', style: TextStyle(color: gold, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 1)),
                 const SizedBox(height: 6),
                 const Text('ذِكرى طيبة، ودعاء لا ينقطع', style: TextStyle(color: muted, fontSize: 13)),
-                const SizedBox(height: 22),
+                const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
@@ -131,6 +134,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       key: const ValueKey('father-portrait'),
                       fit: BoxFit.contain,
                       width: double.infinity,
+                      height: 210,
                       errorBuilder: (_, _, _) => const SizedBox(height: 240, child: Center(child: Icon(Icons.person_outline, color: gold, size: 70))),
                     ),
                   ),
@@ -141,10 +145,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 const Text('على روح المغفور له بإذن الله', textAlign: TextAlign.center, style: TextStyle(color: cream, fontSize: 17, height: 1.7)),
                 const SizedBox(height: 3),
                 const Text('عبدالوكيل عبدالسيد محمد', textAlign: TextAlign.center, style: TextStyle(color: gold, fontSize: 25, fontWeight: FontWeight.w800, height: 1.5)),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                   decoration: BoxDecoration(
                     color: const Color(0xFF10473D),
                     borderRadius: BorderRadius.circular(18),
@@ -153,17 +157,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   child: const Column(children: [
                     Icon(Icons.menu_book_outlined, color: gold, size: 22),
                     SizedBox(height: 8),
-                    Text('اللهم اغفر له وارحمه وعافه واعف عنه، وأكرم نزله ووسع مدخله', textAlign: TextAlign.center, style: TextStyle(color: cream, fontSize: 17, height: 1.85)),
+                    Text('اللهم اغفر له وارحمه وعافه واعف عنه، وأكرم نزله ووسع مدخله', textAlign: TextAlign.center, style: TextStyle(color: cream, fontSize: 15, height: 1.5)),
                   ]),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 8),
                 _PrayerHeart(count: _count, onTap: _pray),
                 const SizedBox(height: 8),
                 const Text('اضغط على القلب ثلاث مرات وادعُ له بالرحمة', textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 12)),
               ]),
+              ),
             ),
           ),
-        ),
+        )),
       ),
     ),
   );
@@ -185,14 +190,14 @@ class _PrayerHeart extends StatelessWidget {
         onTap: count < 3 ? onTap : null,
         borderRadius: BorderRadius.circular(90),
         child: SizedBox(
-          width: 200,
-          height: 180,
+          width: 150,
+          height: 128,
           child: Stack(alignment: Alignment.center, children: [
-            const Icon(Icons.favorite, size: 180, color: Color(0xFFB68B4E)),
-            const Icon(Icons.favorite, size: 165, color: Color(0xFF17584A)),
+            const Icon(Icons.favorite, size: 128, color: Color(0xFFB68B4E)),
+            const Icon(Icons.favorite, size: 118, color: Color(0xFF17584A)),
             const Padding(
               padding: EdgeInsets.only(top: 4),
-              child: Text('اللهم ارحمه\nواغفر له', textAlign: TextAlign.center, style: TextStyle(color: cream, fontSize: 19, fontWeight: FontWeight.w800, height: 1.5)),
+              child: Text('اللهم ارحمه\nواغفر له', textAlign: TextAlign.center, style: TextStyle(color: cream, fontSize: 15, fontWeight: FontWeight.w800, height: 1.3)),
             ),
           ]),
         ),
