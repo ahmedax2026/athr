@@ -17,7 +17,7 @@ class MushafPageReader extends StatefulWidget {
 class _MushafPageReaderState extends State<MushafPageReader> {
   late final PageController controller;
   int page = 1;
-  bool controls = true;
+  bool controls = false;
   bool night = false;
   List<dynamic> surahs = [];
   int? bookmarkedPage;
@@ -42,6 +42,24 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('mushaf_bookmark_page', page);
     if (mounted) setState(() => bookmarkedPage = page);
+  }
+
+  void _changeZoom(double factor) {
+    final current = zoomController.value.getMaxScaleOnAxis();
+    final next = (current * factor).clamp(1.0, 5.0);
+    final size = MediaQuery.sizeOf(context);
+    final center = Offset(size.width / 2, size.height / 2);
+    final matrix = Matrix4.identity()
+      ..translate(center.dx, center.dy)
+      ..scale(next)
+      ..translate(-center.dx, -center.dy);
+    zoomController.value = matrix;
+    setState(() => zoomed = next > 1.01);
+  }
+
+  void _resetZoom() {
+    zoomController.value = Matrix4.identity();
+    setState(() => zoomed = false);
   }
 
   void _jump(int value) {
@@ -113,6 +131,11 @@ class _MushafPageReaderState extends State<MushafPageReader> {
         Text(label, style: const TextStyle(color: Colors.white, fontSize: 13)),
       ])));
 
+  Widget _zoomButton(IconData icon, String tooltip, VoidCallback onPressed) =>
+    Material(color: const Color(0xD9000000), borderRadius: BorderRadius.circular(12),
+      child: IconButton(tooltip: tooltip, icon: Icon(icon, color: Colors.white),
+        onPressed: onPressed));
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: night ? const Color(0xFF10241F) : _green,
@@ -137,6 +160,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                 minScale: 1, maxScale: 5,
                 panEnabled: zoomed,
                 onInteractionEnd: (_) {
+                  if (index + 1 != page) return;
                   final active = zoomController.value.getMaxScaleOnAxis() > 1.01;
                   if (mounted && zoomed != active) setState(() => zoomed = active);
                 },
@@ -151,6 +175,14 @@ class _MushafPageReaderState extends State<MushafPageReader> {
             return child;
           },
         )),
+        Positioned(right: 10, bottom: controls ? 192 : 26,
+          child: SafeArea(top: false, child: Column(children: [
+            _zoomButton(Icons.add, 'تكبير', () => _changeZoom(1.35)),
+            const SizedBox(height: 8),
+            _zoomButton(Icons.remove, 'تصغير', () => _changeZoom(1 / 1.35)),
+            const SizedBox(height: 8),
+            _zoomButton(Icons.fullscreen, 'ملء الصفحة', _resetZoom),
+          ]))),
         if (controls) Positioned(top: 0, left: 0, right: 0,
           child: SafeArea(bottom: false, child: Container(color: const Color(0xD9000000), padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
             child: Row(children: [
