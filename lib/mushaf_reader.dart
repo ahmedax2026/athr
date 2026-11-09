@@ -117,7 +117,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: night ? const Color(0xFF10241F) : _green,
     appBar: null,
-    body: SafeArea(child: Stack(children: [
+    body: Stack(children: [
         Positioned.fill(child: PageView.builder(
           controller: controller,
           reverse: true,
@@ -134,7 +134,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               onTap: () => setState(() => controls = !controls),
               child: InteractiveViewer(
                 transformationController: index + 1 == page ? zoomController : null,
-                minScale: 1, maxScale: 4,
+                minScale: 1, maxScale: 5,
                 panEnabled: zoomed,
                 onInteractionEnd: (_) {
                   final active = zoomController.value.getMaxScaleOnAxis() > 1.01;
@@ -152,7 +152,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
           },
         )),
         if (controls) Positioned(top: 0, left: 0, right: 0,
-          child: Container(color: const Color(0xD9000000), padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          child: SafeArea(bottom: false, child: Container(color: const Color(0xD9000000), padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
             child: Row(children: [
               IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
               Expanded(child: Column(children: [
@@ -161,8 +161,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               ])),
               IconButton(icon: const Icon(Icons.brightness_6, color: Colors.white),
                 onPressed: () => setState(() => night = !night)),
-            ]))),
-        if (controls) Positioned(bottom: 0, left: 0, right: 0, child: Container(
+            ])))),
+        if (controls) Positioned(bottom: 0, left: 0, right: 0, child: SafeArea(top: false, child: Container(
           margin: const EdgeInsets.fromLTRB(9, 4, 9, 7),
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           decoration: BoxDecoration(color: const Color(0xE9000000),
@@ -187,7 +187,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               _overlayAction(Icons.chevron_left, 'التالي', () => _jump(page + 1)),
             ]),
           ]),
-        )),
-      ])),
+        ))),
+      ]),
   );
 }
