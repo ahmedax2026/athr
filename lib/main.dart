@@ -8,25 +8,60 @@ const muted = Color(0xFFB9C9BD);
 
 void main() => runApp(const AthrApp());
 
-class AthrApp extends StatelessWidget {
+class AthrApp extends StatefulWidget {
   const AthrApp({super.key});
+  @override
+  State<AthrApp> createState() => _AthrAppState();
+}
+
+class _AthrAppState extends State<AthrApp> {
+  ThemeMode _mode = ThemeMode.system;
+
+  void _toggleTheme() {
+    final brightness = MediaQuery.platformBrightnessOf(context);
+    final isDark = _mode == ThemeMode.dark ||
+        (_mode == ThemeMode.system && brightness == Brightness.dark);
+    setState(() => _mode = isDark ? ThemeMode.light : ThemeMode.dark);
+  }
+
+  ThemeData _theme(Brightness brightness) {
+    final dark = brightness == Brightness.dark;
+    final background = dark ? deep : const Color(0xFFF8F5ED);
+    final surface = dark ? emerald : Colors.white;
+    final foreground = dark ? cream : const Color(0xFF173C32);
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      scaffoldBackgroundColor: background,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: emerald,
+        brightness: brightness,
+      ).copyWith(primary: dark ? gold : emerald, surface: surface),
+      appBarTheme: AppBarTheme(
+        backgroundColor: background,
+        foregroundColor: foreground,
+        centerTitle: true,
+        elevation: 0,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'أثر لا ينقطع',
     debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      scaffoldBackgroundColor: deep,
-      colorScheme: ColorScheme.fromSeed(seedColor: emerald, brightness: Brightness.dark).copyWith(primary: gold, surface: emerald),
-      appBarTheme: const AppBarTheme(backgroundColor: deep, foregroundColor: cream, centerTitle: true),
-    ),
-    builder: (context, child) => Directionality(textDirection: TextDirection.rtl, child: child!),
-    home: const WelcomeScreen(),
+    theme: _theme(Brightness.light),
+    darkTheme: _theme(Brightness.dark),
+    themeMode: _mode,
+    builder: (context, child) =>
+        Directionality(textDirection: TextDirection.rtl, child: child!),
+    home: WelcomeScreen(onToggleTheme: _toggleTheme),
   );
 }
 
 class WelcomeScreen extends StatefulWidget {
-  const WelcomeScreen({super.key});
+  const WelcomeScreen({super.key, this.onToggleTheme});
+  final VoidCallback? onToggleTheme;
   @override
   State<WelcomeScreen> createState() => _WelcomeScreenState();
 }
@@ -43,7 +78,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         backgroundColor: emerald,
       ));
       Future<void>.delayed(const Duration(milliseconds: 1100), () {
-        if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: (_) => const HomeScreen()));
+        if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: (_) => HomeScreen(onToggleTheme: widget.onToggleTheme)));
       });
     }
   }
@@ -59,6 +94,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
               child: Column(children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    key: const ValueKey('theme-toggle'),
+                    tooltip: 'تغيير المظهر',
+                    onPressed: widget.onToggleTheme,
+                    icon: const Icon(Icons.brightness_6_outlined, color: gold),
+                  ),
+                ),
                 const Icon(Icons.auto_awesome, color: gold, size: 23),
                 const SizedBox(height: 8),
                 const Text('أَثَرٌ لَا يَنْقَطِع', style: TextStyle(color: gold, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 1)),
@@ -152,7 +196,8 @@ class _PrayerHeart extends StatelessWidget {
 }
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.onToggleTheme});
+  final VoidCallback? onToggleTheme;
   static const sections = [
     ('القرآن الكريم', 'آيات تتلى وأجر يبقى', Icons.menu_book_outlined),
     ('الأذكار', 'ذكر يطمئن القلب', Icons.auto_awesome_outlined),
@@ -160,60 +205,132 @@ class HomeScreen extends StatelessWidget {
     ('مواقيت الصلاة', 'تذكير بمواقيت الصلاة', Icons.access_time),
     ('الختمات الجماعية', 'ختمة يجتمع عليها الأحبة', Icons.groups_outlined),
   ];
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('أثر لا ينقطع', style: TextStyle(color: gold, fontWeight: FontWeight.bold))),
-    body: SafeArea(
-      child: LayoutBuilder(builder: (context, size) {
-        final maxWidth = size.maxWidth > 650 ? 650.0 : size.maxWidth;
-        final tileWidth = (maxWidth - 52) / 2;
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(18),
-          child: Center(child: SizedBox(width: maxWidth, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Color(0xFF176451), emerald]),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: gold.withValues(alpha: 0.55)),
-              ),
-              child: Row(children: [
-                ClipOval(child: Image.asset('assets/images/father.jpg', width: 70, height: 70, fit: BoxFit.contain)),
-                const SizedBox(width: 14),
-                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('أهلًا بك', style: TextStyle(color: gold, fontSize: 23, fontWeight: FontWeight.w800)),
-                  SizedBox(height: 4),
-                  Text('صدقة جارية على روح عبدالوكيل عبدالسيد محمد', style: TextStyle(color: cream, height: 1.5, fontSize: 13)),
-                ])),
-              ]),
-            ),
-            const SizedBox(height: 20),
-            const Text('أبواب الخير', style: TextStyle(color: gold, fontSize: 22, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 5),
-            const Text('نورٌ يبقى، ودعاءٌ يصل.', style: TextStyle(color: muted, fontSize: 14)),
-            const SizedBox(height: 16),
-            Wrap(spacing: 12, runSpacing: 12, children: [
-              for (final s in sections)
-                SizedBox(width: tileWidth, child: Container(
-                  constraints: const BoxConstraints(minHeight: 148),
-                  padding: const EdgeInsets.all(15),
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fg = isDark ? cream : const Color(0xFF163C32);
+    final secondary = isDark ? muted : const Color(0xFF647A6E);
+    final tile = isDark ? const Color(0xFF10473D) : Colors.white;
+    final accent = isDark ? gold : const Color(0xFF94702F);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('أثر لا ينقطع', style: TextStyle(color: accent, fontWeight: FontWeight.w800)),
+        actions: [
+          IconButton(
+            key: const ValueKey('home-theme-toggle'),
+            tooltip: isDark ? 'الوضع الفاتح' : 'الوضع الداكن',
+            onPressed: onToggleTheme,
+            icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: LayoutBuilder(builder: (context, size) {
+          final maxWidth = size.maxWidth > 650 ? 650.0 : size.maxWidth;
+          final tileWidth = (maxWidth - 52) / 2;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+            child: Center(child: SizedBox(width: maxWidth, child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10473D),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: gold.withValues(alpha: 0.3)),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topRight,
+                      end: Alignment.bottomLeft,
+                      colors: [Color(0xFF176451), Color(0xFF06372F)],
+                    ),
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: gold.withValues(alpha: 0.6)),
+                    boxShadow: [BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.09),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    )],
                   ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Icon(s.$3, color: gold, size: 30),
-                    const SizedBox(height: 13),
-                    Text(s.$1, style: const TextStyle(color: cream, fontWeight: FontWeight.w800, fontSize: 16)),
-                    const SizedBox(height: 6),
-                    Text(s.$2, style: const TextStyle(color: muted, fontSize: 12, height: 1.5)),
+                  child: Row(children: [
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: gold),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.asset(
+                          'assets/images/father.jpg',
+                          width: 80, height: 94, fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 15),
+                    const Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+                            style: TextStyle(color: gold, fontSize: 13)),
+                        SizedBox(height: 8),
+                        Text('أهلًا بك في أثر لا ينقطع',
+                            style: TextStyle(color: cream, fontSize: 19, fontWeight: FontWeight.w800, height: 1.5)),
+                        SizedBox(height: 5),
+                        Text('صدقة جارية على روح عبدالوكيل عبدالسيد محمد',
+                            style: TextStyle(color: Color(0xFFE4E9D9), fontSize: 12, height: 1.6)),
+                      ],
+                    )),
                   ]),
-                )),
-            ]),
-          ]))),
-        );
-      }),
-    ),
-  );
+                ),
+                const SizedBox(height: 24),
+                Text('أبواب الخير', style: TextStyle(color: fg, fontSize: 25, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 5),
+                Text('نورٌ يبقى، ودعاءٌ يصل.', style: TextStyle(color: secondary, fontSize: 14)),
+                const SizedBox(height: 17),
+                Wrap(spacing: 12, runSpacing: 12, children: [
+                  for (final s in sections)
+                    SizedBox(
+                      width: tileWidth,
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 160),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: tile,
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(color: accent.withValues(alpha: 0.28)),
+                          boxShadow: [BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.10 : 0.045),
+                            blurRadius: 14, offset: const Offset(0, 5),
+                          )],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 48, height: 48,
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: Icon(s.$3, color: accent, size: 27),
+                            ),
+                            const SizedBox(height: 13),
+                            Text(s.$1, style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 16)),
+                            const SizedBox(height: 7),
+                            Text(s.$2, style: TextStyle(color: secondary, fontSize: 12, height: 1.5)),
+                          ],
+                        ),
+                      ),
+                    ),
+                ]),
+                const SizedBox(height: 25),
+                Center(child: Text('اللهم اجعل هذا العمل نورًا ورحمةً له',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: secondary, fontSize: 13, height: 1.6))),
+              ],
+            ))),
+          );
+        }),
+      ),
+    );
+  }
 }
