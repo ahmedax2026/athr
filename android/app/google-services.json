@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "429228627496",
+    "project_id": "athr-la-yanqati",
+    "storage_bucket": "athr-la-yanqati.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:429228627496:android:e9b538487fdebd7c00c71d",
+        "android_client_info": {
+          "package_name": "com.atharlayanqati.athr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTrVTEoONQFSWtZjFNJT-D52eOWbkRudQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
