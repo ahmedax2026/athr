@@ -75,11 +75,7 @@ class _QuranScreenState extends State<QuranScreen> {
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => MushafPageReader(initialPage: entry['page'] as int)));
     loadProgress();
-    return;
-    // Legacy flowing-text reader retained for future accessibility mode.
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => QuranSurahScreen(number: number, name: name, initialAyah: scrollTo)));
-    loadProgress();
+
   }
 
   @override
