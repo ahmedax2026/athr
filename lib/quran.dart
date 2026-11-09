@@ -43,6 +43,17 @@ class _QuranScreenState extends State<QuranScreen> {
   }
   void _index() => Navigator.push(context, MaterialPageRoute<void>(
     builder: (_) => const QuranIndexScreen()));
+  // Starting pages of the 30 juz in the 604-page Madinah Mushaf.
+  static const List<int> juzStartPages = [
+    1, 22, 42, 62, 82, 102, 121, 142, 162, 182,
+    201, 222, 242, 262, 282, 302, 322, 342, 362, 382,
+    402, 422, 442, 462, 482, 502, 522, 542, 562, 582,
+  ];
+
+  void _juz() {
+    Navigator.push(context, MaterialPageRoute<void>(
+      builder: (_) => const QuranJuzScreen()));
+  }
   void _pages() async {
     final choice = await showDialog<int>(context: context, builder: (context) {
       int value = lastPage;
@@ -100,8 +111,7 @@ class _QuranScreenState extends State<QuranScreen> {
                 childAspectRatio: .96,
                 children: [
                   _shortcut(Icons.menu_book_rounded, 'فهرس السور', _index),
-                  _shortcut(Icons.layers_rounded, 'الأجزاء', _pages),
-                  _shortcut(Icons.bookmark_outline_rounded, 'الأحزاب', _pages),
+                  _shortcut(Icons.layers_rounded, 'الأجزاء', _juz),
                   _shortcut(Icons.star_border_rounded, 'علاماتي', () => _read(lastPage)),
                   _shortcut(Icons.access_time_rounded, 'آخر قراءة', () => _read(lastPage)),
                   _shortcut(Icons.article_outlined, 'الصفحات', _pages),
@@ -138,6 +148,47 @@ class _QuranScreenState extends State<QuranScreen> {
           FittedBox(fit: BoxFit.scaleDown, child: Text(title,
             style: const TextStyle(fontSize: 17, color: darkInk, fontWeight: FontWeight.w800))),
         ])));
+}
+
+class QuranJuzScreen extends StatelessWidget {
+  const QuranJuzScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: emerald,
+    appBar: AppBar(
+      backgroundColor: emerald, foregroundColor: cream, centerTitle: true,
+      title: const Text('أجزاء القرآن الكريم',
+        style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800))),
+    body: ListView.builder(
+      padding: const EdgeInsets.all(14),
+      itemCount: _QuranScreenState.juzStartPages.length,
+      itemBuilder: (context, index) {
+        final page = _QuranScreenState.juzStartPages[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+              builder: (_) => MushafPageReader(initialPage: page))),
+            child: _IvoryPanel(child: Row(children: [
+              CircleAvatar(backgroundColor: emerald,
+                child: Text('${index + 1}', style: const TextStyle(
+                  color: cream, fontWeight: FontWeight.w900))),
+              const SizedBox(width: 14),
+              Expanded(child: Text('الجزء ${index + 1}',
+                style: const TextStyle(fontSize: 21,
+                  color: darkInk, fontWeight: FontWeight.w900))),
+              Text('صفحة $page', style: const TextStyle(
+                fontSize: 15, color: darkInk, fontWeight: FontWeight.w700)),
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_left, color: darkInk),
+            ])),
+          ),
+        );
+      },
+    ),
+  );
 }
 
 class QuranOrnament extends StatelessWidget {
