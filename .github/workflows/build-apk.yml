@@ -32,6 +32,11 @@ jobs:
       - name: Bundle verified Quran text for offline use
         run: python3 tool/bundle_quran.py
 
+      - name: Bundle printed Madinah mushaf pages for offline reading
+        run: |
+          python3 -m pip install --quiet cairosvg Pillow
+          python3 tool/bundle_mushaf.py
+
       - name: Get dependencies
         run: flutter pub get
 
