@@ -67,6 +67,31 @@ class _MushafPageReaderState extends State<MushafPageReader> {
       duration: const Duration(milliseconds: 250), curve: Curves.easeInOut);
   }
 
+  Future<void> _chooseJuz() async {
+    const starts = [
+      1, 22, 42, 62, 82, 102, 121, 142, 162, 182,
+      201, 222, 242, 262, 282, 302, 322, 342, 362, 382,
+      402, 422, 442, 462, 482, 502, 522, 542, 562, 582,
+    ];
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(child: SizedBox(
+        height: MediaQuery.sizeOf(ctx).height * .72,
+        child: ListView.builder(
+          itemCount: starts.length,
+          itemBuilder: (ctx, i) => ListTile(
+            leading: CircleAvatar(child: Text('${i + 1}')),
+            title: Text('الجزء ${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800)),
+            trailing: Text('صفحة ${starts[i]}'),
+            onTap: () => Navigator.pop(ctx, starts[i]),
+          ),
+        ),
+      )),
+    );
+    if (selected != null) _jump(selected);
+  }
+
   Future<void> _choosePage() async {
     final result = await showDialog<int>(context: context, builder: (ctx) {
       var value = page;
@@ -202,7 +227,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
           child: Column(children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
               _overlayAction(Icons.menu_book, 'الفهرس', _chooseSurah),
-              _overlayAction(Icons.layers, 'الأجزاء', _choosePage),
+              _overlayAction(Icons.layers, 'الأجزاء', _chooseJuz),
               _overlayAction(Icons.article_outlined, 'الصفحات', _choosePage),
               _overlayAction(Icons.search, 'بحث', () {
                 ScaffoldMessenger.of(context).showSnackBar(
