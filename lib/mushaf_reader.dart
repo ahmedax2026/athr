@@ -50,9 +50,9 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     final size = MediaQuery.sizeOf(context);
     final center = Offset(size.width / 2, size.height / 2);
     final matrix = Matrix4.identity()
-      ..translate(center.dx, center.dy)
-      ..scale(next)
-      ..translate(-center.dx, -center.dy);
+      ..translateByDouble(center.dx, center.dy, 0, 1)
+      ..scaleByDouble(next, next, 1, 1)
+      ..translateByDouble(-center.dx, -center.dy, 0, 1);
     zoomController.value = matrix;
     setState(() => zoomed = next > 1.01);
   }
