@@ -86,7 +86,7 @@ class _QuranScreenState extends State<QuranScreen> {
               const SizedBox(height: 24),
               TextField(readOnly: true, onTap: _index,
                 decoration: InputDecoration(
-                  hintText: 'ابحث عن سورة...', hintTextDirection: TextDirection.rtl,
+                  hintText: 'ابحث عن سورة...',
                   suffixIcon: const Icon(Icons.search, size: 30, color: Colors.black),
                   filled: true, fillColor: const Color(0xFFFFFCF4),
                   contentPadding: const EdgeInsets.symmetric(vertical: 17, horizontal: 22),
