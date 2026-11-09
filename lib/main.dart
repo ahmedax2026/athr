@@ -217,7 +217,7 @@ class HomeScreen extends StatelessWidget {
     ('السبحة', 'مساحة للتسبيح والدعاء', Icons.favorite_outline),
     ('مواقيت الصلاة', 'تذكير بمواقيت الصلاة', Icons.access_time),
     ('الختمات الجماعية', 'ختمة يجتمع عليها الأحبة', Icons.groups_outlined),
-    ('فك كرب', 'أدعية لتفريج الهموم', Icons.volunteer_activism_outlined),
+    ('فك كرب', 'ساهم في تفريج كرب المحتاجين', Icons.volunteer_activism_outlined),
   ];
 
   @override
@@ -358,6 +358,21 @@ class HomeScreen extends StatelessWidget {
                     ),
                 ]),
                 const SizedBox(height: 25),
+                OutlinedButton.icon(
+                  key: const ValueKey('contact-us-button'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const ContactUsScreen())),
+                  icon: const Icon(Icons.support_agent_outlined),
+                  label: const Text('تواصل معنا'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(56),
+                    foregroundColor: accent,
+                    side: BorderSide(color: accent),
+                    textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                  ),
+                ),
+                const SizedBox(height: 18),
                 Center(child: Text('اللهم اجعل هذا العمل نورًا ورحمةً له',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: secondary, fontSize: 13, height: 1.6))),
@@ -368,4 +383,32 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class ContactUsScreen extends StatelessWidget {
+  const ContactUsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('تواصل معنا')),
+    body: const Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.support_agent_outlined, size: 72, color: gold),
+            SizedBox(height: 18),
+            Text('تواصل معنا', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            SizedBox(height: 12),
+            Text(
+              'قنوات التواصل الرسمية ستظهر هنا فور إضافتها من إدارة التطبيق.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, height: 1.7),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
