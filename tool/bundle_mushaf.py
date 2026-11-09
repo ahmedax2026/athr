@@ -22,11 +22,14 @@ def download(url):
 
 def build_page(n):
     dest = OUT / f"{n:03}.webp"
-    if dest.exists() and dest.stat().st_size > 1000:
-        return
+    # Always rebuild: older pages may have been rendered with a black background.
     svg = download(f"{BASE}/svg/{n:03}.svg")
     png = cairosvg.svg2png(bytestring=svg, output_width=900)
-    image = Image.open(BytesIO(png)).convert("RGB")
+    rendered = Image.open(BytesIO(png)).convert("RGBA")
+    # SVG pages have a transparent background. Converting directly to RGB
+    # turns transparency black and makes the dark Quran glyphs invisible.
+    image = Image.new("RGB", rendered.size, (255, 252, 242))
+    image.paste(rendered, mask=rendered.getchannel("A"))
     image.save(dest, "WEBP", quality=88, method=4)
     assert dest.stat().st_size > 1000, f"Invalid page {n}"
 
