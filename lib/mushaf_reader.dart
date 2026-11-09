@@ -141,9 +141,9 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     backgroundColor: night ? const Color(0xFF10241F) : _green,
     appBar: null,
     body: Stack(children: [
-        Positioned.fill(child: PageView.builder(
+        Positioned.fill(child: Directionality(textDirection: TextDirection.rtl, child: PageView.builder(
           controller: controller,
-          reverse: true,
+          reverse: false,
           physics: zoomed ? const NeverScrollableScrollPhysics() : const PageScrollPhysics(),
           itemCount: 604,
           onPageChanged: (index) {
