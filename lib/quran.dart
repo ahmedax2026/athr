@@ -22,12 +22,11 @@ const _gold = Color(0xFFC5A052);
 const _ivory = Color(0xFFFFF8E7);
 
 class _GoldFrame extends StatelessWidget {
-  const _GoldFrame({required this.child, this.padding = const EdgeInsets.all(16)});
+  const _GoldFrame({required this.child});
   final Widget child;
-  final EdgeInsets padding;
   @override
   Widget build(BuildContext context) => Container(
-    padding: padding,
+    padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
       color: _ivory,
       borderRadius: BorderRadius.circular(22),
@@ -148,7 +147,7 @@ class _QuranScreenState extends State<QuranScreen> {
                   ])),
                   const Icon(Icons.menu_book_rounded, color: _gold),
                 ]))),
-              )),
+              ),
         ])));
     }),
   );
