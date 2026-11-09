@@ -7,8 +7,9 @@ import 'mushaf_reader.dart';
 import 'interactive_quran_reader.dart';
 
 const emerald = Color(0xFF003D30);
-const gold = Color(0xFFBE9442);
+const gold = Color(0xFFFFD77A);
 const cream = Color(0xFFFFF8E6);
+const darkInk = Color(0xFF17251E);
 
 class QuranService {
   static Future<List<dynamic>> fetchAll() async {
@@ -136,7 +137,7 @@ class _QuranScreenState extends State<QuranScreen> {
           Icon(icon, color: const Color(0xFF896B21), size: 38),
           const SizedBox(height: 11),
           FittedBox(fit: BoxFit.scaleDown, child: Text(title,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold))),
+            style: const TextStyle(fontSize: 17, color: darkInk, fontWeight: FontWeight.w800))),
         ])));
 }
 
@@ -151,7 +152,7 @@ class _ArchPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final line = Paint()..color = gold..style = PaintingStyle.stroke..strokeWidth = 1.7;
-    final faint = Paint()..color = gold.withValues(alpha: .38)
+    final faint = Paint()..color = gold.withValues(alpha: .65)
       ..style = PaintingStyle.stroke..strokeWidth = .8;
     final w = size.width, h = size.height;
     final arch = Path()
@@ -187,8 +188,8 @@ class _SurahRosette extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(width: 58, height: 58,
     child: Stack(alignment: Alignment.center, children: [
       CustomPaint(size: const Size(58,58), painter: _RosettePainter()),
-      Text('$number', style: const TextStyle(fontSize: 20,
-        fontWeight: FontWeight.bold, color: Color(0xFF29261C))),
+      Text('$number', style: const TextStyle(fontSize: 22,
+        fontWeight: FontWeight.w900, color: Color(0xFF111A14))),
     ]));
 }
 
@@ -196,7 +197,7 @@ class _RosettePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width/2, size.height/2);
-    final paint = Paint()..color = gold..style = PaintingStyle.stroke..strokeWidth = 1.6;
+    final paint = Paint()..color = const Color(0xFF735315)..style = PaintingStyle.stroke..strokeWidth = 2.2;
     for (final (radius, offset) in [(26.0, 0.0), (23.0, math.pi/8)]) {
       final path = Path();
       for (var i=0; i<16; i++) {
@@ -220,8 +221,8 @@ class _IvoryPanel extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(17),
     decoration: BoxDecoration(
-      gradient: const LinearGradient(colors: [Color(0xFFFFFDF4), Color(0xFFF6EACD)]),
-      border: Border.all(color: gold, width: 1.4),
+      gradient: const LinearGradient(colors: [Color(0xFFFFFFFF), Color(0xFFFFF4D8)]),
+      border: Border.all(color: const Color(0xFF9C7226), width: 1.8),
       borderRadius: BorderRadius.circular(20),
       boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 10)]),
     child: child);
@@ -274,8 +275,8 @@ class _QuranIndexScreenState extends State<QuranIndexScreen> {
                           border: Border.all(color: gold, width: 1.5),
                           borderRadius: BorderRadius.circular(20)),
                         child: Text(label, textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,
-                            color: tab == index ? gold : Colors.black)))))),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
+                            color: tab == index ? const Color(0xFFFFFFFF) : darkInk)))))),
               ])),
             Padding(padding: const EdgeInsets.all(10),
               child: TextField(onChanged: (v) => setState(() => search = v.trim()),
@@ -289,13 +290,13 @@ class _QuranIndexScreenState extends State<QuranIndexScreen> {
                 return Padding(padding: const EdgeInsets.only(bottom: 6),
                   child: InkWell(onTap: () => _open(n, pages.data!),
                     child: _IvoryPanel(child: Row(children: [
-                      const Icon(Icons.volume_up_outlined, color: Color(0xFF8B6C24), size: 28),
+                      const Icon(Icons.volume_up_outlined, color: Color(0xFF56400C), size: 28),
                       const SizedBox(width: 8),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                         Text('سورة ${s['name']}', style: const TextStyle(fontSize: 23,
-                          fontWeight: FontWeight.bold)),
+                          color: darkInk, fontWeight: FontWeight.w800)),
                         Text('${(s['ayahs'] as List).length} آية • ${isMadani ? 'مدنية' : 'مكية'}',
-                          style: const TextStyle(fontSize: 16, color: Color(0xFF5B5447))),
+                          style: const TextStyle(fontSize: 16, color: Color(0xFF36352E))),
                       ])),
                       const SizedBox(width: 14),
                       _SurahRosette(number: n),
