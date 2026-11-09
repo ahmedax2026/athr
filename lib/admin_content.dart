@@ -57,8 +57,10 @@ class _AdminContentEditorState extends State<AdminContentEditor> {
       };
       await FirebaseFirestore.instance.collection(widget.collection)
         .doc(widget.document).set(data, SetOptions(merge: true));
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حفظ التغييرات بنجاح')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم حفظ التغييرات بنجاح')));
+      }
     } catch (_) {
       if (mounted) setState(() => error = 'فشل الحفظ. راجع الاتصال وقواعد Firestore.');
     } finally {
