@@ -27,7 +27,7 @@ void main() {
     expect(find.text('اللهم اغفر له وارحمه وعافه واعف عنه، وأكرم نزله ووسع مدخله'),
         findsOneWidget);
     expect(find.text('0/3'), findsOneWidget);
-    expect(find.text('الصورة غير متاحة حاليًا'), findsOneWidget);
+    expect(find.byType(Image), findsWidgets);
 
     final prayerButton = find.byKey(const ValueKey('welcome-pray-button'));
     for (var tap = 0; tap < 3; tap++) {
