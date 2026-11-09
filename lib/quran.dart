@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -141,15 +142,74 @@ class _QuranScreenState extends State<QuranScreen> {
 class QuranOrnament extends StatelessWidget {
   const QuranOrnament({super.key});
   @override
-  Widget build(BuildContext context) => SizedBox(height: 68,
-    child: Stack(alignment: Alignment.topCenter, children: [
-      Container(height: 36, decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: gold, width: 2)),
-        borderRadius: const BorderRadius.vertical(bottom: Radius.elliptical(180, 70)))),
-      const Positioned(top: 4, child: Icon(Icons.auto_awesome, color: gold, size: 35)),
-      const Positioned(left: 18, top: 8, child: Icon(Icons.star, color: gold, size: 17)),
-      const Positioned(right: 18, top: 8, child: Icon(Icons.star, color: gold, size: 17)),
+  Widget build(BuildContext context) => SizedBox(height: 80,
+    child: CustomPaint(painter: _ArchPainter()));
+}
+
+class _ArchPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final line = Paint()..color = gold..style = PaintingStyle.stroke..strokeWidth = 1.7;
+    final faint = Paint()..color = gold.withValues(alpha: .38)
+      ..style = PaintingStyle.stroke..strokeWidth = .8;
+    final w = size.width, h = size.height;
+    final arch = Path()
+      ..moveTo(0, 2)..lineTo(w, 2)..lineTo(w, 21)
+      ..quadraticBezierTo(w*.86, 17, w*.78, 37)
+      ..quadraticBezierTo(w*.69, 54, w*.62, 37)
+      ..quadraticBezierTo(w*.5, 14, w*.38, 37)
+      ..quadraticBezierTo(w*.31, 54, w*.22, 37)
+      ..quadraticBezierTo(w*.14, 17, 0, 21)..close();
+    canvas.drawPath(arch, line);
+    for (var x = 8.0; x < w; x += 22) {
+      canvas.drawLine(Offset(x, 2), Offset(x + 15, 22), faint);
+      canvas.drawLine(Offset(x + 15, 2), Offset(x, 22), faint);
+    }
+    for (final x in [w*.14,w*.86]) {
+      canvas.drawLine(Offset(x, 19), Offset(x, 56), line);
+      canvas.drawCircle(Offset(x, 60), 3, line);
+    }
+    final rays = Paint()..color = const Color(0x33FFE3A0)
+      ..strokeWidth = 2..style = PaintingStyle.stroke;
+    for (var i = -3; i <= 3; i++) {
+      canvas.drawLine(Offset(w/2, 0), Offset(w/2 + i*28, h), rays);
+    }
+  }
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _SurahRosette extends StatelessWidget {
+  const _SurahRosette({required this.number});
+  final int number;
+  @override
+  Widget build(BuildContext context) => SizedBox(width: 58, height: 58,
+    child: Stack(alignment: Alignment.center, children: [
+      CustomPaint(size: const Size(58,58), painter: _RosettePainter()),
+      Text('$number', style: const TextStyle(fontSize: 20,
+        fontWeight: FontWeight.bold, color: Color(0xFF29261C))),
     ]));
+}
+
+class _RosettePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width/2, size.height/2);
+    final paint = Paint()..color = gold..style = PaintingStyle.stroke..strokeWidth = 1.6;
+    for (final (radius, offset) in [(26.0, 0.0), (23.0, math.pi/8)]) {
+      final path = Path();
+      for (var i=0; i<16; i++) {
+        final a = i*math.pi/8+offset;
+        final r = i.isEven ? radius : radius*.84;
+        final point = Offset(center.dx+math.cos(a)*r, center.dy+math.sin(a)*r);
+        if (i==0) { path.moveTo(point.dx,point.dy); }
+        else { path.lineTo(point.dx,point.dy); }
+      }
+      canvas.drawPath(path..close(), paint);
+    }
+  }
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _IvoryPanel extends StatelessWidget {
@@ -230,19 +290,15 @@ class _QuranIndexScreenState extends State<QuranIndexScreen> {
                   child: InkWell(onTap: () => _open(n, pages.data!),
                     child: _IvoryPanel(child: Row(children: [
                       const Icon(Icons.volume_up_outlined, color: Color(0xFF8B6C24), size: 28),
-                      const Spacer(),
-                      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      const SizedBox(width: 8),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                         Text('سورة ${s['name']}', style: const TextStyle(fontSize: 23,
                           fontWeight: FontWeight.bold)),
                         Text('${(s['ayahs'] as List).length} آية • ${isMadani ? 'مدنية' : 'مكية'}',
                           style: const TextStyle(fontSize: 16, color: Color(0xFF5B5447))),
-                      ]),
+                      ])),
                       const SizedBox(width: 14),
-                      Container(width: 50, height: 50, alignment: Alignment.center,
-                        decoration: BoxDecoration(shape: BoxShape.circle,
-                          border: Border.all(color: gold, width: 2)),
-                        child: Text('$n', style: const TextStyle(fontSize: 20,
-                          fontWeight: FontWeight.bold))),
+                      _SurahRosette(number: n),
                     ]))));
               })),
           ])));
