@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'mushaf_reader.dart';
+import 'interactive_quran_reader.dart';
 
 const emerald = Color(0xFF003D30);
 const gold = Color(0xFFBE9442);
@@ -241,7 +242,7 @@ class _QuranIndexScreenState extends State<QuranIndexScreen> {
   Future<void> _open(int number, List<dynamic> index) async {
     final entry = index.firstWhere((s) => s['number'] == number);
     await Navigator.push(context, MaterialPageRoute<void>(
-      builder: (_) => MushafPageReader(initialPage: entry['page'] as int)));
+      builder: (_) => InteractiveQuranReader(surahNumber: number)));
   }
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -320,6 +321,6 @@ class QuranSurahScreen extends StatelessWidget {
       if (!snapshot.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
       final index = jsonDecode(snapshot.data!) as List<dynamic>;
       final page = (index.firstWhere((s) => s['number'] == number)['page'] as int);
-      return MushafPageReader(initialPage: page);
+      return InteractiveQuranReader(surahNumber: number);
     });
 }
