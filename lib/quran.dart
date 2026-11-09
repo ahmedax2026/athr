@@ -1,21 +1,17 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class QuranService {
-  static Future<dynamic> fetch(String path) async {
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
-    try {
-      final request = await client.getUrl(Uri.parse('https://api.alquran.cloud/v1/$path'));
-      final response = await request.close().timeout(const Duration(seconds: 20));
-      if (response.statusCode != 200) throw const HttpException('تعذر تحميل القرآن');
-      final json = jsonDecode(await utf8.decoder.bind(response).join()) as Map<String, dynamic>;
-      if (json['code'] != 200) throw const FormatException('بيانات غير متاحة');
-      return json['data'];
-    } finally {
-      client.close(force: true);
+  static Future<List<dynamic>> fetchAll() async {
+    final json = jsonDecode(await rootBundle.loadString('assets/quran/quran.json'));
+    final chapters = json as List<dynamic>;
+    if (chapters.length != 114 ||
+        chapters.fold<int>(0, (sum, item) => sum + (item['ayahs'] as List).length) != 6236) {
+      throw const FormatException('بيانات المصحف غير مكتملة');
     }
+    return chapters;
   }
 }
 
@@ -26,8 +22,7 @@ class QuranScreen extends StatefulWidget {
 }
 
 class _QuranScreenState extends State<QuranScreen> {
-  late final Future<List<dynamic>> surahs = QuranService.fetch('surah').then(
-    (value) => value as List<dynamic>);
+  late final Future<List<dynamic>> surahs = QuranService.fetchAll();
   String search = '';
   int? lastSurah;
   int? lastAyah;
@@ -60,9 +55,9 @@ class _QuranScreenState extends State<QuranScreen> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('تعذر تحميل السور. تأكد من اتصال الإنترنت.'),
+            const Text('تعذر فتح المصحف المحفوظ داخل التطبيق.'),
             const SizedBox(height: 12),
-            FilledButton(onPressed: () => setState(() {}), child: const Text('حاول مجددًا')),
+            FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('رجوع')),
           ]));
         }
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
@@ -83,7 +78,7 @@ class _QuranScreenState extends State<QuranScreen> {
                 const Text('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
                   style: TextStyle(color: Color(0xFFF5EBD5), fontSize: 23)),
                 const SizedBox(height: 7),
-                const Text('اقرأ وارتقِ', style: TextStyle(color: Color(0xFFD6B56C), fontSize: 16)),
+                const Text('مصحف كامل بدون إنترنت • اقرأ وارتقِ', style: TextStyle(color: Color(0xFFD6B56C), fontSize: 16)),
                 if (lastSurah != null && lastSurah! >= 1 && lastSurah! <= all.length)
                   Padding(padding: const EdgeInsets.only(top: 14),
                     child: OutlinedButton.icon(
@@ -120,7 +115,7 @@ class _QuranScreenState extends State<QuranScreen> {
                     child: Text('$number', style: const TextStyle(color: Color(0xFFD6B56C))),
                   ),
                   title: Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                  subtitle: Text('${surah['numberOfAyahs']} آية • ${surah['revelationType'] == 'Meccan' ? 'مكية' : 'مدنية'}'),
+                  subtitle: Text('${(surah['ayahs'] as List).length} آية • ${surah['revelationType'] == 'Meccan' ? 'مكية' : surah['revelationType'] == 'Medinan' ? 'مدنية' : 'قراءة بدون إنترنت'}'),
                   trailing: const Icon(Icons.chevron_left),
                   onTap: () => openSurah(number, name),
                 ));
@@ -182,7 +177,7 @@ class _QuranSurahScreenState extends State<QuranSurahScreen> {
     body: FutureBuilder<Map<String, dynamic>>(
       future: surah,
       builder: (context, snapshot) {
-        if (snapshot.hasError) return const Center(child: Text('تعذر تحميل السورة. تأكد من الإنترنت.'));
+        if (snapshot.hasError) return const Center(child: Text('تعذر فتح السورة المحفوظة.'));
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final ayahs = snapshot.data!['ayahs'] as List<dynamic>;
         return Center(child: ConstrainedBox(
@@ -202,14 +197,13 @@ class _QuranSurahScreenState extends State<QuranSurahScreen> {
             const SizedBox(height: 14),
             for (final item in ayahs)
               Builder(builder: (context) {
-                final ayah = item as Map<String, dynamic>;
-                final number = ayah['numberInSurah'] as int;
+                final number = ayahs.indexOf(item) + 1;
                 return Card(
                   color: selectedAyah == number ? const Color(0xFFFFE8B3) :
                     Theme.of(context).cardColor,
                   child: Padding(padding: const EdgeInsets.all(16),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      Text(ayah['text'].toString(),
+                      Text(item.toString(),
                         textAlign: TextAlign.right,
                         style: TextStyle(fontSize: fontSize, height: 2.05,
                           color: selectedAyah == number ? const Color(0xFF173C32) : null)),
