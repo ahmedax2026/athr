@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'mushaf_reader.dart';
-import 'interactive_quran_reader.dart';
 
 const emerald = Color(0xFF003D30);
 const gold = Color(0xFFFFD77A);
@@ -241,8 +240,10 @@ class _QuranIndexScreenState extends State<QuranIndexScreen> {
   late final Future<List<dynamic>> pageIndex = rootBundle
     .loadString('assets/mushaf/surah_pages.json').then((v) => jsonDecode(v) as List<dynamic>);
   Future<void> _open(int number, List<dynamic> index) async {
+    final entry = index.cast<Map<String, dynamic>>().firstWhere(
+      (item) => item['number'] == number);
     await Navigator.push(context, MaterialPageRoute<void>(
-      builder: (_) => InteractiveQuranReader(surahNumber: number)));
+      builder: (_) => MushafPageReader(initialPage: entry['page'] as int)));
   }
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -318,7 +319,10 @@ class QuranSurahScreen extends StatelessWidget {
   Widget build(BuildContext context) => FutureBuilder<String>(
     future: rootBundle.loadString('assets/mushaf/surah_pages.json'),
     builder: (context, snapshot) {
-      if (!snapshot.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-      return InteractiveQuranReader(surahNumber: number);
+      if (!snapshot.hasData) return const Scaffold(
+        body: Center(child: CircularProgressIndicator()));
+      final entries = jsonDecode(snapshot.data!) as List<dynamic>;
+      final entry = entries.firstWhere((item) => item['number'] == number);
+      return MushafPageReader(initialPage: entry['page'] as int);
     });
 }
