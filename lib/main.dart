@@ -80,9 +80,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     setState(() => _count++);
     if (_count == 3) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('اللهم تقبل', textAlign: TextAlign.center),
-        duration: Duration(milliseconds: 1100),
-        backgroundColor: emerald,
+        content: Text('اللهم تقبل', textAlign: TextAlign.center,
+          style: TextStyle(color: Color(0xFF052B27), fontSize: 18, fontWeight: FontWeight.w900)),
+        duration: Duration(milliseconds: 1600),
+        backgroundColor: Color(0xFFFFE3A0),
       ));
       Future<void>.delayed(const Duration(milliseconds: 1100), () {
         if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: (_) => HomeScreen(onToggleTheme: widget.onToggleTheme)));
