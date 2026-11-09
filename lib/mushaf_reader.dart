@@ -21,6 +21,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   bool night = false;
   List<dynamic> surahs = [];
   int? bookmarkedPage;
+  bool zoomed = false;
+  final TransformationController zoomController = TransformationController();
 
   @override
   void initState() {
@@ -100,6 +102,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   @override
   void dispose() {
     controller.dispose();
+    zoomController.dispose();
     super.dispose();
   }
 
@@ -114,29 +117,39 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: night ? const Color(0xFF10241F) : _green,
     appBar: null,
-    body: SafeArea(child: GestureDetector(
-      onTap: () => setState(() => controls = !controls),
-      child: Stack(children: [
+    body: SafeArea(child: Stack(children: [
         Positioned.fill(child: PageView.builder(
           controller: controller,
           reverse: true,
+          physics: zoomed ? const NeverScrollableScrollPhysics() : const PageScrollPhysics(),
           itemCount: 604,
-          onPageChanged: (index) => _savePage(index + 1),
-          itemBuilder: (context, index) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Container(
-              decoration: BoxDecoration(
-                color: _paper,
-                border: Border.all(color: _gold, width: 1.5),
-                borderRadius: BorderRadius.circular(22),
+          onPageChanged: (index) {
+            zoomController.value = Matrix4.identity();
+            if (zoomed) setState(() => zoomed = false);
+            _savePage(index + 1);
+          },
+          itemBuilder: (context, index) {
+            final child = GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => controls = !controls),
+              child: InteractiveViewer(
+                transformationController: index + 1 == page ? zoomController : null,
+                minScale: 1, maxScale: 4,
+                panEnabled: zoomed,
+                onInteractionEnd: (_) {
+                  final active = zoomController.value.getMaxScaleOnAxis() > 1.01;
+                  if (mounted && zoomed != active) setState(() => zoomed = active);
+                },
+                child: SizedBox.expand(child: ColoredBox(color: _paper,
+                  child: Padding(padding: const EdgeInsets.all(2),
+                    child: Image.asset('assets/mushaf/${(index + 1).toString().padLeft(3, '0')}.webp',
+                      fit: BoxFit.contain, filterQuality: FilterQuality.high,
+                      errorBuilder: (context, error, stack) =>
+                        const Center(child: Text('تعذر فتح صفحة المصحف')))))),
               ),
-              padding: const EdgeInsets.all(5),
-              child: Image.asset('assets/mushaf/${(index + 1).toString().padLeft(3, '0')}.webp',
-                fit: BoxFit.contain, filterQuality: FilterQuality.high,
-                errorBuilder: (context, error, stack) =>
-                  const Center(child: Text('تعذر فتح صفحة المصحف'))),
-            ),
-          ),
+            );
+            return child;
+          },
         )),
         if (controls) Positioned(top: 0, left: 0, right: 0,
           child: Container(color: const Color(0xD9000000), padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
@@ -175,7 +188,6 @@ class _MushafPageReaderState extends State<MushafPageReader> {
             ]),
           ]),
         )),
-      ]),
-    )),
+      ])),
   );
 }
