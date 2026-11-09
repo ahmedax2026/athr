@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'admin_and_cases.dart';
 import 'quran.dart';
 import 'settings_and_relief.dart';
@@ -418,6 +419,28 @@ class LiveContentText extends StatelessWidget {
 }
 
 class ContactUsScreen extends StatelessWidget {
+  static Future<void> _openWhatsApp(BuildContext context, String raw) async {
+    final number = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (number.length < 10 || number.length > 15) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('رقم واتساب غير صحيح. أضفه من الإدارة بكود الدولة، مثل 201xxxxxxxxx')));
+      return;
+    }
+    final url = Uri.parse('https://wa.me/$number');
+    try {
+      final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!opened && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر فتح واتساب على هذا الجهاز')));
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر فتح واتساب على هذا الجهاز')));
+      }
+    }
+  }
+
   const ContactUsScreen({super.key});
 
   @override
@@ -456,8 +479,15 @@ class ContactUsScreen extends StatelessWidget {
                 if ((data?[channel.$1] ?? '').toString().trim().isNotEmpty)
                   Card(child: ListTile(
                     leading: Icon(channel.$3),
-                    title: Text(channel.$2),
-                    subtitle: SelectableText(data![channel.$1].toString()),
+                    title: Text(channel.$2,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                    subtitle: Text(data![channel.$1].toString(),
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                    trailing: channel.$1 == 'whatsapp'
+                      ? const Icon(Icons.open_in_new_rounded) : null,
+                    onTap: channel.$1 == 'whatsapp'
+                      ? () => _openWhatsApp(context, data[channel.$1].toString())
+                      : null,
                   )),
           ]),
         ));
