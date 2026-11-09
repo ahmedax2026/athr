@@ -20,6 +20,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   bool controls = true;
   bool night = false;
   List<dynamic> surahs = [];
+  int? bookmarkedPage;
+  bool showMenu = false;
 
   @override
   void initState() {
@@ -27,6 +29,52 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     page = widget.initialPage.clamp(1, 604);
     controller = PageController(initialPage: page - 1);
     _loadIndex();
+    _restoreBookmark();
+  }
+
+  Future<void> _restoreBookmark() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) setState(() => bookmarkedPage = prefs.getInt('mushaf_bookmark_page'));
+  }
+
+  Future<void> _bookmark() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('mushaf_bookmark_page', page);
+    if (mounted) setState(() => bookmarkedPage = page);
+  }
+
+  void _jump(int value) {
+    controller.animateToPage(value.clamp(1, 604) - 1,
+      duration: const Duration(milliseconds: 250), curve: Curves.easeInOut);
+  }
+
+  Future<void> _choosePage() async {
+    final result = await showDialog<int>(context: context, builder: (ctx) {
+      var value = page;
+      return StatefulBuilder(builder: (ctx, update) => AlertDialog(
+        title: const Text('الانتقال إلى صفحة'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('الصفحة $value من 604'),
+          Slider(value: value.toDouble(), min: 1, max: 604, divisions: 603,
+            onChanged: (v) => update(() => value = v.round())),
+        ]),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, value),
+          child: const Text('انتقال'))]));
+    });
+    if (result != null) _jump(result);
+  }
+
+  Future<void> _chooseSurah() async {
+    final result = await showModalBottomSheet<int>(context: context,
+      isScrollControlled: true, builder: (ctx) => SafeArea(child: SizedBox(
+        height: MediaQuery.sizeOf(ctx).height * .72,
+        child: ListView.builder(itemCount: surahs.length, itemBuilder: (ctx, i) {
+          final item = surahs[i];
+          return ListTile(title: Text('سورة ${item['name']}'),
+            trailing: Text('ص ${item['page']}'),
+            onTap: () => Navigator.pop(ctx, item['page'] as int));
+        }))));
+    if (result != null) _jump(result);
   }
 
   Future<void> _loadIndex() async {
@@ -65,10 +113,18 @@ class _MushafPageReaderState extends State<MushafPageReader> {
       Text(label, style: const TextStyle(fontSize: 12, color: _green, fontWeight: FontWeight.bold)),
     ]));
 
+  Widget _overlayAction(IconData icon, String label, VoidCallback action) =>
+    InkWell(onTap: action, child: Padding(padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: Colors.white, size: 27),
+        Text(label, style: const TextStyle(color: Colors.white, fontSize: 13)),
+      ])));
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: night ? const Color(0xFF10241F) : _green,
-    appBar: controls ? AppBar(
+    appBar: null,
+    /* appBar: controls ? AppBar(
       backgroundColor: _green, foregroundColor: _paper,
       centerTitle: true, title: Column(children: [
         Text(surahName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
@@ -80,11 +136,11 @@ class _MushafPageReaderState extends State<MushafPageReader> {
         IconButton(tooltip: 'إخفاء الأدوات', icon: const Icon(Icons.fullscreen),
           onPressed: () => setState(() => controls = false)),
       ],
-    ) : null,
+    ) : null, */
     body: SafeArea(child: GestureDetector(
       onTap: () => setState(() => controls = !controls),
-      child: Column(children: [
-        Expanded(child: PageView.builder(
+      child: Stack(children: [
+        Positioned.fill(child: PageView.builder(
           controller: controller,
           reverse: true,
           itemCount: 604,
@@ -105,53 +161,43 @@ class _MushafPageReaderState extends State<MushafPageReader> {
             ),
           ),
         )),
-        if (controls) Container(
+        if (controls) Positioned(top: 0, left: 0, right: 0,
+          child: Container(color: const Color(0xD9000000), padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            child: Row(children: [
+              IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
+              Expanded(child: Column(children: [
+                Text(surahName, style: const TextStyle(color: Colors.white, fontSize: 20)),
+                Text('الصفحة $page من 604', style: const TextStyle(color: _gold)),
+              ])),
+              IconButton(icon: const Icon(Icons.brightness_6, color: Colors.white),
+                onPressed: () => setState(() => night = !night)),
+            ]))),
+        if (controls) Positioned(bottom: 0, left: 0, right: 0, child: Container(
           margin: const EdgeInsets.fromLTRB(9, 4, 9, 7),
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          decoration: BoxDecoration(color: _paper,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: _gold, width: 1.5)),
+          decoration: BoxDecoration(color: const Color(0xE9000000),
+            border: Border.all(color: _gold, width: .5)),
           child: Column(children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-              _tool(Icons.share_outlined, 'مشاركة', () {
+              _overlayAction(Icons.menu_book, 'الفهرس', _chooseSurah),
+              _overlayAction(Icons.layers, 'الأجزاء', _choosePage),
+              _overlayAction(Icons.article_outlined, 'الصفحات', _choosePage),
+              _overlayAction(Icons.search, 'بحث', () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('مشاركة الصفحة ستتاح قريبًا')));
-              }),
-              _tool(Icons.menu_book_outlined, 'تفسير', () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('التفسير سيُضاف قريبًا')));
-              }),
-              _tool(Icons.play_circle_fill_rounded, 'استماع', () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('الاستماع عبر الإنترنت سيُضاف قريبًا')));
-              }, emphasized: true),
-              _tool(Icons.bookmark_border_rounded, 'علامة', () async {
-                await _savePage(page);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('تم حفظ الصفحة $page')));
-                }
-              }),
-              _tool(Icons.copy_rounded, 'نسخ', () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('نسخ النص سيُضاف قريبًا')));
+                  const SnackBar(content: Text('البحث في النص متاح من فهرس القرآن')));
               }),
             ]),
             const Divider(color: _gold),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              IconButton(tooltip: 'الصفحة السابقة', onPressed: page <= 1 ? null :
-                () => controller.animateToPage(page - 2,
-                  duration: const Duration(milliseconds: 240), curve: Curves.easeInOut),
-                icon: const Icon(Icons.chevron_right, color: _green)),
-              Text('الصفحة $page من 604', style: const TextStyle(
-                color: _green, fontSize: 16, fontWeight: FontWeight.bold)),
-              IconButton(tooltip: 'الصفحة التالية', onPressed: page >= 604 ? null :
-                () => controller.animateToPage(page,
-                  duration: const Duration(milliseconds: 240), curve: Curves.easeInOut),
-                icon: const Icon(Icons.chevron_left, color: _green)),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+              _overlayAction(Icons.bookmark_add_outlined, 'حفظ علامة', _bookmark),
+              _overlayAction(Icons.bookmark, 'العلامة', () {
+                if (bookmarkedPage != null) _jump(bookmarkedPage!);
+              }),
+              _overlayAction(Icons.chevron_right, 'السابق', () => _jump(page - 1)),
+              _overlayAction(Icons.chevron_left, 'التالي', () => _jump(page + 1)),
             ]),
           ]),
-        ),
+        )),
       ]),
     )),
   );
