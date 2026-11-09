@@ -35,10 +35,12 @@ class _QuranScreenState extends State<QuranScreen> {
 
   Future<void> loadProgress() async {
     final prefs = await SharedPreferences.getInstance();
-    if (mounted) setState(() {
+    if (mounted) {
+      setState(() {
       lastSurah = prefs.getInt('quran_last_surah');
       lastAyah = prefs.getInt('quran_last_ayah');
-    });
+      });
+    }
   }
 
   void openSurah(int number, String name, {int? scrollTo}) async {
@@ -137,8 +139,8 @@ class QuranSurahScreen extends StatefulWidget {
 }
 
 class _QuranSurahScreenState extends State<QuranSurahScreen> {
-  late final Future<Map<String, dynamic>> surah = QuranService.fetch('surah/${widget.number}/ar.alafasy')
-    .then((value) => value as Map<String, dynamic>);
+  late final Future<Map<String, dynamic>> surah = QuranService.fetchAll()
+    .then((value) => value[widget.number - 1] as Map<String, dynamic>);
   final ScrollController scroll = ScrollController();
   double fontSize = 25;
   int? selectedAyah;
