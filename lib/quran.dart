@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'mushaf_reader.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -48,6 +49,7 @@ class _QuranScreenState extends State<QuranScreen> {
   String search = '';
   int? lastSurah;
   int? lastAyah;
+  int? lastPage;
 
   @override
   void initState() {
@@ -61,11 +63,20 @@ class _QuranScreenState extends State<QuranScreen> {
       setState(() {
       lastSurah = prefs.getInt('quran_last_surah');
       lastAyah = prefs.getInt('quran_last_ayah');
+      lastPage = prefs.getInt('mushaf_last_page');
       });
     }
   }
 
   void openSurah(int number, String name, {int? scrollTo}) async {
+    final index = jsonDecode(await rootBundle.loadString('assets/mushaf/surah_pages.json')) as List<dynamic>;
+    final entry = index.firstWhere((s) => s['number'] == number);
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => MushafPageReader(initialPage: entry['page'] as int)));
+    loadProgress();
+    return;
+    // Legacy flowing-text reader retained for future accessibility mode.
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => QuranSurahScreen(number: number, name: name, initialAyah: scrollTo)));
     loadProgress();
@@ -102,16 +113,19 @@ class _QuranScreenState extends State<QuranScreen> {
               hintText: 'ابحث عن سورة...', suffixIcon: const Icon(Icons.search, color: _forest),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none))),
           const SizedBox(height: 18),
-          if (lastSurah != null && lastSurah! >= 1 && lastSurah! <= all.length) ...[
-            InkWell(onTap: () => openSurah(lastSurah!,
-              all[lastSurah! - 1]['name'].toString(), scrollTo: lastAyah),
+          if (lastPage != null && lastPage! >= 1 && lastPage! <= 604) ...[
+            InkWell(onTap: () async {
+              await Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => MushafPageReader(initialPage: lastPage!)));
+              loadProgress();
+            },
               child: _GoldFrame(child: Row(children: [
                 const CircleAvatar(backgroundColor: _forest,
                   child: Icon(Icons.play_arrow_rounded, color: _gold)),
                 const SizedBox(width: 14),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text('متابعة القراءة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text('${all[lastSurah! - 1]['name']} • الآية ${lastAyah ?? 1}'),
+                  Text('الصفحة $lastPage من 604'),
                 ])),
                 const Icon(Icons.bookmark_rounded, color: _gold),
               ]))),
