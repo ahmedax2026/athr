@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_and_cases.dart';
+import 'quran.dart';
 import 'settings_and_relief.dart';
 
 const emerald = Color(0xFF073E35);
@@ -319,7 +320,9 @@ class HomeScreen extends StatelessWidget {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(22),
                         onTap: () {
-                          if (s.$1 == 'فك كرب') {
+                          if (s.$1 == 'القرآن الكريم') {
+                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const QuranScreen()));
+                          } else if (s.$1 == 'فك كرب') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PublicCasesScreen()));
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('قسم ${s.$1} قيد التطوير')));
