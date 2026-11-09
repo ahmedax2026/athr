@@ -109,8 +109,10 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               icon: const Icon(Icons.chevron_left, color: _paper)),
             IconButton(tooltip: 'حفظ الصفحة', onPressed: () async {
               await _savePage(page);
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('تم حفظ الصفحة $page')));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('تم حفظ الصفحة $page')));
+              }
             }, icon: const Icon(Icons.bookmark, color: _gold)),
           ]),
         ),
