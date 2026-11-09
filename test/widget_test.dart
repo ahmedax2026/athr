@@ -22,8 +22,8 @@ void main() {
     await tester.pumpWidget(const AthrApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('صدقة جارية على روح عبدالوكيل عبدالسيد محمد'),
-        findsOneWidget);
+    expect(find.text('على روح المغفور له بإذن الله'), findsOneWidget);
+    expect(find.text('عبدالوكيل عبدالسيد محمد'), findsOneWidget);
     expect(find.text('اللهم اغفر له وارحمه وعافه واعف عنه، وأكرم نزله ووسع مدخله'),
         findsOneWidget);
     expect(find.text('0/3'), findsOneWidget);
