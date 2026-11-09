@@ -169,8 +169,10 @@ class _CaseEditorScreenState extends State<CaseEditorScreen> {
       }
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('فشل الحفظ. تحقق من الاتصال والصلاحيات')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('فشل الحفظ. تحقق من الاتصال والصلاحيات')));
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
