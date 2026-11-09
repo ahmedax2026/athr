@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'settings_and_relief.dart';
 
 const emerald = Color(0xFF073E35);
 const deep = Color(0xFF052B27);
@@ -204,6 +205,7 @@ class HomeScreen extends StatelessWidget {
     ('السبحة', 'مساحة للتسبيح والدعاء', Icons.favorite_outline),
     ('مواقيت الصلاة', 'تذكير بمواقيت الصلاة', Icons.access_time),
     ('الختمات الجماعية', 'ختمة يجتمع عليها الأحبة', Icons.groups_outlined),
+    ('فك كرب', 'أدعية لتفريج الهموم', Icons.volunteer_activism_outlined),
   ];
 
   @override
@@ -217,6 +219,12 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('أثر لا ينقطع', style: TextStyle(color: accent, fontWeight: FontWeight.w800)),
         actions: [
+          IconButton(
+            tooltip: 'الإعدادات',
+            key: const ValueKey('settings-button'),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AppSettingsScreen())),
+            icon: const Icon(Icons.settings_outlined),
+          ),
           IconButton(
             key: const ValueKey('home-theme-toggle'),
             tooltip: isDark ? 'الوضع الفاتح' : 'الوضع الداكن',
@@ -290,7 +298,16 @@ class HomeScreen extends StatelessWidget {
                   for (final s in sections)
                     SizedBox(
                       width: tileWidth,
-                      child: Container(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(22),
+                        onTap: () {
+                          if (s.$1 == 'فك كرب') {
+                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ReliefScreen()));
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('قسم ${s.$1} قيد التطوير')));
+                          }
+                        },
+                        child: Container(
                         constraints: const BoxConstraints(minHeight: 160),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -319,6 +336,7 @@ class HomeScreen extends StatelessWidget {
                             Text(s.$2, style: TextStyle(color: secondary, fontSize: 12, height: 1.5)),
                           ],
                         ),
+                      ),
                       ),
                     ),
                 ]),
