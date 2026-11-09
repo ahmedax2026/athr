@@ -15,6 +15,27 @@ class QuranService {
   }
 }
 
+const _forest = Color(0xFF063F32);
+const _gold = Color(0xFFC5A052);
+const _ivory = Color(0xFFFFF8E7);
+
+class _GoldFrame extends StatelessWidget {
+  const _GoldFrame({required this.child, this.padding = const EdgeInsets.all(16)});
+  final Widget child;
+  final EdgeInsets padding;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: padding,
+    decoration: BoxDecoration(
+      color: _ivory,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: _gold.withValues(alpha: .65), width: 1.5),
+      boxShadow: const [BoxShadow(color: Color(0x23000000), blurRadius: 10, offset: Offset(0, 4))],
+    ),
+    child: child,
+  );
+}
+
 class QuranScreen extends StatefulWidget {
   const QuranScreen({super.key});
   @override
@@ -51,81 +72,74 @@ class _QuranScreenState extends State<QuranScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('القرآن الكريم')),
-    body: FutureBuilder<List<dynamic>>(
-      future: surahs,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('تعذر فتح المصحف المحفوظ داخل التطبيق.'),
-            const SizedBox(height: 12),
-            FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('رجوع')),
-          ]));
-        }
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final all = snapshot.data!;
-        final filtered = all.where((item) {
-          final surah = item as Map<String, dynamic>;
-          return (surah['name'] as String).contains(search) ||
-            (surah['number'] as int).toString() == search;
-        }).toList();
-        return Center(child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: ListView(padding: const EdgeInsets.all(16), children: [
-            Card(color: const Color(0xFF0B4A3C), child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(children: [
-                const Icon(Icons.menu_book_rounded, color: Color(0xFFD6B56C), size: 42),
-                const SizedBox(height: 8),
-                const Text('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-                  style: TextStyle(color: Color(0xFFF5EBD5), fontSize: 23)),
-                const SizedBox(height: 7),
-                const Text('مصحف كامل بدون إنترنت • اقرأ وارتقِ', style: TextStyle(color: Color(0xFFD6B56C), fontSize: 16)),
-                if (lastSurah != null && lastSurah! >= 1 && lastSurah! <= all.length)
-                  Padding(padding: const EdgeInsets.only(top: 14),
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFF5EBD5)),
-                      onPressed: () => openSurah(lastSurah!,
-                        (all[lastSurah! - 1] as Map<String, dynamic>)['name'].toString(),
-                        scrollTo: lastAyah),
-                      icon: const Icon(Icons.bookmark),
-                      label: Text('متابعة القراءة: ${(all[lastSurah! - 1] as Map<String, dynamic>)['name']} - آية ${lastAyah ?? 1}'),
-                    )),
-              ]),
-            )),
-            const SizedBox(height: 16),
-            TextField(
-              onChanged: (value) => setState(() => search = value.trim()),
-              decoration: InputDecoration(
-                hintText: 'ابحث باسم السورة أو رقمها',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text('سور القرآن الكريم (${filtered.length})',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            for (final item in filtered)
-              Builder(builder: (context) {
-                final surah = item as Map<String, dynamic>;
-                final number = surah['number'] as int;
-                final name = surah['name'].toString();
-                return Card(child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: const Color(0xFF0B4A3C),
-                    child: Text('$number', style: const TextStyle(color: Color(0xFFD6B56C))),
-                  ),
-                  title: Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                  subtitle: Text('${(surah['ayahs'] as List).length} آية • ${surah['revelationType'] == 'Meccan' ? 'مكية' : surah['revelationType'] == 'Medinan' ? 'مدنية' : 'قراءة بدون إنترنت'}'),
-                  trailing: const Icon(Icons.chevron_left),
-                  onTap: () => openSurah(number, name),
-                ));
-              }),
-          ]),
-        ));
-      },
-    ),
+    backgroundColor: _forest,
+    appBar: AppBar(backgroundColor: _forest, foregroundColor: _ivory,
+      centerTitle: true, title: const Text('القرآن الكريم', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold))),
+    body: FutureBuilder<List<dynamic>>(future: surahs, builder: (context, snapshot) {
+      if (snapshot.hasError) return const Center(child: Text('تعذر فتح المصحف', style: TextStyle(color: _ivory)));
+      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: _gold));
+      final all = snapshot.data!;
+      final filtered = all.where((s) => (s['name'] as String).contains(search) ||
+        (s['number'] as int).toString() == search).toList();
+      return Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 650),
+        child: ListView(padding: const EdgeInsets.fromLTRB(14, 8, 14, 32), children: [
+          Container(height: 160, decoration: BoxDecoration(
+            border: Border.all(color: _gold, width: 1.5),
+            borderRadius: BorderRadius.circular(24),
+            gradient: const LinearGradient(colors: [Color(0xFF075743), _forest]),
+          ), child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.auto_stories_rounded, color: _gold, size: 64),
+            SizedBox(height: 10),
+            Text('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+              style: TextStyle(color: _ivory, fontSize: 24)),
+            Text('مصحفك معك في كل مكان', style: TextStyle(color: _gold)),
+          ])),
+          const SizedBox(height: 18),
+          TextField(style: const TextStyle(color: _forest),
+            onChanged: (v) => setState(() => search = v.trim()),
+            decoration: InputDecoration(filled: true, fillColor: _ivory,
+              hintText: 'ابحث عن سورة...', suffixIcon: const Icon(Icons.search, color: _forest),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none))),
+          const SizedBox(height: 18),
+          if (lastSurah != null && lastSurah! >= 1 && lastSurah! <= all.length) ...[
+            InkWell(onTap: () => openSurah(lastSurah!,
+              all[lastSurah! - 1]['name'].toString(), scrollTo: lastAyah),
+              child: _GoldFrame(child: Row(children: [
+                const CircleAvatar(backgroundColor: _forest,
+                  child: Icon(Icons.play_arrow_rounded, color: _gold)),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('متابعة القراءة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('${all[lastSurah! - 1]['name']} • الآية ${lastAyah ?? 1}'),
+                ])),
+                const Icon(Icons.bookmark_rounded, color: _gold),
+              ]))),
+            const SizedBox(height: 18),
+          ],
+          const Text('فهرس السور', textAlign: TextAlign.center,
+            style: TextStyle(color: _ivory, fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          for (final item in filtered)
+            Padding(padding: const EdgeInsets.only(bottom: 8),
+              child: InkWell(borderRadius: BorderRadius.circular(22),
+                onTap: () => openSurah(item['number'] as int, item['name'].toString()),
+                child: _GoldFrame(child: Row(children: [
+                  Container(width: 48, height: 48, alignment: Alignment.center,
+                    decoration: BoxDecoration(shape: BoxShape.circle,
+                      border: Border.all(color: _gold, width: 2)),
+                    child: Text('${item['number']}', style: const TextStyle(
+                      color: _forest, fontWeight: FontWeight.bold, fontSize: 18))),
+                  const SizedBox(width: 16),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(item['name'].toString(), style: const TextStyle(
+                      fontSize: 21, color: _forest, fontWeight: FontWeight.bold)),
+                    Text('${(item['ayahs'] as List).length} آية', style: const TextStyle(color: Color(0xFF746B58))),
+                  ])),
+                  const Icon(Icons.menu_book_rounded, color: _gold),
+                ]))),
+              )),
+        ])));
+    }),
   );
 }
 
@@ -168,63 +182,77 @@ class _QuranSurahScreenState extends State<QuranSurahScreen> {
     }
   }
 
+  bool night = false;
+  bool showControls = true;
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.name), actions: [
-      IconButton(tooltip: 'تصغير الخط', onPressed: fontSize <= 20 ? null :
-        () => setState(() => fontSize -= 2), icon: const Icon(Icons.text_decrease)),
-      IconButton(tooltip: 'تكبير الخط', onPressed: fontSize >= 37 ? null :
-        () => setState(() => fontSize += 2), icon: const Icon(Icons.text_increase)),
-    ]),
-    body: FutureBuilder<Map<String, dynamic>>(
-      future: surah,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) return const Center(child: Text('تعذر فتح السورة المحفوظة.'));
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final ayahs = snapshot.data!['ayahs'] as List<dynamic>;
-        return Center(child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 750),
-          child: ListView(controller: scroll, padding: const EdgeInsets.all(18), children: [
-            Container(padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: const Color(0xFF0B4A3C),
-                borderRadius: BorderRadius.circular(18)),
+    backgroundColor: night ? const Color(0xFF102A25) : _ivory,
+    appBar: AppBar(backgroundColor: _forest, foregroundColor: _ivory,
+      centerTitle: true, title: Text(widget.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+      actions: [
+        IconButton(tooltip: 'الوضع الليلي', icon: Icon(night ? Icons.light_mode : Icons.dark_mode),
+          onPressed: () => setState(() => night = !night)),
+        IconButton(tooltip: 'حجم الخط', icon: const Icon(Icons.text_fields),
+          onPressed: () => setState(() => showControls = !showControls)),
+      ]),
+    body: FutureBuilder<Map<String, dynamic>>(future: surah, builder: (context, snapshot) {
+      if (snapshot.hasError) return const Center(child: Text('تعذر فتح السورة'));
+      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: _gold));
+      final ayahs = snapshot.data!['ayahs'] as List<dynamic>;
+      final ink = night ? _ivory : const Color(0xFF17231E);
+      return Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 750),
+        child: Column(children: [
+          Expanded(child: ListView(controller: scroll, padding: const EdgeInsets.all(14), children: [
+            Container(padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: _gold, width: 1.4),
+                borderRadius: BorderRadius.circular(20),
+                color: night ? const Color(0xFF17392F) : const Color(0xFFFFFCF2)),
               child: Column(children: [
-                Text(widget.name, style: const TextStyle(color: Color(0xFFD6B56C),
-                  fontSize: 28, fontWeight: FontWeight.bold)),
+                Text('۞ ${widget.name} ۞', textAlign: TextAlign.center,
+                  style: TextStyle(color: night ? _gold : _forest, fontSize: 28, fontWeight: FontWeight.bold)),
                 if (widget.number != 1 && widget.number != 9)
-                  const Padding(padding: EdgeInsets.only(top: 12),
+                  Padding(padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Text('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-                      style: TextStyle(color: Color(0xFFF5EBD5), fontSize: 22))),
+                      textAlign: TextAlign.center, style: TextStyle(color: ink, fontSize: fontSize))),
+                const Divider(color: _gold),
+                Directionality(textDirection: TextDirection.rtl,
+                  child: Text.rich(TextSpan(children: [
+                    for (var i = 0; i < ayahs.length; i++) ...[
+                      TextSpan(text: '${ayahs[i]} ',
+                        style: TextStyle(backgroundColor: selectedAyah == i + 1
+                          ? _gold.withValues(alpha: .25) : null)),
+                      WidgetSpan(alignment: PlaceholderAlignment.middle,
+                        child: InkWell(onTap: () => bookmark(i + 1),
+                          child: Padding(padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: Text('۞${i + 1}', style: TextStyle(
+                              color: night ? _gold : _forest, fontSize: fontSize * .65))))),
+                      const TextSpan(text: '  '),
+                    ],
+                  ]), textAlign: TextAlign.justify,
+                    style: TextStyle(fontSize: fontSize, height: 2.15, color: ink))),
               ])),
-            const SizedBox(height: 14),
-            for (final item in ayahs)
-              Builder(builder: (context) {
-                final number = ayahs.indexOf(item) + 1;
-                return Card(
-                  color: selectedAyah == number ? const Color(0xFFFFE8B3) :
-                    Theme.of(context).cardColor,
-                  child: Padding(padding: const EdgeInsets.all(16),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      Text(item.toString(),
-                        textAlign: TextAlign.right,
-                        style: TextStyle(fontSize: fontSize, height: 2.05,
-                          color: selectedAyah == number ? const Color(0xFF173C32) : null)),
-                      const SizedBox(height: 8),
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        Text('الآية $number', style: TextStyle(
-                          color: selectedAyah == number ? const Color(0xFF173C32) : null)),
-                        TextButton.icon(
-                          onPressed: () => bookmark(number),
-                          icon: Icon(selectedAyah == number ? Icons.bookmark : Icons.bookmark_border),
-                          label: const Text('حفظ موضع القراءة')),
-                      ]),
-                    ]),
-                  ),
-                );
-              }),
-          ]),
-        ));
-      },
-    ),
+          ])),
+          if (showControls) Container(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+            decoration: BoxDecoration(color: night ? const Color(0xFF17392F) : _ivory,
+              border: const Border(top: BorderSide(color: _gold))),
+            child: Column(children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                IconButton(tooltip: 'تصغير الخط', onPressed: fontSize <= 20 ? null :
+                  () => setState(() => fontSize -= 2), icon: Icon(Icons.text_decrease, color: ink)),
+                Text('حجم الخط', style: TextStyle(color: ink)),
+                IconButton(tooltip: 'تكبير الخط', onPressed: fontSize >= 37 ? null :
+                  () => setState(() => fontSize += 2), icon: Icon(Icons.text_increase, color: ink)),
+                IconButton(tooltip: 'حفظ آخر آية', onPressed: () => bookmark(selectedAyah ?? 1),
+                  icon: const Icon(Icons.bookmark_rounded, color: _gold)),
+              ]),
+              Text('اضغط على رقم الآية لحفظ موضع القراءة',
+                style: TextStyle(color: ink.withValues(alpha: .7), fontSize: 12)),
+            ]),
+          ),
+        ])));
+    }),
   );
 }
