@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'admin_content.dart';
 
 const adminUid = '7g22L1RQBEcN7JtAYqv92J0qiAs2';
@@ -185,12 +186,15 @@ class _CaseEditorScreenState extends State<CaseEditorScreen> {
   late final goal = TextEditingController(text: (widget.existing?['goal'] ?? '').toString());
   late final collected = TextEditingController(text: (widget.existing?['collected'] ?? 0).toString());
   late final payment = TextEditingController(text: (widget.existing?['payment'] ?? '').toString());
+  late final imageUrl = TextEditingController(text: (widget.existing?['imageUrl'] ?? '').toString());
+  late final vodafoneCash = TextEditingController(text: (widget.existing?['vodafoneCash'] ?? '').toString());
+  late final instapay = TextEditingController(text: (widget.existing?['instapay'] ?? '').toString());
   late bool published = widget.existing?['status'] == 'published';
   bool busy = false;
 
   @override
   void dispose() {
-    for (final c in [title, details, goal, collected, payment]) { c.dispose(); }
+    for (final c in [title, details, goal, collected, payment, imageUrl, vodafoneCash, instapay]) { c.dispose(); }
     super.dispose();
   }
 
@@ -211,6 +215,9 @@ class _CaseEditorScreenState extends State<CaseEditorScreen> {
         'goal': target,
         'collected': raised,
         'payment': payment.text.trim(),
+        'imageUrl': imageUrl.text.trim(),
+        'vodafoneCash': vodafoneCash.text.trim(),
+        'instapay': instapay.text.trim(),
         'status': published ? 'published' : 'draft',
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -241,7 +248,22 @@ class _CaseEditorScreenState extends State<CaseEditorScreen> {
         TextField(controller: details, maxLines: 4, decoration: const InputDecoration(labelText: 'تفاصيل الحالة')),
         TextField(controller: goal, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'المبلغ المطلوب بالجنيه')),
         TextField(controller: collected, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'المبلغ المحصل بالجنيه')),
-        TextField(controller: payment, maxLines: 3, decoration: const InputDecoration(labelText: 'طرق التبرع وأرقام التحويل')),
+        const SizedBox(height: 18),
+        const Text('صورة الحالة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        TextField(controller: imageUrl, keyboardType: TextInputType.url,
+          decoration: const InputDecoration(labelText: 'رابط صورة الحالة (HTTPS)',
+            helperText: 'أضف رابط صورة منشورة بموافقة صاحبها', border: OutlineInputBorder())),
+        const SizedBox(height: 18),
+        const Text('طرق التبرع', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        TextField(controller: vodafoneCash, keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(labelText: 'رقم فودافون كاش', prefixIcon: Icon(Icons.phone_android), border: OutlineInputBorder())),
+        const SizedBox(height: 12),
+        TextField(controller: instapay,
+          decoration: const InputDecoration(labelText: 'عنوان إنستا باي أو رقم التحويل', prefixIcon: Icon(Icons.account_balance_wallet_outlined), border: OutlineInputBorder())),
+        const SizedBox(height: 12),
+        TextField(controller: payment, maxLines: 3, decoration: const InputDecoration(labelText: 'طرق أخرى للتبرع (اختياري)', border: OutlineInputBorder())),
         SwitchListTile(title: const Text('نشر الحالة للمستخدمين'), value: published,
           onChanged: (v) => setState(() => published = v)),
         const SizedBox(height: 20),
@@ -276,30 +298,93 @@ class PublicCasesScreen extends StatelessWidget {
 class _PublicCaseCard extends StatelessWidget {
   const _PublicCaseCard({required this.data});
   final Map<String, dynamic> data;
+
+  Widget _paymentTile(BuildContext context, String title, String value, IconData icon) {
+    return Card(
+      margin: const EdgeInsets.only(top: 10),
+      elevation: 0,
+      color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.45),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () async {
+          await Clipboard.setData(ClipboardData(text: value));
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('تم نسخ $title بنجاح')));
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(children: [
+            Icon(icon, size: 30),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+              const SizedBox(height: 4),
+              SelectableText(value, textDirection: TextDirection.ltr,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            ])),
+            const Icon(Icons.copy_rounded),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final goal = (data['goal'] as num?)?.toDouble() ?? 0;
     final collected = (data['collected'] as num?)?.toDouble() ?? 0;
     final fraction = goal <= 0 ? 0.0 : (collected / goal).clamp(0.0, 1.0);
+    final imageUrl = (data['imageUrl'] ?? '').toString().trim();
+    final vodafone = (data['vodafoneCash'] ?? '').toString().trim();
+    final instapay = (data['instapay'] ?? '').toString().trim();
+    final other = (data['payment'] ?? '').toString().trim();
+    final validImage = Uri.tryParse(imageUrl);
+    final showImage = validImage != null && validImage.scheme == 'https' && validImage.host.isNotEmpty;
     return Card(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 16),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(padding: const EdgeInsets.all(18), child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text((data['title'] ?? '').toString(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          if (showImage) ...[
+            ClipRRect(borderRadius: BorderRadius.circular(14),
+              child: Image.network(imageUrl, height: 210, fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const SizedBox(
+                  height: 100, child: Center(child: Icon(Icons.broken_image_outlined))))),
+            const SizedBox(height: 14),
+          ],
+          Text((data['title'] ?? '').toString(),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
           const SizedBox(height: 10),
-          Text((data['details'] ?? '').toString()),
-          const SizedBox(height: 16),
-          LinearProgressIndicator(value: fraction, minHeight: 10, borderRadius: BorderRadius.circular(12)),
+          Text((data['details'] ?? '').toString(),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.6)),
+          const SizedBox(height: 18),
+          LinearProgressIndicator(value: fraction, minHeight: 12,
+            borderRadius: BorderRadius.circular(12)),
           const SizedBox(height: 12),
-          Text('تم جمع: ${collected.toStringAsFixed(0)} ج.م من ${goal.toStringAsFixed(0)} ج.م'),
-          Text('المتبقي: ${(goal - collected).clamp(0, double.infinity).toStringAsFixed(0)} ج.م'),
-          Text('نسبة الإنجاز: ${(fraction * 100).toStringAsFixed(0)}%'),
-          const Divider(height: 24),
-          const Text('طرق التبرع', style: TextStyle(fontWeight: FontWeight.bold)),
-          SelectableText((data['payment'] ?? 'لم تُحدد بعد').toString()),
-          const SizedBox(height: 8),
+          Text('تم جمع: ${collected.toStringAsFixed(0)} ج.م من ${goal.toStringAsFixed(0)} ج.م',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 5),
+          Text('المتبقي: ${(goal - collected).clamp(0, double.infinity).toStringAsFixed(0)} ج.م',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          Text('نسبة الإنجاز: ${(fraction * 100).toStringAsFixed(0)}%',
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+          const Divider(height: 30),
+          const Text('طرق التبرع', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+          if (vodafone.isNotEmpty)
+            _paymentTile(context, 'فودافون كاش', vodafone, Icons.phone_android),
+          if (instapay.isNotEmpty)
+            _paymentTile(context, 'إنستا باي', instapay, Icons.account_balance_wallet_outlined),
+          if (other.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SelectableText(other, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          ],
+          if (vodafone.isEmpty && instapay.isEmpty && other.isEmpty)
+            const Text('لم تُحدد طرق التبرع بعد'),
+          const SizedBox(height: 14),
           const Text('يرجى التأكد من بيانات التحويل قبل إرسال أي مبلغ.',
-            style: TextStyle(fontSize: 12)),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       )),
     );
