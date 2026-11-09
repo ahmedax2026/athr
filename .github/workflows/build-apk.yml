@@ -29,6 +29,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Bundle verified Quran text for offline use
+        run: python3 tool/bundle_quran.py
+
       - name: Get dependencies
         run: flutter pub get
 
