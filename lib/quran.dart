@@ -319,8 +319,6 @@ class QuranSurahScreen extends StatelessWidget {
     future: rootBundle.loadString('assets/mushaf/surah_pages.json'),
     builder: (context, snapshot) {
       if (!snapshot.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-      final index = jsonDecode(snapshot.data!) as List<dynamic>;
-      final page = (index.firstWhere((s) => s['number'] == number)['page'] as int);
       return InteractiveQuranReader(surahNumber: number);
     });
 }
