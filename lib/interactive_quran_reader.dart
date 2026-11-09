@@ -162,7 +162,7 @@ class _InteractiveQuranReaderState extends State<InteractiveQuranReader> {
                     TextButton(onPressed: () => _changeSurah(-1), child: const Text('السورة السابقة')),
                     TextButton(onPressed: () => _changeSurah(1), child: const Text('السورة التالية')),
                   ]),
-                ]))),
+                ])))),
           Container(margin: const EdgeInsets.all(8), padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(color: const Color(0xFFFFF7E4),
               border: Border.all(color: const Color(0xFFC9A75C)),
