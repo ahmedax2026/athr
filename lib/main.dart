@@ -395,7 +395,11 @@ class LiveContentText extends StatelessWidget {
   final String document, field, fallback;
   final TextStyle? style;
   @override
-  Widget build(BuildContext context) => StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+  Widget build(BuildContext context) {
+    if (Firebase.apps.isEmpty) {
+      return Text(fallback, textAlign: TextAlign.center, style: style);
+    }
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
     stream: FirebaseFirestore.instance.collection('content').doc(document).snapshots(),
     builder: (context, snapshot) {
       final data = snapshot.data?.data();
@@ -404,6 +408,7 @@ class LiveContentText extends StatelessWidget {
       return Text(display, textAlign: TextAlign.center, style: style);
     },
   );
+  }
 }
 
 class ContactUsScreen extends StatelessWidget {
