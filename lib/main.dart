@@ -399,7 +399,7 @@ class LiveContentText extends StatelessWidget {
     stream: FirebaseFirestore.instance.collection('content').doc(document).snapshots(),
     builder: (context, snapshot) {
       final data = snapshot.data?.data();
-      final value = (data?['published'] == true) ? data?[field] : null;
+      final value = (data != null && data['published'] == true) ? data[field] : null;
       final display = value is String && value.trim().isNotEmpty ? value : fallback;
       return Text(display, textAlign: TextAlign.center, style: style);
     },
