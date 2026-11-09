@@ -319,8 +319,9 @@ class QuranSurahScreen extends StatelessWidget {
   Widget build(BuildContext context) => FutureBuilder<String>(
     future: rootBundle.loadString('assets/mushaf/surah_pages.json'),
     builder: (context, snapshot) {
-      if (!snapshot.hasData) return const Scaffold(
-        body: Center(child: CircularProgressIndicator()));
+      if (!snapshot.hasData) {
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      }
       final entries = jsonDecode(snapshot.data!) as List<dynamic>;
       final entry = entries.firstWhere((item) => item['number'] == number);
       return MushafPageReader(initialPage: entry['page'] as int);
