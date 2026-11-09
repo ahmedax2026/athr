@@ -240,7 +240,6 @@ class _QuranIndexScreenState extends State<QuranIndexScreen> {
   late final Future<List<dynamic>> pageIndex = rootBundle
     .loadString('assets/mushaf/surah_pages.json').then((v) => jsonDecode(v) as List<dynamic>);
   Future<void> _open(int number, List<dynamic> index) async {
-    final entry = index.firstWhere((s) => s['number'] == number);
     await Navigator.push(context, MaterialPageRoute<void>(
       builder: (_) => InteractiveQuranReader(surahNumber: number)));
   }
