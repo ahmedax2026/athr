@@ -56,14 +56,23 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     super.dispose();
   }
 
+  Widget _tool(IconData icon, String label, VoidCallback action, {bool emphasized = false}) =>
+    InkWell(onTap: action, child: Column(children: [
+      Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(
+        color: emphasized ? _green : Colors.transparent, shape: BoxShape.circle,
+        border: emphasized ? Border.all(color: _gold, width: 2) : null),
+        child: Icon(icon, color: emphasized ? _gold : const Color(0xFF80611C), size: 25)),
+      Text(label, style: const TextStyle(fontSize: 12, color: _green, fontWeight: FontWeight.bold)),
+    ]));
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: night ? const Color(0xFF10241F) : _paper,
+    backgroundColor: night ? const Color(0xFF10241F) : _green,
     appBar: controls ? AppBar(
       backgroundColor: _green, foregroundColor: _paper,
       centerTitle: true, title: Column(children: [
         Text(surahName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-        Text('الصفحة $page من 604', style: const TextStyle(color: _gold, fontSize: 12)),
+        Text('الجزء  |  الصفحة $page', style: const TextStyle(color: _gold, fontSize: 12)),
       ]),
       actions: [
         IconButton(tooltip: 'الوضع الليلي', icon: Icon(night ? Icons.light_mode : Icons.dark_mode),
@@ -86,7 +95,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               decoration: BoxDecoration(
                 color: _paper,
                 border: Border.all(color: _gold, width: 1.5),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(22),
               ),
               padding: const EdgeInsets.all(5),
               child: Image.asset('assets/mushaf/${(index + 1).toString().padLeft(3, '0')}.webp',
@@ -97,23 +106,50 @@ class _MushafPageReaderState extends State<MushafPageReader> {
           ),
         )),
         if (controls) Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: const BoxDecoration(color: _green, border: Border(top: BorderSide(color: _gold))),
-          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            IconButton(tooltip: 'الصفحة السابقة', onPressed: page <= 1 ? null :
-              () => controller.animateToPage(page - 2, duration: const Duration(milliseconds: 240), curve: Curves.easeInOut),
-              icon: const Icon(Icons.chevron_right, color: _paper)),
-            Text('الصفحة $page / 604', style: const TextStyle(color: _paper, fontWeight: FontWeight.bold)),
-            IconButton(tooltip: 'الصفحة التالية', onPressed: page >= 604 ? null :
-              () => controller.animateToPage(page, duration: const Duration(milliseconds: 240), curve: Curves.easeInOut),
-              icon: const Icon(Icons.chevron_left, color: _paper)),
-            IconButton(tooltip: 'حفظ الصفحة', onPressed: () async {
-              await _savePage(page);
-              if (context.mounted) {
+          margin: const EdgeInsets.fromLTRB(9, 4, 9, 7),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(color: _paper,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: _gold, width: 1.5)),
+          child: Column(children: [
+            Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+              _tool(Icons.share_outlined, 'مشاركة', () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('تم حفظ الصفحة $page')));
-              }
-            }, icon: const Icon(Icons.bookmark, color: _gold)),
+                  const SnackBar(content: Text('مشاركة الصفحة ستتاح قريبًا')));
+              }),
+              _tool(Icons.menu_book_outlined, 'تفسير', () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('التفسير سيُضاف قريبًا')));
+              }),
+              _tool(Icons.play_circle_fill_rounded, 'استماع', () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('الاستماع عبر الإنترنت سيُضاف قريبًا')));
+              }, emphasized: true),
+              _tool(Icons.bookmark_border_rounded, 'علامة', () async {
+                await _savePage(page);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('تم حفظ الصفحة $page')));
+                }
+              }),
+              _tool(Icons.copy_rounded, 'نسخ', () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('نسخ النص سيُضاف قريبًا')));
+              }),
+            ]),
+            const Divider(color: _gold),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              IconButton(tooltip: 'الصفحة السابقة', onPressed: page <= 1 ? null :
+                () => controller.animateToPage(page - 2,
+                  duration: const Duration(milliseconds: 240), curve: Curves.easeInOut),
+                icon: const Icon(Icons.chevron_right, color: _green)),
+              Text('الصفحة $page من 604', style: const TextStyle(
+                color: _green, fontSize: 16, fontWeight: FontWeight.bold)),
+              IconButton(tooltip: 'الصفحة التالية', onPressed: page >= 604 ? null :
+                () => controller.animateToPage(page,
+                  duration: const Duration(milliseconds: 240), curve: Curves.easeInOut),
+                icon: const Icon(Icons.chevron_left, color: _green)),
+            ]),
           ]),
         ),
       ]),
