@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'mushaf_reader.dart';
 
 const _starts = <int>[1,22,42,62,82,102,121,142,162,182,201,222,242,262,282,302,322,342,362,382,402,422,442,462,482,502,522,542,562,582];
 const _green = Color(0xFF075143);
@@ -183,7 +182,6 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
     setState(()=>busy=true);
     try {
       await FirebaseFirestore.instance.runTransaction((tx) async {
-        final parent=await tx.get(ref);
         final m=ref.collection('members').doc(widget.uid);
         final member=await tx.get(m);
         if(!member.exists)return;
@@ -291,7 +289,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
                             builder:(_)=>KhatmaPartReader(part:p,initialPage:last,
                               onPage:(page)=>prefs.setInt(key,page))));
                         },
-                        icon:const Icon(Icons.book_open),label:const Text('قراءة الجزء'))),
+                        icon:const Icon(Icons.menu_book),label:const Text('قراءة الجزء'))),
                       Expanded(child:TextButton.icon(
                         onPressed:()=>complete(p,!List<int>.from(mine['completed']??[]).contains(p)),
                         icon:const Icon(Icons.check),label:Text(List<int>.from(mine['completed']??[]).contains(p)?'تراجع':'أتممت القراءة'))),
