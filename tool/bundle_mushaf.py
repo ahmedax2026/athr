@@ -26,6 +26,16 @@ def build_page(n):
     svg = download(f"{BASE}/svg/{n:03}.svg")
     png = cairosvg.svg2png(bytestring=svg, output_width=900)
     rendered = Image.open(BytesIO(png)).convert("RGBA")
+    # Remove empty SVG margins before composing the paper background.
+    # Keep a small safety margin around all printed glyphs and ornaments.
+    alpha = rendered.getchannel("A")
+    bounds = alpha.point(lambda value: 255 if value > 16 else 0).getbbox()
+    if bounds:
+        margin = max(10, int(rendered.width * 0.015))
+        left, top, right, bottom = bounds
+        rendered = rendered.crop((max(0, left - margin), max(0, top - margin),
+                                 min(rendered.width, right + margin),
+                                 min(rendered.height, bottom + margin)))
     # SVG pages have a transparent background. Converting directly to RGB
     # turns transparency black and makes the dark Quran glyphs invisible.
     image = Image.new("RGB", rendered.size, (255, 252, 242))
