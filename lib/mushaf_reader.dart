@@ -21,7 +21,6 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   bool night = false;
   List<dynamic> surahs = [];
   int? bookmarkedPage;
-  bool showMenu = false;
 
   @override
   void initState() {
@@ -104,15 +103,6 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     super.dispose();
   }
 
-  Widget _tool(IconData icon, String label, VoidCallback action, {bool emphasized = false}) =>
-    InkWell(onTap: action, child: Column(children: [
-      Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(
-        color: emphasized ? _green : Colors.transparent, shape: BoxShape.circle,
-        border: emphasized ? Border.all(color: _gold, width: 2) : null),
-        child: Icon(icon, color: emphasized ? _gold : const Color(0xFF80611C), size: 25)),
-      Text(label, style: const TextStyle(fontSize: 12, color: _green, fontWeight: FontWeight.bold)),
-    ]));
-
   Widget _overlayAction(IconData icon, String label, VoidCallback action) =>
     InkWell(onTap: action, child: Padding(padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -124,19 +114,6 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: night ? const Color(0xFF10241F) : _green,
     appBar: null,
-    /* appBar: controls ? AppBar(
-      backgroundColor: _green, foregroundColor: _paper,
-      centerTitle: true, title: Column(children: [
-        Text(surahName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-        Text('الجزء  |  الصفحة $page', style: const TextStyle(color: _gold, fontSize: 12)),
-      ]),
-      actions: [
-        IconButton(tooltip: 'الوضع الليلي', icon: Icon(night ? Icons.light_mode : Icons.dark_mode),
-          onPressed: () => setState(() => night = !night)),
-        IconButton(tooltip: 'إخفاء الأدوات', icon: const Icon(Icons.fullscreen),
-          onPressed: () => setState(() => controls = false)),
-      ],
-    ) : null, */
     body: SafeArea(child: GestureDetector(
       onTap: () => setState(() => controls = !controls),
       child: Stack(children: [
