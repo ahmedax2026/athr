@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'admin_and_cases.dart';
 import 'settings_and_relief.dart';
 
 const emerald = Color(0xFF073E35);
@@ -7,7 +9,11 @@ const gold = Color(0xFFD6B56C);
 const cream = Color(0xFFF5EBD5);
 const muted = Color(0xFFB9C9BD);
 
-void main() => runApp(const AthrApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(const AthrApp());
+}
 
 class AthrApp extends StatefulWidget {
   const AthrApp({super.key});
@@ -220,6 +226,11 @@ class HomeScreen extends StatelessWidget {
         title: Text('أثر لا ينقطع', style: TextStyle(color: accent, fontWeight: FontWeight.w800)),
         actions: [
           IconButton(
+            tooltip: 'دخول الإدارة',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AdminLoginScreen())),
+            icon: const Icon(Icons.admin_panel_settings_outlined),
+          ),
+          IconButton(
             tooltip: 'الإعدادات',
             key: const ValueKey('settings-button'),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AppSettingsScreen())),
@@ -302,7 +313,7 @@ class HomeScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(22),
                         onTap: () {
                           if (s.$1 == 'فك كرب') {
-                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ReliefScreen()));
+                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PublicCasesScreen()));
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('قسم ${s.$1} قيد التطوير')));
                           }
