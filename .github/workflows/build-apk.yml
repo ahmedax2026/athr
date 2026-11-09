@@ -32,6 +32,11 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Generate Android launcher icon
+        run: |
+          python3 -m pip install --quiet Pillow
+          python3 tool/generate_launcher_icon.py
+
       - name: Analyze
         run: flutter analyze
 
