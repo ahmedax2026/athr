@@ -254,8 +254,10 @@ class HomeScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: LayoutBuilder(builder: (context, size) {
-          final maxWidth = size.maxWidth > 650 ? 650.0 : size.maxWidth;
-          final tileWidth = (maxWidth - 52) / 2;
+          // Account for the scroll view's 18px padding on both sides.
+          final availableWidth = size.maxWidth - 36;
+          final maxWidth = availableWidth > 650 ? 650.0 : availableWidth;
+          final tileWidth = (maxWidth - 12) / 2;
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
             child: Center(child: SizedBox(width: maxWidth, child: Column(
@@ -313,7 +315,9 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 5),
                 LiveContentText(document: 'home', field: 'tagline', fallback: 'نورٌ يبقى، ودعاءٌ يصل.', style: TextStyle(color: secondary, fontSize: 14)),
                 const SizedBox(height: 17),
-                Wrap(spacing: 12, runSpacing: 12, children: [
+                Wrap(alignment: WrapAlignment.center,
+                  runAlignment: WrapAlignment.center,
+                  spacing: 12, runSpacing: 12, children: [
                   for (final s in sections)
                     SizedBox(
                       width: tileWidth,
@@ -341,7 +345,7 @@ class HomeScreen extends StatelessWidget {
                           )],
                         ),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Container(
                               width: 48, height: 48,
@@ -352,9 +356,11 @@ class HomeScreen extends StatelessWidget {
                               child: Icon(s.$3, color: accent, size: 27),
                             ),
                             const SizedBox(height: 13),
-                            Text(s.$1, style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 16)),
+                            Text(s.$1, textAlign: TextAlign.center,
+                              style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 16)),
                             const SizedBox(height: 7),
-                            Text(s.$2, style: TextStyle(color: secondary, fontSize: 12, height: 1.5)),
+                            Text(s.$2, textAlign: TextAlign.center,
+                              style: TextStyle(color: secondary, fontSize: 12, height: 1.5)),
                           ],
                         ),
                       ),
