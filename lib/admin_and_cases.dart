@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'admin_content.dart';
 
 const adminUid = '7g22L1RQBEcN7JtAYqv92J0qiAs2';
 
@@ -94,6 +95,58 @@ class AdminDashboardScreen extends StatelessWidget {
             if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
             final cases = snapshot.data!.docs;
             return ListView(padding: const EdgeInsets.all(16), children: [
+              const Text('التحكم في التطبيق', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Card(child: ListTile(
+                leading: const Icon(Icons.phone_outlined),
+                title: const Text('وسائل التواصل'),
+                subtitle: const Text('واتساب وفيسبوك وماسنجر وتليجرام'),
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const AdminContentEditor(
+                    collection: 'settings', document: 'contact', publicFlag: 'public',
+                    title: 'إدارة التواصل',
+                    fields: [
+                      ('whatsapp', 'رقم واتساب بصيغة دولية'),
+                      ('facebook', 'رابط فيسبوك'),
+                      ('messenger', 'رابط ماسنجر'),
+                      ('telegram', 'رابط تليجرام'),
+                    ],
+                  ))),
+              )),
+              Card(child: ListTile(
+                leading: const Icon(Icons.favorite_outline),
+                title: const Text('شاشة الترحيب'),
+                subtitle: const Text('عنوان التطبيق والاسم والدعاء'),
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const AdminContentEditor(
+                    collection: 'content', document: 'welcome', publicFlag: 'published',
+                    title: 'إدارة شاشة الترحيب',
+                    fields: [
+                      ('title', 'عنوان شاشة الترحيب'),
+                      ('subtitle', 'الوصف القصير'),
+                      ('name', 'اسم صاحب الصدقة الجارية'),
+                      ('prayer', 'الدعاء'),
+                    ],
+                  ))),
+              )),
+              Card(child: ListTile(
+                leading: const Icon(Icons.home_outlined),
+                title: const Text('الصفحة الرئيسية'),
+                subtitle: const Text('عنوان الترحيب والعبارة التعريفية'),
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const AdminContentEditor(
+                    collection: 'content', document: 'home', publicFlag: 'published',
+                    title: 'إدارة الصفحة الرئيسية',
+                    fields: [
+                      ('greeting', 'رسالة الترحيب'),
+                      ('tagline', 'العبارة أسفل العنوان'),
+                    ],
+                  ))),
+              )),
+              const SizedBox(height: 24),
               const Text('إدارة حالات فك كرب', style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               FilledButton.icon(
