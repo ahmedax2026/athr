@@ -174,7 +174,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
             );
             return child;
           },
-        )),
+        ))),
         Positioned(right: 10, bottom: controls ? 192 : 26,
           child: SafeArea(top: false, child: Column(children: [
             _zoomButton(Icons.add, 'تكبير', () => _changeZoom(1.35)),
