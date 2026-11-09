@@ -11,20 +11,54 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:athr/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('three prayers show acceptance then open the home screen', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(const AthrApp());
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('صدقة جارية على روح عبدالوكيل عبدالسيد محمد'),
+        findsOneWidget);
+    expect(find.text('اللهم اغفر له وارحمه وعافه واعف عنه، وأكرم نزله ووسع مدخله'),
+        findsOneWidget);
+    expect(find.text('0/3'), findsOneWidget);
+    expect(find.text('الصورة غير متاحة حاليًا'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    final prayerButton = find.byKey(const ValueKey('welcome-pray-button'));
+    for (var tap = 0; tap < 3; tap++) {
+      await tester.ensureVisible(prayerButton);
+      await tester.tap(prayerButton);
+      await tester.pump();
+    }
+
+    expect(find.text('3/3'), findsOneWidget);
+    expect(find.text('اللهم تقبل'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.pumpAndSettle();
+
+    expect(find.text('أهلًا بك'), findsOneWidget);
+    expect(find.text('القرآن الكريم'), findsOneWidget);
+    expect(find.text('الأذكار'), findsOneWidget);
+    expect(find.text('السبحة'), findsOneWidget);
+    expect(find.text('مواقيت الصلاة'), findsOneWidget);
+    expect(find.text('الختمات الجماعية'), findsOneWidget);
+  });
+
+  testWidgets('welcome screen fits a narrow phone viewport', (tester) async {
+    tester.view.physicalSize = const Size(320, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const AthrApp());
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
   });
 }
