@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -152,6 +153,9 @@ class QuranSurahScreen extends StatefulWidget {
   State<QuranSurahScreen> createState() => _QuranSurahScreenState();
 }
 
+String _arabicDigits(int value) => value.toString().replaceAllMapped(RegExp(r'[0-9]'),
+  (m) => '٠١٢٣٤٥٦٧٨٩'[int.parse(m.group(0)!)]);
+
 class _QuranSurahScreenState extends State<QuranSurahScreen> {
   late final Future<Map<String, dynamic>> surah = QuranService.fetchAll()
     .then((value) => value[widget.number - 1] as Map<String, dynamic>);
@@ -223,11 +227,15 @@ class _QuranSurahScreenState extends State<QuranSurahScreen> {
                       TextSpan(text: '${ayahs[i]} ',
                         style: TextStyle(backgroundColor: selectedAyah == i + 1
                           ? _gold.withValues(alpha: .25) : null)),
-                      WidgetSpan(alignment: PlaceholderAlignment.middle,
-                        child: InkWell(onTap: () => bookmark(i + 1),
-                          child: Padding(padding: const EdgeInsets.symmetric(horizontal: 3),
-                            child: Text('۞${i + 1}', style: TextStyle(
-                              color: night ? _gold : _forest, fontSize: fontSize * .65))))),
+                      TextSpan(
+                        text: ' ﴿${_arabicDigits(i + 1)}﴾ ',
+                        style: TextStyle(
+                          color: night ? _gold : _forest,
+                          fontSize: fontSize * .78,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        recognizer: TapGestureRecognizer()..onTap = () => bookmark(i + 1),
+                      ),
                       const TextSpan(text: '  '),
                     ],
                   ]), textAlign: TextAlign.justify,
