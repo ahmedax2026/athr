@@ -97,16 +97,16 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
     final code=await showDialog<String>(context:context,builder:(ctx)=>AlertDialog(
       title:const Text('كود الانضمام'),
       content:TextField(controller:input,textCapitalization:TextCapitalization.characters,
-        decoration:const InputDecoration(hintText:'مثال: ATHR-123456')),
+        decoration:const InputDecoration(hintText:'الصق كود الدعوة هنا')),
       actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('إلغاء')),
-        FilledButton(onPressed:()=>Navigator.pop(ctx,input.text.trim().toUpperCase()),child:const Text('بحث'))]));
+        FilledButton(onPressed:()=>Navigator.pop(ctx,input.text.trim()),child:const Text('بحث'))]));
     input.dispose();
     if(code==null||code.isEmpty||!context.mounted)return;
     try {
-      final found=await FirebaseFirestore.instance.collection('khatmas').where('code',isEqualTo:code).limit(1).get();
+      final found=await FirebaseFirestore.instance.collection('khatmas').doc(code).get();
       if(!context.mounted)return;
-      if(found.docs.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('الكود غير موجود')));return; }
-      Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>KhatmaDetailsScreen(id:found.docs.first.id,uid:uid)));
+      if(!found.exists) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('الكود غير موجود')));return; }
+      Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>KhatmaDetailsScreen(id:found.id,uid:uid)));
     } catch (_) { if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تعذر البحث عن الكود'))); }
   }
 }
@@ -127,8 +127,9 @@ class _KhatmaCreateScreenState extends State<KhatmaCreateScreen> {
     setState(()=>busy=true);
     try {
       final doc=FirebaseFirestore.instance.collection('khatmas').doc();
-      final code='ATHR-${doc.id.substring(0,8).toUpperCase()}';
-      await doc.set({
+      final code=doc.id;
+      final batch=FirebaseFirestore.instance.batch();
+      batch.set(doc,{
         'title':title.text.trim(),'creatorId':widget.uid,'creatorName':name.text.trim(),
         'code':code,'privacy':private?'private':'public',
         'distribution':manual?'manual':'auto','capacity':capacity,'memberCount':1,
@@ -136,11 +137,12 @@ class _KhatmaCreateScreenState extends State<KhatmaCreateScreen> {
         'createdAt':FieldValue.serverTimestamp(),
         'deadline':Timestamp.fromDate(DateTime.now().add(Duration(days:days))),
       });
-      await doc.collection('members').doc(widget.uid).set({
+      batch.set(doc.collection('members').doc(widget.uid),{
         'name':name.text.trim(),'joinedAt':FieldValue.serverTimestamp(),
         'slot':0,'parts':manual?<int>[]:[for(var p=1;p<=30;p++)if((p-1)%capacity==0)p],
         'completed':<int>[],
       });
+      await batch.commit();
       if(!mounted)return;
       Navigator.pushReplacement(context,MaterialPageRoute<void>(builder:(_)=>KhatmaDetailsScreen(id:doc.id,uid:widget.uid)));
     }catch(_){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('فشل إنشاء الختمة؛ تحقق من صلاحيات Firebase')));}
@@ -209,18 +211,18 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
   Future<void> leave() async {
     setState(()=>busy=true);
     try {
+      if ((await ref.get()).data()?['creatorId'] == widget.uid) { message('الهوست لا يمكنه مغادرة الختمة'); setState(() => busy=false); return; }
       await FirebaseFirestore.instance.runTransaction((tx) async {
         final m=ref.collection('members').doc(widget.uid);
         final member=await tx.get(m);
         if(!member.exists)return;
-        final completed=List<int>.from(member.data()?['completed']??[]);
+        if (member.data()?['completed'] is List && (member.data()!['completed'] as List).isNotEmpty) throw StateError('completed');
         tx.delete(m);
         tx.update(ref,{'memberCount':FieldValue.increment(-1),
-          'memberIds':FieldValue.arrayRemove([widget.uid]),
-          'completedParts':FieldValue.arrayRemove(completed)});
+          'memberIds':FieldValue.arrayRemove([widget.uid])});
       });
       if(mounted)Navigator.pop(context);
-    }catch(_){message('تعذر المغادرة');}
+    }catch(_){message('لا يمكن المغادرة بعد إتمام أجزاء، أو حدث خطأ في الصلاحيات');}
     finally{if(mounted)setState(()=>busy=false);}
   }
   Future<void> complete(int part,bool done) async {
@@ -246,21 +248,15 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
         FilledButton(onPressed:()=>Navigator.pop(ctx,selected),child:const Text('حفظ'))])));
     if(result==null)return;
     try {
-      final members=await ref.collection('members').get();
-      final occupied=<int>{};
-      for(final member in members.docs) {
-        if(member.id==uid)continue;
-        occupied.addAll(List<int>.from(member.data()['parts']??[]));
-      }
-      if(result.any(occupied.contains)){message('بعض الأجزاء محجوزة لمشاركين آخرين');return;}
       final m=ref.collection('members').doc(uid);
       await FirebaseFirestore.instance.runTransaction((tx) async {
+        final members=await tx.get(ref);
+        if (members.data()?['creatorId'] != widget.uid) throw StateError('host');
         final snap=await tx.get(m);
         final oldDone=List<int>.from(snap.data()?['completed']??[]);
         final keep=oldDone.where(result.contains).toList();
         tx.update(m,{'parts':result.toList()..sort(),'completed':keep});
-        final removed=oldDone.where((p)=>!result.contains(p)).toList();
-        if(removed.isNotEmpty)tx.update(ref,{'completedParts':FieldValue.arrayRemove(removed)});
+        if (keep.length != oldDone.length) throw StateError('completed parts cannot be removed');
       });
       message('تم حفظ التوزيع');
     }catch(_){message('تعذر حفظ التوزيع');}
