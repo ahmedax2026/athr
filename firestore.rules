@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && request.auth.uid == '7g22L1RQBEcN7JtAYqv92J0qiAs2'; }
+    match /cases/{caseId} {
+      allow read: if isAdmin() || resource.data.status == 'published';
+      allow write: if isAdmin();
+    }
+    match /content/{contentId} {
+      allow read: if isAdmin() || resource.data.published == true;
+      allow write: if isAdmin();
+    }
+    match /settings/{settingId} {
+      allow read: if isAdmin() || resource.data.public == true;
+      allow write: if isAdmin();
+    }
+    match /notifications/{notificationId} {
+      allow read: if isAdmin() || resource.data.published == true;
+      allow write: if isAdmin();
+    }
+    match /khatmas/{khatmaId} {
+      function mp(uid) { return /databases/$(database)/documents/khatmas/$(khatmaId)/members/$(uid); }
+      function member() { return signedIn() && request.auth.uid in resource.data.memberIds; }
+      function join() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds','memberCount'])
+          && !(request.auth.uid in resource.data.memberIds)
+          && request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1
+          && request.resource.data.memberIds.hasAll(resource.data.memberIds)
+          && request.auth.uid in request.resource.data.memberIds
+          && request.resource.data.memberCount == resource.data.memberCount + 1
+          && request.resource.data.memberCount <= resource.data.capacity
+          && !exists(mp(request.auth.uid))
+          && getAfter(mp(request.auth.uid)).data.slot == resource.data.memberCount;
+      }
+      function leave() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds','memberCount'])
+          && request.auth.uid != resource.data.creatorId
+          && member()
+          && !(request.auth.uid in request.resource.data.memberIds)
+          && request.resource.data.memberIds.size() == resource.data.memberIds.size() - 1
+          && resource.data.memberIds.hasAll(request.resource.data.memberIds)
+          && request.resource.data.memberCount == resource.data.memberCount - 1
+          && exists(mp(request.auth.uid))
+          && get(mp(request.auth.uid)).data.completed == []
+          && !existsAfter(mp(request.auth.uid));
+      }
+      function progress() {
+        let old = resource.data.completedParts;
+        let next = request.resource.data.completedParts;
+        let before = get(mp(request.auth.uid)).data.completed;
+        let after = getAfter(mp(request.auth.uid)).data.completed;
+        return member()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completedParts'])
+          && exists(mp(request.auth.uid))
+          && old.size() <= 30 && next.size() <= 30
+          && next.hasOnly(old.concat(after))
+          && old.hasOnly(next.concat(before))
+          && next.hasAll(after)
+          && old.hasAll(before)
+          && (next.size() == old.size() + 1 && after.size() == before.size() + 1
+              || next.size() == old.size() - 1 && after.size() == before.size() - 1);
+      }
+      allow get: if signedIn() && (resource.data.privacy == 'public'
+        || member() || (resource.data.privacy == 'private' && resource.data.code == khatmaId));
+      allow list: if signedIn() && (resource.data.privacy == 'public'
+        || request.auth.uid in resource.data.memberIds);
+      allow create: if signedIn()
+        && request.resource.data.creatorId == request.auth.uid
+        && request.resource.data.code == khatmaId
+        && request.resource.data.privacy in ['public','private']
+        && request.resource.data.distribution in ['auto','manual']
+        && request.resource.data.capacity in [5,6,10,15,30]
+        && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.memberCount == 1
+        && request.resource.data.completedParts == []
+        && getAfter(mp(request.auth.uid)).data.slot == 0;
+      allow update: if signedIn() && (join() || leave() || progress());
+      allow delete: if false;
+      match /members/{memberId} {
+        function pp() { return /databases/$(database)/documents/khatmas/$(khatmaId); }
+        function parent() { return get(pp()).data; }
+        function owner() { return signedIn() && request.auth.uid == memberId; }
+        function host() { return signedIn() && parent().creatorId == request.auth.uid; }
+        allow get, list: if signedIn() && (parent().privacy == 'public'
+          || request.auth.uid in parent().memberIds);
+        allow create: if owner()
+          && request.resource.data.name is string
+          && request.resource.data.name.size() >= 2
+          && request.resource.data.name.size() <= 60
+          && request.resource.data.completed == []
+          && request.resource.data.parts is list
+          && request.resource.data.parts.hasOnly([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30])
+          && request.resource.data.slot >= 0
+          && request.resource.data.slot < getAfter(pp()).data.capacity
+          && memberId in getAfter(pp()).data.memberIds;
+        allow update: if (owner()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completed'])
+          && request.resource.data.completed is list
+          && request.resource.data.completed.hasOnly(resource.data.parts)
+          && (request.resource.data.completed.size() == resource.data.completed.size() + 1
+             || request.resource.data.completed.size() == resource.data.completed.size() - 1)
+          && getAfter(pp()).data.completedParts.hasAll(request.resource.data.completed))
+          || (host() && parent().distribution == 'manual'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['parts'])
+          && request.resource.data.parts is list
+          && request.resource.data.parts.hasAll(resource.data.completed)
+          && request.resource.data.parts.hasOnly([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]));
+        allow delete: if owner() && parent().creatorId != memberId
+          && resource.data.completed == []
+          && !(memberId in getAfter(pp()).data.memberIds);
+      }
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
