@@ -265,6 +265,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
     appBar:AppBar(title:const Text('تفاصيل الختمة')),
     body:StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
       stream:ref.snapshots(),builder:(context,s){
+        if(s.hasError)return const Center(child:Text('تعذر فتح الختمة؛ تحقق من الكود والصلاحيات'));
         if(!s.hasData)return const Center(child:CircularProgressIndicator());
         if(!s.data!.exists)return const Center(child:Text('الختمة غير موجودة'));
         final d=s.data!.data()!;
@@ -275,7 +276,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
         return StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
           stream:ref.collection('members').doc(widget.uid).snapshots(),
           builder:(context,m){
-            final mine=m.data?.data();
+            final mine=m.hasError ? null : m.data?.data();
             return ListView(padding:const EdgeInsets.all(16),children:[
               Text((d['title']??'ختمة جماعية').toString(),
                 style:const TextStyle(fontSize:24,fontWeight:FontWeight.w900)),
@@ -335,6 +336,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
               const Text('المشاركون',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
               StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
                 stream:ref.collection('members').snapshots(),builder:(context,ms){
+                  if(ms.hasError)return const Text('المشاركون يظهرون بعد الانضمام');
                   if(!ms.hasData)return const Center(child:CircularProgressIndicator());
                   return Column(children:[for(final member in ms.data!.docs)
                     Card(child:ListTile(
