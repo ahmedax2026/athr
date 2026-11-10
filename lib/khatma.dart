@@ -14,12 +14,25 @@ class KhatmaScreen extends StatefulWidget {
 class _KhatmaScreenState extends State<KhatmaScreen> {
   User? user;
   String? error;
+  String? guestName;
+  final guestInput = TextEditingController();
+  @override void dispose() { guestInput.dispose(); super.dispose(); }
+  Future<void> saveGuest() async {
+    final value = guestInput.text.trim();
+    if (value.length < 2 || value.length > 60) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اكتب اسمك من حرفين إلى 60 حرفًا')));
+      return;
+    }
+    await SharedPreferences.getInstance().then((p) => p.setString('khatma_guest_name', value));
+    if (mounted) setState(() => guestName = value);
+  }
   @override void initState() { super.initState(); _login(); }
   Future<void> _login() async {
     try {
       final auth = FirebaseAuth.instance;
       final u = auth.currentUser ?? (await auth.signInAnonymously()).user;
-      if (mounted) setState(() => user = u);
+      final prefs = await SharedPreferences.getInstance();
+      if (mounted) setState(() { user = u; guestName = prefs.getString('khatma_guest_name'); });
     } catch (_) {
       if (mounted) setState(() => error = 'يجب تفعيل تسجيل الدخول المجهول Anonymous في Firebase Authentication لاستخدام الختمات.');
     }
@@ -28,8 +41,20 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
     appBar: AppBar(title: const Text('الختمات الجماعية')),
     body: error != null ? Center(child: Padding(padding: const EdgeInsets.all(20),child: Text(error!,textAlign:TextAlign.center))) :
     user == null ? const Center(child: CircularProgressIndicator()) :
+    guestName == null ? Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      const Icon(Icons.person_outline, size: 60, color: _green),
+      const SizedBox(height: 16),
+      const Text('الدخول كضيف', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 10),
+      const Text('اكتب اسمك فقط للمشاركة في الختمات، بدون بريد إلكتروني أو كلمة مرور.'),
+      const SizedBox(height: 18),
+      TextField(controller: guestInput, maxLength: 60, textInputAction: TextInputAction.done,
+        decoration: const InputDecoration(labelText: 'اسمك', hintText: 'مثال: أحمد وكيل', border: OutlineInputBorder()), onSubmitted: (_) => saveGuest()),
+      FilledButton.icon(onPressed: saveGuest, icon: const Icon(Icons.login), label: const Text('متابعة كضيف')),
+    ])) :
     ListView(padding: const EdgeInsets.all(16), children: [
-      FilledButton.icon(onPressed: () => Navigator.push(context,MaterialPageRoute<void>(builder: (_) => KhatmaCreateScreen(uid:user!.uid))),
+      ListTile(title: Text('أهلًا، $guestName'), subtitle: const Text('مشارك كضيف'), trailing: IconButton(tooltip: 'تغيير الاسم', icon: const Icon(Icons.edit_outlined), onPressed: () { guestInput.text = guestName!; setState(() => guestName = null); })),
+      FilledButton.icon(onPressed: () => Navigator.push(context,MaterialPageRoute<void>(builder: (_) => KhatmaCreateScreen(uid:user!.uid,guestName:guestName!))),
         icon: const Icon(Icons.add),label: const Text('إنشاء ختمة')),
       const SizedBox(height: 10),
       OutlinedButton.icon(onPressed: () => _joinCode(context,user!.uid),
@@ -87,14 +112,15 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
 }
 
 class KhatmaCreateScreen extends StatefulWidget {
-  const KhatmaCreateScreen({super.key,required this.uid});
-  final String uid;
+  const KhatmaCreateScreen({super.key,required this.uid,required this.guestName});
+  final String uid,guestName;
   @override State<KhatmaCreateScreen> createState()=>_KhatmaCreateScreenState();
 }
 class _KhatmaCreateScreenState extends State<KhatmaCreateScreen> {
   final title=TextEditingController(), name=TextEditingController();
   int days=30, capacity=10;
   bool private=false, manual=false, busy=false;
+  @override void initState() { super.initState(); name.text = widget.guestName; }
   @override void dispose(){title.dispose();name.dispose();super.dispose();}
   Future<void> create() async {
     if(title.text.trim().isEmpty||name.text.trim().isEmpty)return;
@@ -151,6 +177,8 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
   final name=TextEditingController();
   bool busy=false;
   DocumentReference<Map<String,dynamic>> get ref=>FirebaseFirestore.instance.collection('khatmas').doc(widget.id);
+  @override void initState() { super.initState(); _loadName(); }
+  Future<void> _loadName() async { final prefs = await SharedPreferences.getInstance(); if (mounted) name.text = prefs.getString('khatma_guest_name') ?? ''; }
   @override void dispose(){name.dispose();super.dispose();}
   void message(String value){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(value)));}
   Future<void> join(Map<String,dynamic> d) async {
