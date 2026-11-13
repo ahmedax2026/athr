@@ -18,8 +18,16 @@ const muted = Color(0xFFB9C9BD);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  // Render the memorial portrait immediately; initialize cloud services after
+  // the first Flutter frame, rather than holding the native splash on screen.
   runApp(const AthrApp());
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    try {
+      await Firebase.initializeApp();
+    } catch (error) {
+      debugPrint('Firebase initialization failed: $error');
+    }
+  });
 }
 
 class AthrApp extends StatefulWidget {
