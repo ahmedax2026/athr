@@ -70,12 +70,22 @@ service cloud.firestore {
         && request.resource.data.code == khatmaId
         && request.resource.data.privacy in ['public','private']
         && request.resource.data.distribution in ['auto','manual']
-        && request.resource.data.capacity in [5,6,10,15,30]
+        && request.resource.data.capacity is int
+        && request.resource.data.capacity >= 2
+        && request.resource.data.capacity <= 30
+        && request.resource.data.started == false
         && request.resource.data.memberIds == [request.auth.uid]
         && request.resource.data.memberCount == 1
         && request.resource.data.completedParts == []
         && getAfter(mp(request.auth.uid)).data.slot == 0;
-      allow update: if signedIn() && (join() || leave() || progress());
+      allow update: if signedIn() && (join() || leave() || progress()
+        || (request.auth.uid == resource.data.creatorId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['started'])
+          && resource.data.started == false && request.resource.data.started == true)
+        || (request.auth.uid == resource.data.creatorId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deadline'])
+          && request.resource.data.deadline is timestamp
+          && request.resource.data.deadline > resource.data.deadline));
       allow delete: if false;
       match /members/{memberId} {
         function pp() { return /databases/$(database)/documents/khatmas/$(khatmaId); }
@@ -101,7 +111,7 @@ service cloud.firestore {
           && (request.resource.data.completed.size() == resource.data.completed.size() + 1
              || request.resource.data.completed.size() == resource.data.completed.size() - 1)
           && getAfter(pp()).data.completedParts.hasAll(request.resource.data.completed))
-          || (host() && parent().distribution == 'manual'
+          || (host()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['parts'])
           && request.resource.data.parts is list
           && request.resource.data.parts.hasAll(resource.data.completed)
