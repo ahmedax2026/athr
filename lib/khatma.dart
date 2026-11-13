@@ -215,13 +215,14 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
         final m=ref.collection('members').doc(widget.uid);
         final member=await tx.get(m);
         if(!member.exists)return;
+        if ((await tx.get(ref)).data()?['started'] == true) throw StateError('started');
         if (member.data()?['completed'] is List && (member.data()!['completed'] as List).isNotEmpty) throw StateError('completed');
         tx.delete(m);
         tx.update(ref,{'memberCount':FieldValue.increment(-1),
           'memberIds':FieldValue.arrayRemove([widget.uid])});
       });
       if(mounted)Navigator.pop(context);
-    }catch(_){message('لا يمكن المغادرة بعد إتمام أجزاء، أو حدث خطأ في الصلاحيات');}
+    }catch(_){message('لا يمكن المغادرة بعد بدء الختمة أو إتمام أجزاء، أو حدث خطأ في الصلاحيات');}
     finally{if(mounted)setState(()=>busy=false);}
   }
   Future<void> startKhatma(Map<String,dynamic> d) async {
@@ -299,12 +300,19 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
     }catch(_){message('تعذر تحديث الجزء');return false;}
   }
   Future<void> assign(String uid,List<int> existing) async {
+    final allMembers=await ref.collection('members').get();
+    final occupied=<int>{};
+    for(final doc in allMembers.docs){
+      if(doc.id!=uid) occupied.addAll(List<int>.from(doc.data()['parts']??[]));
+    }
     final selected=existing.toSet();
     final result=await showDialog<Set<int>>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,update)=>AlertDialog(
       title:const Text('توزيع الأجزاء'),
       content:SizedBox(width:350,height:380,child:ListView(children:[
         for(var i=1;i<=30;i++)CheckboxListTile(title:Text('الجزء $i'),
-          value:selected.contains(i),onChanged:(v)=>update(()=>v==true?selected.add(i):selected.remove(i))),
+          value:selected.contains(i),
+          subtitle:occupied.contains(i)?const Text('مخصص لمشارك آخر'):null,
+          onChanged:occupied.contains(i)?null:(v)=>update(()=>v==true?selected.add(i):selected.remove(i))),
       ])),
       actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('إلغاء')),
         FilledButton(onPressed:()=>Navigator.pop(ctx,selected),child:const Text('حفظ'))])));
@@ -314,6 +322,11 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
       await FirebaseFirestore.instance.runTransaction((tx) async {
         final members=await tx.get(ref);
         if (members.data()?['creatorId'] != widget.uid) throw StateError('host');
+        final others=<DocumentSnapshot<Map<String,dynamic>>>[];
+        for(final doc in allMembers.docs){
+          if(doc.id!=uid) others.add(await tx.get(doc.reference));
+        }
+        if(others.any((other)=>List<int>.from(other.data()?['parts']??[]).any(result.contains))) throw StateError('duplicate assignment');
         final snap=await tx.get(m);
         final oldDone=List<int>.from(snap.data()?['completed']??[]);
         final keep=oldDone.where(result.contains).toList();
