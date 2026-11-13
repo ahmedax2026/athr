@@ -232,7 +232,10 @@ class QuranJuzScreen extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () => Navigator.push(context, MaterialPageRoute<void>(
-              builder: (_) => ReactQuranPreview(initialPage: page))),
+              builder: (_) => ReactQuranPreview(
+                initialPage: page,
+                firstPage: page,
+                lastPage: index == 29 ? 604 : _QuranScreenState.juzStartPages[index + 1] - 1))),
             child: _IvoryPanel(child: Row(children: [
               CircleAvatar(backgroundColor: emerald,
                 child: Text('${index + 1}', style: const TextStyle(
