@@ -38,10 +38,22 @@ def lines_of(text, draw, ft, maxw):
         lines.append(current)
     return lines
 
+# One asset for each distinct dhikr, even when it is repeated across groups.
+# Manifest keeps per-screen positions and their independent counter state.
+seen = {}
+manifest = []
 for group_index, group in enumerate(data):
+    paths = []
+    manifest.append(paths)
     for item_index, item in enumerate(group["items"]):
         content = item["text"]
-        title = item["source"] if item["source"].startswith("سورة") else group["title"]
+        if content in seen:
+            paths.append(seen[content])
+            continue
+        filename = f"dhikr_{len(seen):02d}.webp"
+        seen[content] = filename
+        paths.append(filename)
+        title = item["source"] if item["source"].startswith("سورة") else "ذِكْرٌ وَدُعَاءٌ"
         width = 1200
         scratch = Image.new("RGB", (width, 20), "#F1E3C6")
         draw = ImageDraw.Draw(scratch)
@@ -70,9 +82,14 @@ for group_index, group in enumerate(data):
             d.text((width//2, top), line, fill=ink, font=body_font, anchor="mt", direction="rtl")
             top += line_height
         d.line((18, height-52, width-18, height-52), fill="#AF9980", width=2)
-        d.text((width//2, height-30), group["title"], fill="#63533D",
+        d.text((width//2, height-30), item["source"], fill="#63533D",
                font=font(24), anchor="mm", direction="rtl")
-        target = out / f"g{group_index}_a{item_index}.webp"
+        target = out / filename
         card.save(target, format="WEBP", quality=91, method=5)
         assert target.stat().st_size > 1000
-print(f"Generated {sum(len(group['items']) for group in data)} Arabic adhkar cards from {font_path.name}.")
+# Do not ship leftovers from a previous workflow run.
+for stale in out.glob("g*_a*.webp"):
+    stale.unlink()
+(out / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+total = sum(len(group["items"]) for group in data)
+print(f"Generated {len(seen)} unique image cards for {total} adhkar entries (duplicates reused).")
