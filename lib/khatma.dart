@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const _starts = <int>[1,22,42,62,82,102,121,142,162,182,201,222,242,262,282,302,322,342,362,382,402,422,442,462,482,502,522,542,562,582];
 const _green = Color(0xFF075143);
@@ -118,12 +119,14 @@ class KhatmaCreateScreen extends StatefulWidget {
 }
 class _KhatmaCreateScreenState extends State<KhatmaCreateScreen> {
   final title=TextEditingController(), name=TextEditingController();
+  final daysInput=TextEditingController(text:'30'), capacityInput=TextEditingController(text:'10');
   int days=30, capacity=10;
   bool private=false, manual=false, busy=false;
   @override void initState() { super.initState(); name.text = widget.guestName; }
-  @override void dispose(){title.dispose();name.dispose();super.dispose();}
+  @override void dispose(){title.dispose();name.dispose();daysInput.dispose();capacityInput.dispose();super.dispose();}
   Future<void> create() async {
-    if(title.text.trim().isEmpty||name.text.trim().isEmpty)return;
+    days=int.tryParse(daysInput.text)??0;capacity=int.tryParse(capacityInput.text)??0;
+    if(title.text.trim().isEmpty||name.text.trim().length<2||days<1||days>365||capacity<2||capacity>30){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('المدة من 1 إلى 365 يومًا والمشاركون من 2 إلى 30')));return;}
     setState(()=>busy=true);
     try {
       final doc=FirebaseFirestore.instance.collection('khatmas').doc();
@@ -133,19 +136,19 @@ class _KhatmaCreateScreenState extends State<KhatmaCreateScreen> {
         'title':title.text.trim(),'creatorId':widget.uid,'creatorName':name.text.trim(),
         'code':code,'privacy':private?'private':'public',
         'distribution':manual?'manual':'auto','capacity':capacity,'memberCount':1,
-        'memberIds':[widget.uid],'completedParts':<int>[],
+        'memberIds':[widget.uid],'completedParts':<int>[],'started':false,
         'createdAt':FieldValue.serverTimestamp(),
         'deadline':Timestamp.fromDate(DateTime.now().add(Duration(days:days))),
       });
       batch.set(doc.collection('members').doc(widget.uid),{
         'name':name.text.trim(),'joinedAt':FieldValue.serverTimestamp(),
-        'slot':0,'parts':manual?<int>[]:[for(var p=1;p<=30;p++)if((p-1)%capacity==0)p],
+        'slot':0,'parts':<int>[],
         'completed':<int>[],
       });
       await batch.commit();
       if(!mounted)return;
       Navigator.pushReplacement(context,MaterialPageRoute<void>(builder:(_)=>KhatmaDetailsScreen(id:doc.id,uid:widget.uid)));
-    }catch(_){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('فشل إنشاء الختمة؛ تحقق من صلاحيات Firebase')));}
+    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('فشل إنشاء الختمة: ${e is FirebaseException?e.code:e.toString()}')));}
     finally{if(mounted)setState(()=>busy=false);}
   }
   @override Widget build(BuildContext context)=>Scaffold(
@@ -155,13 +158,9 @@ class _KhatmaCreateScreenState extends State<KhatmaCreateScreen> {
       const SizedBox(height:12),
       TextField(controller:name,decoration:const InputDecoration(labelText:'اسمك في الختمة',border:OutlineInputBorder())),
       const SizedBox(height:16),
-      DropdownButtonFormField<int>(initialValue:days,decoration:const InputDecoration(labelText:'مدة الختمة'),
-        items:[7,15,30,60,90].map((v)=>DropdownMenuItem(value:v,child:Text('$v يوم'))).toList(),
-        onChanged:(v)=>setState(()=>days=v??30)),
+      TextField(controller:daysInput,keyboardType:TextInputType.number,inputFormatters:[FilteringTextInputFormatter.digitsOnly],decoration:const InputDecoration(labelText:'مدة الختمة بالأيام',border:OutlineInputBorder())),
       const SizedBox(height:12),
-      DropdownButtonFormField<int>(initialValue:capacity,decoration:const InputDecoration(labelText:'عدد المشاركين'),
-        items:[5,6,10,15,30].map((v)=>DropdownMenuItem(value:v,child:Text('$v مشارك'))).toList(),
-        onChanged:(v)=>setState(()=>capacity=v??10)),
+      TextField(controller:capacityInput,keyboardType:TextInputType.number,inputFormatters:[FilteringTextInputFormatter.digitsOnly],decoration:const InputDecoration(labelText:'عدد المشاركين',border:OutlineInputBorder())),
       SwitchListTile(title:const Text('ختمة خاصة — بالكود فقط'),value:private,onChanged:(v)=>setState(()=>private=v)),
       SwitchListTile(title:const Text('توزيع مخصص بواسطة المنشئ'),subtitle:const Text('بدون التفعيل توزع الأجزاء تلقائيًا'),value:manual,onChanged:(v)=>setState(()=>manual=v)),
       const SizedBox(height:16),
@@ -197,15 +196,15 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
         final count=(data['memberCount'] as num).toInt();
         final capacity=(data['capacity'] as num).toInt();
         if(count>=capacity)throw StateError('full');
-        final parts=data['distribution']=='manual'?<int>[]:
-          [for(var p=1;p<=30;p++)if((p-1)%capacity==count)p];
+        if(data['started']==true)throw StateError('started');
+        final parts=<int>[];
         tx.set(memberRef,{'name':name.text.trim(),'slot':count,'parts':parts,
           'completed':<int>[],'joinedAt':FieldValue.serverTimestamp()});
         tx.update(ref,{'memberCount':FieldValue.increment(1),
           'memberIds':FieldValue.arrayUnion([widget.uid])});
       });
       message('تم الانضمام بنجاح');
-    }catch(e){message(e.toString().contains('full')?'اكتمل عدد المشاركين':'تعذر الانضمام؛ راجع الصلاحيات');}
+    }catch(e){message(e.toString().contains('full')?'اكتمل عدد المشاركين':e.toString().contains('started')?'بدأت الختمة':'تعذر الانضمام؛ راجع الصلاحيات');}
     finally{if(mounted)setState(()=>busy=false);}
   }
   Future<void> leave() async {
@@ -224,6 +223,66 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
       if(mounted)Navigator.pop(context);
     }catch(_){message('لا يمكن المغادرة بعد إتمام أجزاء، أو حدث خطأ في الصلاحيات');}
     finally{if(mounted)setState(()=>busy=false);}
+  }
+  Future<void> startKhatma(Map<String,dynamic> d) async {
+    if(d['creatorId']!=widget.uid||d['started']==true)return;
+    setState(()=>busy=true);
+    try {
+      final members=await ref.collection('members').get();
+      final ids=members.docs.map((m)=>m.id).toList()..sort();
+      final batch=FirebaseFirestore.instance.batch();
+      if(d['distribution']=='auto'){
+        for(var i=0;i<ids.length;i++){
+          batch.update(ref.collection('members').doc(ids[i]),{'parts':[for(var p=1;p<=30;p++)if((p-1)%ids.length==i)p]});
+        }
+      }
+      batch.update(ref,{'started':true});
+      await batch.commit();
+      message('بدأت الختمة');
+    }catch(e){message('تعذر البدء: $e');}
+    finally{if(mounted)setState(()=>busy=false);}
+  }
+  Future<void> extendDeadline() async {
+    final input=TextEditingController(text:'7');
+    final days=await showDialog<int>(context:context,builder:(ctx)=>AlertDialog(
+      title:const Text('تمديد الختمة'),content:TextField(controller:input,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'أيام إضافية')),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('إلغاء')),FilledButton(onPressed:()=>Navigator.pop(ctx,int.tryParse(input.text)),child:const Text('تمديد'))]));
+    input.dispose();
+    if(days==null||days<1||days>365)return;
+    try{
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final snap=await tx.get(ref);
+        if(snap.data()?['creatorId']!=widget.uid)throw StateError('host');
+        final old=(snap.data()?['deadline'] as Timestamp).toDate();
+        tx.update(ref,{'deadline':Timestamp.fromDate(old.add(Duration(days:days)))});
+      });
+      message('تم التمديد');
+    }catch(e){message('تعذر التمديد: $e');}
+  }
+  Future<void> shareInvite() async {
+    final msg='انضم إلى ختمتنا في أثر لا ينقطع. كود الدعوة: ${widget.id}';
+    final url=Uri.parse('https://wa.me/?text=${Uri.encodeComponent(msg)}');
+    if(!await launchUrl(url,mode:LaunchMode.externalApplication)){
+      await Clipboard.setData(ClipboardData(text:msg));message('تم نسخ الدعوة');
+    }
+  }
+  Future<void> readPart(int part) async {
+    final prefs=await SharedPreferences.getInstance();
+    final key='khatma_${widget.id}_${widget.uid}_$part';
+    final last=prefs.getInt(key)??_starts[part-1];
+    if(!mounted)return;
+    final finished=await Navigator.push<bool>(context,MaterialPageRoute<bool>(
+      builder:(_)=>KhatmaPartReader(part:part,initialPage:last,onPage:(p)=>prefs.setInt(key,p))));
+    if(finished==true){
+      await complete(part,true);
+      if(!mounted)return;
+      final title=(await ref.get()).data()?['title']?.toString()??'صاحب الختمة';
+      if(!mounted)return;
+      await showDialog<void>(context:context,builder:(ctx)=>AlertDialog(
+        title:const Text('تقبل الله تلاوتك'),
+        content:Text('اللهم إني وهبت ثواب تلاوة هذا الجزء إلى $title، اللهم تقبله مني واغفر له وارحمه واجعل القرآن نورًا له.'),
+        actions:[FilledButton(onPressed:()=>Navigator.pop(ctx),child:const Text('اللهم آمين'))]));
+    }
   }
   Future<void> complete(int part,bool done) async {
     try {
@@ -273,6 +332,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
         final count=(d['memberCount'] as num?)?.toInt()??0;
         final capacity=(d['capacity'] as num?)?.toInt()??10;
         final completed=List<int>.from(d['completedParts']??[]);
+        final started=d['started']==true;
         return StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
           stream:ref.collection('members').doc(widget.uid).snapshots(),
           builder:(context,m){
@@ -285,16 +345,21 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
                 style:const TextStyle(fontWeight:FontWeight.w800)),
               const SizedBox(height:8),
               LinearProgressIndicator(value:completed.length/30,minHeight:10),
+              if(creator&&!started) FilledButton(onPressed:busy?null:()=>startKhatma(d),child:const Text('بدء الختمة وتوزيع الأجزاء')),
+              if(!started) const Text('في انتظار بدء الختمة'),
+              if(creator) TextButton(onPressed:extendDeadline,child:const Text('تمديد موعد الختمة')),
+              if(completed.length==30) const Card(child:ListTile(title:Text('مبارك اكتمال الختمة'),subtitle:Text('اللهم تقبل منا وأهد ثوابها لمن نُويت له'))),
               const SizedBox(height:12),
               Card(child:ListTile(title:Text('كود الانضمام: ${d['code']}'),
                 trailing:IconButton(icon:const Icon(Icons.copy),onPressed:() async {
                   await Clipboard.setData(ClipboardData(text:d['code'].toString()));message('تم نسخ الكود');
                 }))),
+              OutlinedButton.icon(onPressed:shareInvite,icon:const Icon(Icons.share),label:const Text('مشاركة عبر واتساب')),
               if(mine==null) ...[
                 TextField(controller:name,decoration:const InputDecoration(labelText:'اسمك عند الانضمام')),
                 const SizedBox(height:10),
-                FilledButton(onPressed:busy||count>=capacity?null:()=>join(d),
-                  child:Text(count>=capacity?'الختمة مكتملة العدد':'انضم للختمة')),
+                FilledButton(onPressed:busy||count>=capacity||started?null:()=>join(d),
+                  child:Text(started?'بدأت الختمة':count>=capacity?'الختمة مكتملة العدد':'انضم للختمة')),
               ] else ...[
                 const SizedBox(height:12),
                 const Text('أجزائي',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900)),
@@ -304,20 +369,8 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
                       subtitle:Text(List<int>.from(mine['completed']??[]).contains(p)?'مكتمل':'بانتظار القراءة'),
                       trailing:Icon(List<int>.from(mine['completed']??[]).contains(p)?Icons.check_circle:Icons.menu_book,color:_green)),
                     Row(children:[
-                      Expanded(child:TextButton.icon(
-                        onPressed:() async {
-                          final prefs=await SharedPreferences.getInstance();
-                          final key='khatma_${widget.id}_${widget.uid}_$p';
-                          final last=prefs.getInt(key)??_starts[p-1];
-                          if(!context.mounted)return;
-                          await Navigator.push(context,MaterialPageRoute<void>(
-                            builder:(_)=>KhatmaPartReader(part:p,initialPage:last,
-                              onPage:(page)=>prefs.setInt(key,page))));
-                        },
-                        icon:const Icon(Icons.menu_book),label:const Text('قراءة الجزء'))),
-                      Expanded(child:TextButton.icon(
-                        onPressed:()=>complete(p,!List<int>.from(mine['completed']??[]).contains(p)),
-                        icon:const Icon(Icons.check),label:Text(List<int>.from(mine['completed']??[]).contains(p)?'تراجع':'أتممت القراءة'))),
+                      Expanded(child:TextButton.icon(onPressed:started?()=>readPart(p):null,
+                        icon:const Icon(Icons.menu_book),label:Text(List<int>.from(mine['completed']??[]).contains(p)?'إعادة القراءة':'قراءة الجزء'))),
                     ]),
                   ])),
                 if((mine['parts'] as List?)?.isEmpty??true)
@@ -373,11 +426,13 @@ class _KhatmaPartReaderState extends State<KhatmaPartReader> {
   @override void dispose(){controller.dispose();super.dispose();}
   @override Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:Text('الجزء ${widget.part} • صفحة $page من $last')),
-    body:Directionality(textDirection:TextDirection.rtl,
+    body:Column(children:[Expanded(child:Directionality(textDirection:TextDirection.rtl,
       child:PageView.builder(controller:controller,itemCount:last-first+1,
         onPageChanged:(i){setState(()=>page=first+i);widget.onPage(page);},
         itemBuilder:(context,i)=>InteractiveViewer(minScale:1,maxScale:5,
           child:Image.asset('assets/mushaf/${(first+i).toString().padLeft(3,'0')}.webp',
-            fit:BoxFit.contain)))),
+            fit:BoxFit.contain))))),
+      if(page==last) Padding(padding:const EdgeInsets.all(12),child:SizedBox(width:double.infinity,child:FilledButton(onPressed:()=>Navigator.pop(context,true),child:const Text('أتممت قراءة الجزء')))),
+    ]),
   );
 }
