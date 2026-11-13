@@ -42,6 +42,17 @@ class _QuranScreenState extends State<QuranScreen> {
       builder: (_) => ReactQuranPreview(initialPage: page)));
     _refresh();
   }
+  Future<void> _openBookmark() async {
+    final prefs = await SharedPreferences.getInstance();
+    final mark = prefs.getInt('react_quran_bookmark');
+    if (!mounted) return;
+    if (mark == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('افتح المصحف واضغط علامة الحفظ أولًا')));
+      return;
+    }
+    await _read(mark);
+  }
   void _tajweed() => _index();
   void _index() => Navigator.push(context, MaterialPageRoute<void>(
     builder: (_) => const QuranIndexScreen()));
@@ -129,7 +140,7 @@ class _QuranScreenState extends State<QuranScreen> {
                   _shortcut(Icons.color_lens_outlined, 'المصحف العثماني', _tajweed),
                   _shortcut(Icons.menu_book_rounded, 'فهرس السور', _index),
                   _shortcut(Icons.layers_rounded, 'الأجزاء', _juz),
-                  _shortcut(Icons.star_border_rounded, 'علاماتي', () => _read(lastPage)),
+                  _shortcut(Icons.star_border_rounded, 'علاماتي', _openBookmark),
                   _shortcut(Icons.access_time_rounded, 'آخر قراءة', () => _read(lastPage)),
                   _shortcut(Icons.article_outlined, 'الصفحات', _pages),
                 ]),
