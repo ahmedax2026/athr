@@ -40,6 +40,12 @@ dependencies:
   cloud_firestore: ^6.1.0
   url_launcher: ^6.3.2
   webview_flutter: ^4.13.0
+  adhan_dart: ^2.0.1
+  geolocator: ^14.1.2
+  geocoding: ^5.0.1
+  timezone: ^0.11.0
+  timezone_finder: ^1.0.2
+  flutter_local_notifications: ^20.1.0
 
 dev_dependencies:
   flutter_test:
