@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'admin_and_cases.dart';
 import 'quran.dart';
+import 'react_quran_preview.dart';
 import 'khatma.dart';
 import 'tasbeeh.dart';
 import 'azkar.dart';
@@ -379,7 +380,7 @@ class HomeScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(22),
                         onTap: () {
                           if (s.$1 == 'القرآن الكريم') {
-                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const QuranScreen()));
+                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ReactQuranPreview()));
                           } else if (s.$1 == 'الختمات الجماعية') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const KhatmaScreen()));
                           } else if (s.$1 == 'الأذكار') {
