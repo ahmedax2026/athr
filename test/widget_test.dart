@@ -42,7 +42,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1200));
     await tester.pumpAndSettle();
 
-    expect(find.text('أهلًا بك في أثر لا ينقطع'), findsOneWidget);
+    expect(find.text('أبواب الخير'), findsOneWidget);
     expect(find.text('القرآن الكريم'), findsOneWidget);
     expect(find.text('الأذكار'), findsOneWidget);
     expect(find.text('السبحة'), findsOneWidget);
