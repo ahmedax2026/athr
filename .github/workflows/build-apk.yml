@@ -50,6 +50,26 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Install Android NDK with retries
+        run: |
+          set -euo pipefail
+          NDK_VERSION="28.2.13676358"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          for attempt in 1 2 3; do
+            echo "Installing NDK $NDK_VERSION (attempt $attempt/3)"
+            if yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "ndk;$NDK_VERSION"; then
+              if test -f "$SDK_ROOT/ndk/$NDK_VERSION/source.properties"; then
+                echo "Android NDK installed and verified"
+                exit 0
+              fi
+            fi
+            rm -rf "$SDK_ROOT/ndk/$NDK_VERSION"
+            sleep 3
+          done
+          echo "NDK installation failed after three attempts" >&2
+          exit 1
+
       - name: Generate Android launcher icon
         run: |
           python3 -m pip install --quiet Pillow
