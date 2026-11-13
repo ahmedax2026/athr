@@ -9,11 +9,13 @@ class AthrMushafReader extends StatefulWidget {
     this.initialPage,
     this.firstPage = 1,
     this.lastPage = 604,
+    this.onPage,
   });
 
   final int? initialPage;
   final int firstPage;
   final int lastPage;
+  final ValueChanged<int>? onPage;
 
   @override
   State<AthrMushafReader> createState() => _AthrMushafReaderState();
@@ -49,6 +51,12 @@ class _AthrMushafReaderState extends State<AthrMushafReader> {
       _eyeComfort = prefs.getBool('athr_mushaf_eye_comfort') ?? false;
       _loaded = true;
     });
+  }
+
+  Future<void> _pageChanged(int page) async {
+    widget.onPage?.call(page);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('react_quran_last_page', page);
   }
 
   Future<void> _toggleComfort() async {
@@ -104,12 +112,17 @@ class _AthrMushafReaderState extends State<AthrMushafReader> {
                         startPage: widget.firstPage,
                         endPage: widget.lastPage,
                         withPageView: true,
+                        onPageChanged: _pageChanged,
+                        backgroundColor: paper,
+                        textColor: ink,
+                        useDefaultAppBar: false,
                       )
                     : QuranLibraryScreen(
                         key: ValueKey('mushaf-$_eyeComfort'),
                         parentContext: context,
                         withPageView: true,
                         useDefaultAppBar: false,
+                        onPageChanged: _pageChanged,
                         isDark: false,
                         backgroundColor: paper,
                         textColor: ink,
