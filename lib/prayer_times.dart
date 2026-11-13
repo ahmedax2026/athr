@@ -29,12 +29,11 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   bool adhanEnabled = false;
   final AudioPlayer adhanPreview = AudioPlayer();
   String adhanVoice = 'adhan_makkah';
-  String fajrVoice = 'adhan_fajr';
+  String fajrVoice = 'adhan_makkah';
   String? previewingVoice;
   static const voiceNames = <String, String>{
     'adhan_makkah': 'أذان الحرم المكي',
     'adhan_afasy': 'أذان مشاري العفاسي',
-    'adhan_fajr': 'أذان الفجر (الصلاة خير من النوم)',
   };
   PrayerNotificationStatus? notificationStatus;
   bool checkingNotifications = false;
@@ -142,9 +141,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     reminder = prefs.getInt('prayer_reminder') ?? 10;
     adhanEnabled = prefs.getBool('adhan') ?? false;
     adhanVoice = prefs.getString('adhan_voice') ?? 'adhan_makkah';
-    fajrVoice = prefs.getString('adhan_fajr_voice') ?? 'adhan_fajr';
+    fajrVoice = prefs.getString('adhan_fajr_voice') ?? 'adhan_makkah';
     if (!voiceNames.containsKey(adhanVoice)) adhanVoice = 'adhan_makkah';
-    if (!voiceNames.containsKey(fajrVoice)) fajrVoice = 'adhan_fajr';
+    if (!voiceNames.containsKey(fajrVoice)) fajrVoice = 'adhan_makkah';
     // Ask for notification permission when the prayer timetable opens.
     // The Android exact-alarm special access remains a separate user action.
     try {
@@ -552,11 +551,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                 ),
                 if (adhanEnabled) ...[
                   _voiceSelector('صوت الأذان للصلوات', adhanVoice, 'adhan_voice'),
-                  _voiceSelector('صوت أذان الفجر', fajrVoice, 'adhan_fajr_voice'),
                 ],
                 const Padding(
                   padding: EdgeInsets.all(10),
-                  child: Text('تقدر تسمع الصوت قبل اختياره. صوت المعيقلي لم يُضف بعد، وأذان الفجر له اختيار مستقل.',
+                  child: Text('تقدر تسمع الصوت قبل اختياره. صوت المعيقلي لم يُضف بعد. أذان الفجر يستخدم نفس الصوت المختار للصلوات حاليًا.',
                     style: TextStyle(fontSize: 12, color: _forest, height: 1.5)),
                 ),
                 const Divider(),
