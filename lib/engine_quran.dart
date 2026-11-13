@@ -19,10 +19,12 @@ class _EngineQuranScreenState extends State<EngineQuranScreen> {
   late final PageController _controller;
   late int _page;
   bool _tajweed = true;
+  late final Future<void> _fontsReady;
 
   @override
   void initState() {
     super.initState();
+    _fontsReady = QcfFontLoader.setupFontsAtStartup();
     _page = (widget.initialPage ?? 1).clamp(1, 604);
     _controller = PageController(initialPage: _page - 1);
     if (widget.initialPage == null) _restore();
@@ -151,14 +153,42 @@ class _EngineQuranScreenState extends State<EngineQuranScreen> {
             icon: const Icon(Icons.menu_book_outlined)),
         ],
       ),
-      body: SafeArea(child: QuranPageView(
-        pageController: _controller,
-        highlights: const <HighlightVerse>[],
-        isDarkMode: isDark,
-        isTajweed: _tajweed,
-        enableTwoPageLayout: false,
-        pageBackgroundColor: _paper,
-        onPageChanged: _onPageChanged,
+      body: SafeArea(child: FutureBuilder<void>(
+        future: _fontsReady,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Text('تعذر تجهيز خطوط المصحف',
+                  style: TextStyle(color: _green, fontSize: 19)),
+                const SizedBox(height: 12),
+                Text('${snapshot.error}', textAlign: TextAlign.center),
+              ]),
+            ));
+          }
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: _green),
+                SizedBox(height: 16),
+                Text('جاري تجهيز خطوط المصحف...',
+                  style: TextStyle(color: _green)),
+              ],
+            ));
+          }
+          return QuranPageView(
+            pageController: _controller,
+            highlights: const <HighlightVerse>[],
+            isDarkMode: isDark,
+            isTajweed: _tajweed,
+            enableTwoPageLayout: false,
+            deferNewPages: false,
+            pageBackgroundColor: _paper,
+            onPageChanged: _onPageChanged,
+          );
+        },
       )),
     );
   }
