@@ -183,6 +183,7 @@ class _AzkarReaderState extends State<AzkarReader> {
   int index = 0;
   Map<String, int> counts = {};
   bool loaded = false;
+  bool completionShown = false;
   String get key => 'azkar_${widget.title}';
 
   @override
@@ -214,20 +215,46 @@ class _AzkarReaderState extends State<AzkarReader> {
   }
 
   void _showCompletion() {
-    showDialog<void>(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: _green,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26), side: const BorderSide(color: _gold, width: 1.5)),
-      title: const Column(children: [
-        Icon(Icons.auto_awesome, color: _gold, size: 54),
-        SizedBox(height: 10),
-        Text('ما شاء الله، أتممت الأذكار', textAlign: TextAlign.center,
-          style: TextStyle(color: _gold, fontWeight: FontWeight.w800)),
-      ]),
-      content: const Text('تقبّل الله منك، وجعل ذكره نورًا لقلبك وأجرًا لك.', textAlign: TextAlign.center,
-        style: TextStyle(color: Colors.white, fontSize: 18, height: 1.65)),
-      actionsAlignment: MainAxisAlignment.center,
-      actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('الحمد لله'))],
-    ));
+    if (completionShown || !mounted) return;
+    completionShown = true;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _green,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+          side: const BorderSide(color: _gold, width: 1.5),
+        ),
+        title: const Column(children: [
+          Icon(Icons.auto_awesome_rounded, color: _gold, size: 52),
+          SizedBox(height: 12),
+          Text('تقبّل الله منك', textAlign: TextAlign.center,
+            style: TextStyle(color: _gold, fontSize: 25,
+              fontWeight: FontWeight.w900)),
+          SizedBox(height: 5),
+          Text('مبارك إتمام الأذكار', textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white70, fontSize: 16)),
+        ]),
+        content: const Text(
+          'اللهم اجعل ذكرك أنيسًا لقلوبنا، ونورًا لصدورنا، '
+          'وسكينةً لنفوسنا، واغفر لنا ولوالدينا ولجميع المسلمين. '
+          'اللهم أعنّا على ذكرك وشكرك وحسن عبادتك.',
+          textDirection: TextDirection.rtl,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white, fontSize: 19, height: 1.85),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx),
+            icon: const Icon(Icons.favorite_outline),
+            label: const Text('اللهم آمين'),
+            style: FilledButton.styleFrom(
+              backgroundColor: _gold, foregroundColor: _green),
+          ),
+        ],
+      ),
+    ).whenComplete(() => completionShown = false);
   }
 
   void _tap() {
@@ -237,8 +264,9 @@ class _AzkarReaderState extends State<AzkarReader> {
     if (current >= item.target) return;
     setState(() => counts['$currentIndex'] = current + 1);
     _save();
-    if (current + 1 == item.target && currentIndex == widget.items.length - 1 &&
-        widget.items.asMap().entries.every((entry) => (counts['${entry.key}'] ?? 0) >= entry.value.target)) {
+    if (current + 1 == item.target &&
+        widget.items.asMap().entries.every(
+          (entry) => (counts['${entry.key}'] ?? 0) >= entry.value.target)) {
       Future<void>.delayed(const Duration(milliseconds: 450), () {
         if (mounted) _showCompletion();
       });
