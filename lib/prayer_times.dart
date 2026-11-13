@@ -26,6 +26,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   String method = 'egypt';
   int reminder = 10;
   bool adhanEnabled = false;
+  PrayerNotificationStatus? notificationStatus;
+  bool checkingNotifications = false;
   bool busy = true;
   String? error;
   DateTime now = DateTime.now();
@@ -231,8 +233,62 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       await PrayerNotifications.schedule(
         days: dates.map(_forDate).toList(),
         zone: zone!, reminderMinutes: reminder);
+      final status = await PrayerNotifications.status();
+      if (mounted) setState(() { notificationStatus = status; error = null; });
     } catch (e) {
       if (mounted) setState(() => error = 'تعذر جدولة الإشعارات: $e');
+    }
+  }
+
+  Future<void> _checkNotificationStatus() async {
+    if (checkingNotifications) return;
+    setState(() => checkingNotifications = true);
+    try {
+      final status = await PrayerNotifications.status();
+      if (mounted) setState(() => notificationStatus = status);
+    } catch (e) {
+      if (mounted) setState(() => error = 'تعذر فحص الإشعارات: $e');
+    } finally {
+      if (mounted) setState(() => checkingNotifications = false);
+    }
+  }
+
+  Future<void> _enableNotifications() async {
+    final allowed = await PrayerNotifications.requestNotificationPermission();
+    await _checkNotificationStatus();
+    if (!mounted) return;
+    if (!allowed) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('السماح بالإشعارات ضروري لاستقبال تنبيهات الصلاة')));
+      await PrayerNotifications.openNotificationSettings();
+      return;
+    }
+    await _schedule();
+  }
+
+  Future<void> _enablePreciseReminders() async {
+    final granted = await PrayerNotifications.requestExactPermission();
+    await _checkNotificationStatus();
+    if (!mounted) return;
+    if (granted) {
+      await _schedule();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('التوقيت الدقيق لم يُفعّل بعد. سيستمر استخدام التنبيهات التقريبية.')));
+    }
+  }
+
+  Future<void> _testNotification() async {
+    try {
+      await PrayerNotifications.showTest();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('أرسلنا إشعار اختبار الآن. افحص لوحة الإشعارات.')));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('تعذر إرسال الاختبار: $e')));
+      }
     }
   }
 
@@ -494,6 +550,50 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                   onChanged: (value) { if (value != null) _setMethod(value); },
                 ),
               ),
+            ]),
+          ),
+          const SizedBox(height: 13),
+          Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1E9D7),
+              borderRadius: BorderRadius.circular(21),
+              border: Border.all(color: const Color(0xFFD9BC7D)),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              const Text('فحص وصول التنبيهات', style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.w900, color: _forest)),
+              const SizedBox(height: 7),
+              Text(notificationStatus == null
+                ? 'اضغط فحص الإشعارات للتأكد من صلاحيات الهاتف.'
+                : notificationStatus!.enabled
+                  ? 'الإشعارات مسموحة • ${notificationStatus!.pending} تنبيه صلاة مجدول'
+                  : 'الإشعارات محظورة من الهاتف، ولن تصل تنبيهات الصلاة.',
+                style: const TextStyle(color: _forest, height: 1.5)),
+              if (notificationStatus != null && !notificationStatus!.exact)
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Text('التوقيت الدقيق غير مفعّل؛ قد تتأخر التنبيهات بسبب نظام الهاتف.',
+                    style: TextStyle(color: Color(0xFF94702F)))),
+              const SizedBox(height: 12),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                OutlinedButton.icon(
+                  onPressed: checkingNotifications ? null : _checkNotificationStatus,
+                  icon: const Icon(Icons.fact_check_outlined),
+                  label: const Text('فحص التنبيهات')),
+                FilledButton.icon(
+                  onPressed: _enableNotifications,
+                  icon: const Icon(Icons.notifications_active_outlined),
+                  label: const Text('السماح بالإشعارات')),
+                OutlinedButton.icon(
+                  onPressed: _enablePreciseReminders,
+                  icon: const Icon(Icons.alarm_on_outlined),
+                  label: const Text('تفعيل التوقيت الدقيق')),
+                OutlinedButton.icon(
+                  onPressed: _testNotification,
+                  icon: const Icon(Icons.send_outlined),
+                  label: const Text('اختبار إشعار الآن')),
+              ]),
             ]),
           ),
           const SizedBox(height: 15),
