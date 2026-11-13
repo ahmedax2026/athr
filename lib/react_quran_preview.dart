@@ -21,6 +21,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   int? bookmark;
   String? error;
   int page = 1;
+  bool darkReading = true;
 
   @override
   void initState() {
@@ -30,12 +31,13 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
 
   Future<void> _start() async {
     final prefs = await SharedPreferences.getInstance();
+    darkReading = prefs.getBool('ottoman_mushaf_dark') ?? true;
     page = (widget.initialPage ?? prefs.getInt('react_quran_last_page') ?? 1).clamp(1, 604);
     zoom = (prefs.getDouble('react_quran_zoom') ?? 1.0).clamp(0.8, 1.8);
     bookmark = prefs.getInt('react_quran_bookmark');
     final web = WebViewController();
     await web.setJavaScriptMode(JavaScriptMode.unrestricted);
-    await web.setBackgroundColor(const Color(0xFFFFF8E9));
+    await web.setBackgroundColor(darkReading ? const Color(0xFF193B30) : const Color(0xFFFFF8E9));
     await web.addJavaScriptChannel('ReactQuranBridge', onMessageReceived: (message) async {
         try {
           final data = jsonDecode(message.message) as Map<String, dynamic>;
@@ -45,6 +47,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
           if (data['type'] == 'ready') {
             readerReady = true;
             await _applyZoom();
+            await _applyReadingTheme();
             if (mounted) setState(() { loading = false; error = null; });
           }
           if (data['type'] == 'page' && data['page'] is num) {
@@ -59,6 +62,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
           try {
             await web.runJavaScript('window.setQuranPage && window.setQuranPage($page)');
             await _applyZoom();
+            await _applyReadingTheme();
           } catch (_) { /* Show bundled page even if JS bridge is unavailable. */ }
           // Do not mistake a loaded HTML shell for a successfully rendered Quran.
           await Future<void>.delayed(const Duration(seconds: 3));
@@ -79,6 +83,39 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
     } catch (failure) {
       if (mounted) setState(() { loading = false; error = '$failure'; });
     }
+  }
+
+  Future<void> _applyReadingTheme() async {
+    final web = controller;
+    if (web == null) return;
+    final background = darkReading ? '#193B30' : '#FFF8E9';
+    final foreground = darkReading ? '#F7EBD3' : '#17372E';
+    await web.setBackgroundColor(darkReading
+        ? const Color(0xFF193B30) : const Color(0xFFFFF8E9));
+    try {
+      await web.runJavaScript("""
+        (() => {
+          let style = document.getElementById('athr-ottoman-theme');
+          if (!style) {
+            style = document.createElement('style');
+            style.id = 'athr-ottoman-theme';
+            document.head.appendChild(style);
+          }
+          style.textContent = 'html, body, #root, .reader, .reader > div {' +
+            'background-color: $background !important; color: $foreground !important;}' +
+            '.reader, .reader *:not(button):not(input) {' +
+            'color: $foreground !important;}' +
+            '.reader svg text, .reader svg tspan { fill: $foreground !important; }';
+        })();
+      """);
+    } catch (_) { /* Keep the reader usable if styling injection fails. */ }
+  }
+
+  Future<void> _toggleReadingTheme() async {
+    setState(() => darkReading = !darkReading);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('ottoman_mushaf_dark', darkReading);
+    await _applyReadingTheme();
   }
 
   Future<void> _applyZoom() async {
@@ -109,12 +146,16 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFFFF8E9),
+    backgroundColor: darkReading ? const Color(0xFF193B30) : const Color(0xFFFFF8E9),
     appBar: AppBar(
       backgroundColor: const Color(0xFF073E35),
       foregroundColor: Colors.white,
       title: Text('$page / 604'),
       actions: [
+        IconButton(
+          tooltip: darkReading ? 'الوضع الفاتح' : 'الوضع الأخضر الداكن',
+          onPressed: _toggleReadingTheme,
+          icon: Icon(darkReading ? Icons.light_mode_outlined : Icons.dark_mode_outlined)),
         IconButton(
           tooltip: 'فهرس السور',
           onPressed: () => Navigator.push(context, MaterialPageRoute<void>(
