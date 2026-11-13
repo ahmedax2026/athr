@@ -299,12 +299,12 @@ class HomeScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 17),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       begin: Alignment.topRight, end: Alignment.bottomLeft,
                       colors: [Color(0xFF176451), Color(0xFF06372F)]),
-                    borderRadius: BorderRadius.circular(28),
+                    borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: gold.withValues(alpha: 0.72), width: 1.2),
                     boxShadow: [BoxShadow(
                       color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.10),
@@ -312,36 +312,36 @@ class HomeScreen extends StatelessWidget {
                   ),
                   child: Column(children: [
                     const Text('صَدَقَةٌ جَارِيَة', textAlign: TextAlign.center,
-                      style: TextStyle(color: gold, fontSize: 17, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 12),
+                      style: TextStyle(color: gold, fontSize: 15, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 8),
                     Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                       Container(
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(13),
                           border: Border.all(color: gold, width: 1.4)),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: Image.asset('assets/images/father.jpg',
-                            width: 94, height: 105, fit: BoxFit.contain,
+                            width: 80, height: 92, fit: BoxFit.contain,
                             errorBuilder: (_, _, _) => const SizedBox(
-                              width: 94, height: 105,
+                              width: 80, height: 92,
                               child: Icon(Icons.person_outline, color: gold))),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(child: Column(children: [
                         Text('على روح المغفور له بإذن الله',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: cream, fontSize: 13, height: 1.6)),
-                        SizedBox(height: 7),
+                          style: TextStyle(color: cream, fontSize: 12, height: 1.5)),
+                        SizedBox(height: 5),
                         Text('عبدالوكيل عبدالسيد محمد',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: gold, fontSize: 16,
-                            fontWeight: FontWeight.w900, height: 1.5)),
-                        SizedBox(height: 9),
+                          style: TextStyle(color: gold, fontSize: 15,
+                            fontWeight: FontWeight.w900, height: 1.4)),
+                        SizedBox(height: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
                           decoration: BoxDecoration(
                             color: const Color(0x6610342E),
                             borderRadius: BorderRadius.circular(12),
@@ -353,9 +353,9 @@ class HomeScreen extends StatelessWidget {
                             textDirection: TextDirection.rtl,
                             style: TextStyle(
                               color: cream,
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.w800,
-                              height: 1.65,
+                              height: 1.5,
                               shadows: [Shadow(color: Color(0x99000000), blurRadius: 2)],
                             ),
                           ),
