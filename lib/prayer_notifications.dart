@@ -180,6 +180,11 @@ class PrayerNotifications {
         if (reminderMinutes > 0) {
           final before = prayerTime.subtract(Duration(minutes: reminderMinutes));
           if (before.isAfter(now)) {
+            fullAdhanAlarms.add({
+              'at': before.millisecondsSinceEpoch,
+              'voice': 'reminder',
+              'prayer': name,
+            });
             await _plugin.zonedSchedule(
               id: 1001 + day * 20 + prayer * 2,
               title: 'اقتربت صلاة $name',
