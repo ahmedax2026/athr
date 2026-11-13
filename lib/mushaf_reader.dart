@@ -209,15 +209,13 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                   if (mounted && zoomed != active) setState(() => zoomed = active);
                 },
                 child: SizedBox.expand(child: ColoredBox(color: _paper,
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: Image.asset('assets/mushaf/${(index + 1).toString().padLeft(3, '0')}.webp',
-                      width: double.infinity,
-                      fit: BoxFit.fitWidth,
-                      alignment: Alignment.topCenter,
-                      filterQuality: FilterQuality.high,
-                      errorBuilder: (context, error, stack) =>
-                        const Center(child: Text('تعذر فتح صفحة المصحف')))))),
+                  child: Image.asset('assets/mushaf/${(index + 1).toString().padLeft(3, '0')}.webp',
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.fill,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (context, error, stack) =>
+                      const Center(child: Text('تعذر فتح صفحة المصحف'))))),
               ),
             );
             return child;
