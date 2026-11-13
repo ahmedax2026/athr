@@ -271,7 +271,9 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
       await FirebaseFirestore.instance.runTransaction((tx) async {
         final snap = await tx.get(ref);
         if (snap.data()?['creatorId'] != widget.uid ||
-            snap.data()?['closed'] == true) throw StateError('not allowed');
+            snap.data()?['closed'] == true) {
+          throw StateError('not allowed');
+        }
         final old = (snap.data()?['deadline'] as Timestamp).toDate();
         tx.update(ref, {'deadline': Timestamp.fromDate(old.add(Duration(days: days)))});
       });
@@ -297,7 +299,9 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
       await FirebaseFirestore.instance.runTransaction((tx) async {
         final snap = await tx.get(ref);
         if (snap.data()?['creatorId'] != widget.uid ||
-            snap.data()?['closed'] == true) throw StateError('not allowed');
+            snap.data()?['closed'] == true) {
+          throw StateError('not allowed');
+        }
         tx.update(ref, {'closed': true, 'closedAt': FieldValue.serverTimestamp()});
       });
       message('تم إغلاق الختمة');
