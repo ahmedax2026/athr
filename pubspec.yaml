@@ -47,6 +47,12 @@ dependencies:
   timezone_finder: ^1.0.2
   flutter_local_notifications: ^22.3.3
   audioplayers: ^6.8.1
+  # Trial uses the repository source so that its Quran line images are bundled.
+  # The pub.dev archive alone omits the image assets.
+  imad_flutter:
+    git:
+      url: https://github.com/Itqan-community/mushaf-imad-flutter.git
+      ref: main
 
 dev_dependencies:
   flutter_test:
