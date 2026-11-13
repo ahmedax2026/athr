@@ -20,6 +20,7 @@ class PrayerTimesScreen extends StatefulWidget {
 }
 
 class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
+  final Geocoding geocoding = Geocoding();
   double? latitude, longitude;
   String city = 'حدد المدينة';
   String method = 'egypt';
@@ -163,7 +164,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium));
       String label = 'موقعي الحالي';
       try {
-        final places = await placemarkFromCoordinates(position.latitude, position.longitude);
+        final places = await geocoding.placemarkFromCoordinates(position.latitude, position.longitude);
         if (places.isNotEmpty) {
           final p = places.first;
           label = [p.locality, p.administrativeArea, p.country]
@@ -201,8 +202,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     if (query == null || query.isEmpty) return;
     setState(() { busy = true; error = null; });
     try {
-      final locations = await locationFromAddress(query);
-      if (locations.isEmpty) throw StateError('المدينة غير موجودة');
+      final locations = await geocoding.locationFromAddress(query);
+      if (locations.isEmpty) { throw StateError('المدينة غير موجودة'); }
       await _storePosition(locations.first.latitude, locations.first.longitude, query);
     } catch (_) {
       if (mounted) setState(() {
