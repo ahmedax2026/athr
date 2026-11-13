@@ -108,7 +108,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
         (() => {
           if (window.__athrSwipeInstalled) return;
           window.__athrSwipeInstalled = true;
-          const min = ${widget.firstPage}, max = ${widget.lastPage};
+          const min = ${widget.firstPage}, max = $widget.lastPage;
           let x = null, y = null;
           document.addEventListener('touchstart', e => {
             if (e.touches.length !== 1) { x = null; return; }
@@ -208,7 +208,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
       backgroundColor: const Color(0xFF073E35),
       foregroundColor: Colors.white,
       title: Text(widget.firstPage == 1 && widget.lastPage == 604
-          ? '$page / 604' : '$page / ${widget.lastPage}'),
+          ? '$page / 604' : '$page / $widget.lastPage'),
       actions: [
         IconButton(
           tooltip: eyeComfort ? 'إيقاف راحة العين' : 'راحة العين',
