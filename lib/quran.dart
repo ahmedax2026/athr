@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'react_quran_preview.dart';
+import 'imad_mushaf_trial.dart';
 
 const emerald = Color(0xFF003D30);
 const gold = Color(0xFFFFD77A);
@@ -153,6 +154,18 @@ class _QuranScreenState extends State<QuranScreen> {
                     fontWeight: FontWeight.bold)),
               ),
             ]),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ImadMushafTrial())),
+            icon: const Icon(Icons.compare_arrows_rounded),
+            label: const Text('تجربة مصحف عماد ومقارنته بالمصحف الحالي'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: gold,
+              side: const BorderSide(color: gold),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+            ),
           ),
           const SizedBox(height: 17),
           GridView.count(
