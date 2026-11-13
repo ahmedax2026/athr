@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:qcf_quran_plus/qcf_quran_plus.dart';
+import 'engine_quran.dart';
 
 const _green = Color(0xFF073E35);
 const _gold = Color(0xFFD6B56C);
@@ -51,36 +53,118 @@ const _groups = <String, List<Dhikr>>{
   ],
 };
 
+int? _quranSurah(Dhikr item) {
+  if (item.source == 'سورة الإخلاص') return 112;
+  if (item.source == 'سورة الفلق') return 113;
+  if (item.source == 'سورة الناس') return 114;
+  if (item.source.startsWith('سورة البقرة: 255')) return 2;
+  if (item.source.startsWith('سورة البقرة: 201')) return 2;
+  if (item.source.startsWith('سورة إبراهيم: 41')) return 14;
+  return null;
+}
+
+int _firstVerse(Dhikr item) {
+  if (item.source.endsWith(': 255')) return 255;
+  if (item.source.endsWith(': 201')) return 201;
+  if (item.source.endsWith(': 41')) return 41;
+  return 1;
+}
+
+String _displayDhikr(Dhikr item) {
+  final surah = _quranSurah(item);
+  if (surah == null) return item.text;
+  final start = _firstVerse(item);
+  final end = start == 1 ? getVerseCount(surah) : start;
+  return [
+    for (var verse = start; verse <= end; verse++)
+      getVerse(surah, verse),
+  ].join('  ');
+}
+
 class AzkarScreen extends StatelessWidget {
   const AzkarScreen({super.key});
+
+  IconData _icon(String title) {
+    if (title.contains('الصباح')) return Icons.wb_sunny_outlined;
+    if (title.contains('المساء')) return Icons.nightlight_outlined;
+    if (title.contains('الصلاة')) return Icons.mosque_outlined;
+    if (title.contains('النوم')) return Icons.bedtime_outlined;
+    if (title.contains('الاستيقاظ')) return Icons.wb_twilight_outlined;
+    return Icons.volunteer_activism_outlined;
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: _paper,
-    appBar: AppBar(title: const Text('حصن المسلم • الأذكار'), backgroundColor: _green, foregroundColor: Colors.white),
-    body: ListView(padding: const EdgeInsets.all(16), children: [
-      Container(padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(color: _green, borderRadius: BorderRadius.circular(24), border: Border.all(color: _gold, width: 1.5)),
-        child: const Column(children: [
-          Icon(Icons.auto_awesome, color: _gold, size: 32),
-          SizedBox(height: 8),
-          Text('أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ', textAlign: TextAlign.center,
-            style: TextStyle(color: _paper, fontSize: 21, fontWeight: FontWeight.bold)),
-          SizedBox(height: 7),
-          Text('اذكر الله بقلب مطمئن', style: TextStyle(color: _gold)),
-        ])),
-      const SizedBox(height: 16),
-      for (final entry in _groups.entries)
-        Card(color: Colors.white, margin: const EdgeInsets.only(bottom: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: const BorderSide(color: _gold)),
-          child: ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: const CircleAvatar(backgroundColor: _green, child: Icon(Icons.favorite_outline, color: _gold)),
-            title: Text(entry.key, style: const TextStyle(color: _green, fontSize: 19, fontWeight: FontWeight.bold)),
-            subtitle: Text('${entry.value.length} أذكار • عداد تلقائي'),
-            trailing: const Icon(Icons.chevron_left, color: _green),
-            onTap: () => Navigator.push(context, MaterialPageRoute<void>(
-              builder: (_) => AzkarReader(title: entry.key, items: entry.value))),
-          )),
-    ]),
+    appBar: AppBar(
+      title: const Text('الأذكار', style: TextStyle(fontWeight: FontWeight.bold)),
+      backgroundColor: _green,
+      foregroundColor: Colors.white),
+    body: ListView(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+          decoration: BoxDecoration(
+            color: _green,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: _gold)),
+          child: const Column(children: [
+            Icon(Icons.auto_stories_outlined, color: _gold, size: 28),
+            SizedBox(height: 10),
+            Text('ألا بذكر الله تطمئن القلوب',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white, fontSize: 23,
+                fontWeight: FontWeight.w700)),
+            SizedBox(height: 5),
+            Text('أذكار يومك في مكان واحد',
+              style: TextStyle(color: _gold, fontSize: 14)),
+          ]),
+        ),
+        const SizedBox(height: 14),
+        for (final entry in _groups.entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 9),
+            child: Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => Navigator.push(context,
+                  MaterialPageRoute<void>(builder: (_) =>
+                    AzkarReader(title: entry.key, items: entry.value))),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: _gold.withValues(alpha: .65)),
+                    borderRadius: BorderRadius.circular(18)),
+                  child: Row(children: [
+                    Container(
+                      width: 46, height: 46,
+                      decoration: const BoxDecoration(
+                        color: _green, shape: BoxShape.circle),
+                      child: Icon(_icon(entry.key), color: _gold, size: 23)),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(entry.key, style: const TextStyle(
+                          color: _green, fontSize: 18,
+                          fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 2),
+                        Text('${entry.value.length} أذكار',
+                          style: const TextStyle(color: Color(0xFF837C6D),
+                            fontSize: 13)),
+                      ])),
+                    const Icon(Icons.chevron_left, color: _green),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
   );
 }
 
@@ -88,92 +172,178 @@ class AzkarReader extends StatefulWidget {
   const AzkarReader({super.key, required this.title, required this.items});
   final String title;
   final List<Dhikr> items;
-  @override State<AzkarReader> createState() => _AzkarReaderState();
+  @override
+  State<AzkarReader> createState() => _AzkarReaderState();
 }
+
 class _AzkarReaderState extends State<AzkarReader> {
   int index = 0;
   Map<String, int> counts = {};
   bool loaded = false;
   String get key => 'azkar_${widget.title}';
-  @override void initState() { super.initState(); _load(); }
+
+  @override
+  void initState() { super.initState(); _load(); }
+
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    final data = jsonDecode(prefs.getString(key) ?? '{}') as Map<String, dynamic>;
+    final data = jsonDecode(prefs.getString(key) ?? '{}')
+        as Map<String, dynamic>;
     if (!mounted) return;
     setState(() {
       counts = data.map((k, v) => MapEntry(k, (v as num).toInt()));
-      index = (prefs.getInt('${key}_index') ?? 0).clamp(0, widget.items.length - 1);
+      index = (prefs.getInt('${key}_index') ?? 0)
+          .clamp(0, widget.items.length - 1);
       loaded = true;
     });
   }
+
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(key, jsonEncode(counts));
     await prefs.setInt('${key}_index', index);
   }
-  void _tap() {
-    final item = widget.items[index];
-    final current = counts['$index'] ?? 0;
-    if (current >= item.target) return;
-    setState(() => counts['$index'] = current + 1);
-    if (current + 1 == item.target && index < widget.items.length - 1) {
-      Future<void>.delayed(const Duration(milliseconds: 420), () {
-        if (!mounted || index >= widget.items.length - 1) return;
-        setState(() => index++);
-        _save();
-      });
-    }
+
+  void _move(int next) {
+    if (next < 0 || next >= widget.items.length) return;
+    setState(() => index = next);
     _save();
   }
-  @override Widget build(BuildContext context) {
+
+  void _tap() {
+    final currentIndex = index;
+    final item = widget.items[currentIndex];
+    final current = counts['$currentIndex'] ?? 0;
+    if (current >= item.target) return;
+    setState(() => counts['$currentIndex'] = current + 1);
+    _save();
+    if (current + 1 == item.target &&
+        currentIndex < widget.items.length - 1) {
+      Future<void>.delayed(const Duration(milliseconds: 550), () {
+        if (mounted && index == currentIndex) _move(currentIndex + 1);
+      });
+    }
+  }
+
+  void _openMushaf(Dhikr item) {
+    final surah = _quranSurah(item);
+    if (surah == null) return;
+    final page = getPageNumber(surah, _firstVerse(item));
+    Navigator.push(context, MaterialPageRoute<void>(
+      builder: (_) => EngineQuranScreen(initialPage: page)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final item = widget.items[index];
     final count = counts['$index'] ?? 0;
     final done = count >= item.target;
-    return Scaffold(backgroundColor: _paper,
-      appBar: AppBar(title: Text(widget.title), backgroundColor: _green, foregroundColor: Colors.white),
-      body: !loaded ? const Center(child: CircularProgressIndicator()) :
-        SafeArea(child: LayoutBuilder(builder: (context, size) {
-          final diameter = (size.maxWidth - 42).clamp(220.0, 390.0);
-          return Column(children: [
-            Padding(padding: const EdgeInsets.all(16), child: LinearProgressIndicator(
-              value: (index + count / item.target) / widget.items.length,
-              minHeight: 7, borderRadius: BorderRadius.circular(10),
-              backgroundColor: const Color(0xFFE5D8B7), color: _green)),
-            Text('الذكر ${index + 1} من ${widget.items.length}', style: const TextStyle(color: _green, fontWeight: FontWeight.bold)),
-            Expanded(child: Center(child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    final surah = _quranSurah(item);
+    return Scaffold(
+      backgroundColor: _paper,
+      appBar: AppBar(
+        title: Text(widget.title),
+        backgroundColor: _green,
+        foregroundColor: Colors.white),
+      body: !loaded
+        ? const Center(child: CircularProgressIndicator())
+        : SafeArea(child: Column(children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
               child: Column(children: [
+                LinearProgressIndicator(
+                  value: (index + count / item.target) /
+                      widget.items.length,
+                  minHeight: 6,
+                  borderRadius: BorderRadius.circular(12),
+                  backgroundColor: const Color(0xFFE9DEC6),
+                  color: _green),
+                const SizedBox(height: 10),
+                Text('الذكر ${index + 1} من ${widget.items.length}',
+                  style: const TextStyle(
+                    color: _green, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+            Expanded(child: ListView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 18, vertical: 10),
+              children: [
                 Container(
-                  padding: const EdgeInsets.all(18), width: double.infinity,
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _gold)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: _gold),
+                    borderRadius: BorderRadius.circular(22)),
                   child: Column(children: [
-                    Text(item.text, textAlign: TextAlign.center, textDirection: TextDirection.rtl,
-                      style: const TextStyle(fontSize: 22, height: 1.85, color: _green)),
-                    const SizedBox(height: 10),
-                    Text(item.source, style: const TextStyle(color: Color(0xFF94702F), fontSize: 13)),
-                  ])),
-                const SizedBox(height: 16),
-                GestureDetector(onTap: _tap, child: Container(
-                  width: diameter * .65, height: diameter * .65,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: _green,
-                    border: Border.all(color: _gold, width: 3)),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    const Icon(Icons.favorite, color: _gold, size: 26),
-                    Text('$count / ${item.target}', style: const TextStyle(color: Colors.white, fontSize: 31, fontWeight: FontWeight.bold)),
-                    Text(done ? 'اكتمل الذكر ✓' : 'اضغط للتسبيح', style: const TextStyle(color: _gold)),
+                    Text(_displayDhikr(item),
+                      textDirection: TextDirection.rtl,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 25, height: 1.65, color: _green)),
+                    const SizedBox(height: 16),
+                    Text(item.source, style: const TextStyle(
+                      color: Color(0xFF97723E), fontSize: 14)),
+                    if (surah != null) ...[
+                      const SizedBox(height: 10),
+                      TextButton.icon(
+                        onPressed: () => _openMushaf(item),
+                        icon: const Icon(Icons.menu_book_outlined),
+                        label: const Text('اقرأ من المصحف'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: _green)),
+                    ],
                   ]),
+                ),
+                const SizedBox(height: 20),
+                Center(child: InkWell(
+                  onTap: _tap,
+                  customBorder: const CircleBorder(),
+                  child: Container(
+                    width: 150, height: 150,
+                    decoration: BoxDecoration(
+                      color: _green,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: _gold, width: 2)),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('$count من ${item.target}',
+                          textDirection: TextDirection.rtl,
+                          style: const TextStyle(
+                            color: Colors.white, fontSize: 25,
+                            fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 5),
+                        Text(done ? 'اكتمل الذكر' : 'اضغط للعد',
+                          style: const TextStyle(
+                            color: _gold, fontSize: 14)),
+                      ]),
+                  ),
                 )),
-              ])))),
-            Padding(padding: const EdgeInsets.fromLTRB(14, 5, 14, 15), child: Row(children: [
-              Expanded(child: OutlinedButton(onPressed: index == 0 ? null : () {setState(() => index--); _save();}, child: const Text('السابق'))),
-              const SizedBox(width: 12),
-              Expanded(child: FilledButton(style: FilledButton.styleFrom(backgroundColor: _green),
-                onPressed: index == widget.items.length - 1 ? null : () {setState(() => index++); _save();},
-                child: const Text('التالي'))),
-            ])),
-          ]);
-        })),
+              ],
+            )),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
+              child: Row(children: [
+                Expanded(child: OutlinedButton(
+                  onPressed: index == 0 ? null : () => _move(index - 1),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _green,
+                    side: const BorderSide(color: _gold),
+                    minimumSize: const Size.fromHeight(48)),
+                  child: const Text('السابق'))),
+                const SizedBox(width: 12),
+                Expanded(child: FilledButton(
+                  onPressed: index == widget.items.length - 1
+                      ? null : () => _move(index + 1),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _green,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(48)),
+                  child: const Text('التالي'))),
+              ]),
+            ),
+          ])),
     );
   }
 }
