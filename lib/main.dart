@@ -1,3 +1,4 @@
+import 'prayer_times.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -384,6 +385,8 @@ class HomeScreen extends StatelessWidget {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const KhatmaScreen()));
                           } else if (s.$1 == 'الأذكار') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AzkarScreen()));
+                          } else if (s.$1 == 'مواقيت الصلاة') {
+                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PrayerTimesScreen()));
                           } else if (s.$1 == 'السبحة') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TasbeehScreen()));
                           } else if (s.$1 == 'فك كرب') {
