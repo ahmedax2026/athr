@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'quran.dart';
 
 /// Locally bundled react-quran. No network or external website is needed.
 class ReactQuranPreview extends StatefulWidget {
@@ -16,6 +17,8 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   WebViewController? controller;
   bool loading = true;
   bool readerReady = false;
+  double zoom = 1.0;
+  int? bookmark;
   String? error;
   int page = 1;
 
@@ -28,6 +31,8 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   Future<void> _start() async {
     final prefs = await SharedPreferences.getInstance();
     page = (widget.initialPage ?? prefs.getInt('react_quran_last_page') ?? 1).clamp(1, 604);
+    zoom = (prefs.getDouble('react_quran_zoom') ?? 1.0).clamp(0.8, 1.8);
+    bookmark = prefs.getInt('react_quran_bookmark');
     final web = WebViewController();
     await web.setJavaScriptMode(JavaScriptMode.unrestricted);
     await web.setBackgroundColor(const Color(0xFFFFF8E9));
@@ -39,11 +44,12 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
           }
           if (data['type'] == 'ready') {
             readerReady = true;
+            await _applyZoom();
             if (mounted) setState(() { loading = false; error = null; });
           }
           if (data['type'] == 'page' && data['page'] is num) {
             final next = ((data['page'] as num).toInt()).clamp(1, 604);
-            page = next;
+            if (mounted) setState(() => page = next);
             await prefs.setInt('react_quran_last_page', next);
           }
         } catch (_) { /* Ignore malformed page events. */ }
@@ -52,6 +58,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
         onPageFinished: (_) async {
           try {
             await web.runJavaScript('window.setQuranPage && window.setQuranPage($page)');
+            await _applyZoom();
           } catch (_) { /* Show bundled page even if JS bridge is unavailable. */ }
           // Do not mistake a loaded HTML shell for a successfully rendered Quran.
           await Future<void>.delayed(const Duration(seconds: 3));
@@ -74,14 +81,57 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
     }
   }
 
+  Future<void> _applyZoom() async {
+    if (controller == null) return;
+    try {
+      await controller!.runJavaScript(
+        "document.querySelector('.reader > div')?.style.setProperty('zoom', '$zoom')");
+    } catch (_) {}
+  }
+
+  Future<void> _changeZoom(double delta) async {
+    setState(() => zoom = (zoom + delta).clamp(0.8, 1.8));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('react_quran_zoom', zoom);
+    await _applyZoom();
+  }
+
+  Future<void> _toggleBookmark() async {
+    final next = bookmark == page ? null : page;
+    final prefs = await SharedPreferences.getInstance();
+    if (next == null) {
+      await prefs.remove('react_quran_bookmark');
+    } else {
+      await prefs.setInt('react_quran_bookmark', next);
+    }
+    if (mounted) setState(() => bookmark = next);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFFFF8E9),
     appBar: AppBar(
       backgroundColor: const Color(0xFF073E35),
       foregroundColor: Colors.white,
-      title: const Text('المصحف العثماني'),
+      title: Text('المصحف • صفحة $page'),
       actions: [
+        IconButton(
+          tooltip: 'فهرس السور',
+          onPressed: () => Navigator.push(context, MaterialPageRoute<void>(
+            builder: (_) => const QuranIndexScreen())),
+          icon: const Icon(Icons.list_alt)),
+        IconButton(
+          tooltip: 'تصغير',
+          onPressed: zoom <= 0.8 ? null : () => _changeZoom(-0.1),
+          icon: const Icon(Icons.zoom_out)),
+        IconButton(
+          tooltip: 'تكبير',
+          onPressed: zoom >= 1.8 ? null : () => _changeZoom(0.1),
+          icon: const Icon(Icons.zoom_in)),
+        IconButton(
+          tooltip: bookmark == page ? 'إزالة العلامة' : 'حفظ العلامة',
+          onPressed: _toggleBookmark,
+          icon: Icon(bookmark == page ? Icons.bookmark : Icons.bookmark_border)),
         IconButton(
           tooltip: 'إعادة التحميل',
           onPressed: controller == null ? null : () => controller!.reload(),
