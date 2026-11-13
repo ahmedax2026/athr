@@ -1,4 +1,5 @@
 import 'prayer_times.dart';
+import 'package:quran_library/quran_library.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -18,6 +19,7 @@ const muted = Color(0xFFB9C9BD);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await QuranLibrary.init();
   await Firebase.initializeApp();
   runApp(const AthrApp());
 }
