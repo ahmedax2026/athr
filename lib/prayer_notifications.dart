@@ -83,6 +83,31 @@ class PrayerNotifications {
     );
   }
 
+  /// A real device-level alarm test: succeeds even if the app is closed.
+  /// Requires Android exact-alarm access to give a meaningful 2-minute check.
+  static Future<DateTime> scheduleTest({
+    required tz.Location zone,
+  }) async {
+    await _ensureInitialized();
+    if (!(await _android?.areNotificationsEnabled() ?? false)) {
+      throw StateError('اسمح بإشعارات التطبيق أولًا');
+    }
+    if (!(await _android?.canScheduleExactNotifications() ?? false)) {
+      throw StateError('فعّل التوقيت الدقيق أولًا لاختبار التنبيه المجدول');
+    }
+    final fireAt = DateTime.now().add(const Duration(minutes: 2));
+    await _plugin.cancel(id: 901);
+    await _plugin.zonedSchedule(
+      id: 901,
+      title: 'تجربة تنبيه الصلاة',
+      body: 'التنبيه المجدول وصل والتطبيق في الخلفية أو مقفول.',
+      scheduledDate: tz.TZDateTime.from(fireAt, zone),
+      notificationDetails: _details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
+    return fireAt;
+  }
+
   static Future<int> schedule({
     required List<Map<String, DateTime>> days,
     required tz.Location zone,
