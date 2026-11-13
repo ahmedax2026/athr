@@ -206,10 +206,12 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       if (locations.isEmpty) { throw StateError('المدينة غير موجودة'); }
       await _storePosition(locations.first.latitude, locations.first.longitude, query);
     } catch (_) {
-      if (mounted) setState(() {
-        busy = false;
-        error = 'تعذر العثور على المدينة. اكتب المدينة والدولة وتأكد من الإنترنت.';
-      });
+      if (mounted) {
+        setState(() {
+          busy = false;
+          error = 'تعذر العثور على المدينة. اكتب المدينة والدولة وتأكد من الإنترنت.';
+        });
+      }
     }
   }
 
