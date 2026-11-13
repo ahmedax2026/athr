@@ -20,7 +20,7 @@ class PrayerTimesScreen extends StatefulWidget {
   State<PrayerTimesScreen> createState() => _PrayerTimesScreenState();
 }
 
-class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
+class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindingObserver {
   final Geocoding geocoding = Geocoding();
   double? latitude, longitude;
   String city = 'حدد المدينة';
@@ -61,6 +61,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     tzdata.initializeTimeZones();
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -72,9 +73,20 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     timer?.cancel();
     adhanPreview.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    _checkNotificationStatus();
+    if (latitude != null && zone != null) {
+      _compute();
+      _schedule();
+    }
   }
 
   adhan.CalculationParameters _parameters() {
@@ -247,7 +259,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     try {
       final localNow = tz.TZDateTime.from(DateTime.now(), zone!);
       final dates = <DateTime>[];
-      for (var day = 0; day < 7; day++) {
+      for (var day = 0; day < 14; day++) {
         final date = tz.TZDateTime(zone!, localNow.year, localNow.month, localNow.day + day);
         dates.add(date);
       }
@@ -255,7 +267,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
         days: dates.map(_forDate).toList(),
         zone: zone!, reminderMinutes: reminder);
       final status = await PrayerNotifications.status();
-      if (mounted) setState(() { notificationStatus = status; error = null; });
+      if (mounted) setState(() {
+        notificationStatus = status;
+        error = status.pending == 0 ? 'لم يتم تأكيد وجود إشعارات مجدولة؛ افحص الصلاحيات.' : null;
+      });
     } catch (e) {
       if (mounted) setState(() => error = 'تعذر جدولة الإشعارات: $e');
     }
@@ -576,9 +591,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                   padding: const EdgeInsets.all(8),
                   child: Text(
                     notificationStatus == null ? 'لم يتم فحص الإشعارات'
-                      : notificationStatus!.enabled
-                        ? 'الإشعارات مسموحة • ' + notificationStatus!.pending.toString() + ' تنبيه مجدول'
-                        : 'الإشعارات محظورة',
+                      : !notificationStatus!.enabled ? 'الإشعارات محظورة'
+                      : !notificationStatus!.exact ? 'التوقيت الدقيق غير مفعل؛ قد تتأخر التنبيهات'
+                      : notificationStatus!.pending == 0 ? 'لا توجد تنبيهات مجدولة'
+                      : 'تمت جدولة ' + notificationStatus!.pending.toString() + ' إشعار؛ اختبر وصولها على هاتفك',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: _forest, fontWeight: FontWeight.w800)),
                 ),
@@ -746,15 +762,15 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                     border: Border.all(color: const Color(0xFFE3D9C6)),
                     borderRadius: BorderRadius.circular(16)),
                   child: Row(children: [
-                    Icon(notificationStatus?.enabled == true
-                        ? Icons.notifications_active_rounded
+                    Icon(notificationStatus?.enabled == true && notificationStatus?.exact == true && (notificationStatus?.pending ?? 0) > 0
+                        ? Icons.verified_outlined
                         : Icons.notifications_off_outlined,
                       color: _forest, size: 22),
                     const SizedBox(width: 7),
                     Expanded(child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(adhanEnabled ? 'صوت الأذان مفعل' : 'صوت الأذان متوقف',
+                        Text(notificationStatus?.enabled != true ? 'الإشعارات تحتاج تفعيل' : notificationStatus?.exact != true ? 'فعّل التوقيت الدقيق' : adhanEnabled ? 'الأذان جاهز للتجربة' : 'تنبيهات الصلاة مفعلة',
                           style: const TextStyle(color: _forest,
                             fontSize: 12, fontWeight: FontWeight.w800)),
                         Text(reminder == 0 ? 'بدون تنبيه مسبق'
