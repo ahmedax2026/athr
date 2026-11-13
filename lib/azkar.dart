@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:qcf_quran_plus/qcf_quran_plus.dart';
-import 'engine_quran.dart';
+import 'react_quran_preview.dart';
 
 const _green = Color(0xFF073E35);
 const _gold = Color(0xFFD6B56C);
@@ -70,16 +69,16 @@ int _firstVerse(Dhikr item) {
   return 1;
 }
 
-String _displayDhikr(Dhikr item) {
+int _pageForDhikr(Dhikr item) {
   final surah = _quranSurah(item);
-  if (surah == null) return item.text;
-  final start = _firstVerse(item);
-  final end = start == 1 ? getVerseCount(surah) : start;
-  return [
-    for (var verse = start; verse <= end; verse++)
-      getVerse(surah, verse),
-  ].join('  ');
+  if (surah == 112 || surah == 113 || surah == 114) return 604;
+  if (surah == 14) return 260;
+  if (_firstVerse(item) == 255) return 42;
+  if (_firstVerse(item) == 201) return 31;
+  return 1;
 }
+
+String _displayDhikr(Dhikr item) => item.text;
 
 class AzkarScreen extends StatelessWidget {
   const AzkarScreen({super.key});
@@ -228,9 +227,9 @@ class _AzkarReaderState extends State<AzkarReader> {
   void _openMushaf(Dhikr item) {
     final surah = _quranSurah(item);
     if (surah == null) return;
-    final page = getPageNumber(surah, _firstVerse(item));
+    final page = _pageForDhikr(item);
     Navigator.push(context, MaterialPageRoute<void>(
-      builder: (_) => EngineQuranScreen(initialPage: page)));
+      builder: (_) => ReactQuranPreview(initialPage: page)));
   }
 
   @override
