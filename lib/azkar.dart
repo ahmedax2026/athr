@@ -357,41 +357,25 @@ class _AzkarReaderState extends State<AzkarReader> {
                     if (surah != null) ...[
                       const Icon(Icons.menu_book_rounded, color: _gold, size: 36),
                       const SizedBox(height: 10),
-                      if (item.source != 'سورة البقرة: 255')
-                        const Text('آيات من المصحف العثماني', style: TextStyle(color: _green,
-                            fontSize: 20, fontWeight: FontWeight.w900)),
                       const SizedBox(height: 8),
                     ],
-                    // Keep Quran artwork, but never use incomplete pre-rendered
-                    // images for ordinary adhkar. Their full text is the source of truth.
+                    // All four Quran recitations use one cached image asset each.
+                    // The image manifest reuses the same file in morning/evening
+                    // adhkar; counters and source labels remain independent.
                     if (surah != null) ...[
-                      if (item.source == 'سورة البقرة: 255') ...[
-                        const Text('آية الكرسي',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: _green, fontSize: 23,
-                            fontWeight: FontWeight.w900)),
-                        const SizedBox(height: 12),
-                      ],
-                      if (item.source == 'سورة البقرة: 255')
-                        Text(
-                          item.text.split(': ').skip(1).join(': '),
+                      Image.asset(
+                        'assets/azkar/${imageManifest.length > _groups.keys.toList().indexOf(widget.title) && imageManifest[_groups.keys.toList().indexOf(widget.title)].length > index ? imageManifest[_groups.keys.toList().indexOf(widget.title)][index] : 'missing.webp'}',
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        filterQuality: FilterQuality.high,
+                        errorBuilder: (context, error, stackTrace) => Text(
+                          _displayDhikr(item),
                           textDirection: TextDirection.rtl,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            color: _green, fontSize: 24, height: 1.85,
-                            fontWeight: FontWeight.w500),
-                        )
-                      else
-                        Image.asset(
-                          'assets/azkar/${imageManifest.length > _groups.keys.toList().indexOf(widget.title) && imageManifest[_groups.keys.toList().indexOf(widget.title)].length > index ? imageManifest[_groups.keys.toList().indexOf(widget.title)][index] : 'missing.webp'}',
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => Text(
-                            _displayDhikr(item),
-                            textDirection: TextDirection.rtl,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 24, height: 1.7, color: _green),
-                          ),
+                            fontSize: 24, height: 1.7, color: _green),
                         ),
+                      ),
                     ] else
                       Container(
                         width: double.infinity,
