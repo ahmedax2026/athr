@@ -22,10 +22,18 @@ class QuranReaderChoice extends StatefulWidget {
 
 class _QuranReaderChoiceState extends State<QuranReaderChoice> {
   String? choice;
+  late int currentPage;
+
+  @override
+  void didUpdateWidget(covariant QuranReaderChoice oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialPage != widget.initialPage) currentPage = widget.initialPage;
+  }
 
   @override
   void initState() {
     super.initState();
+    currentPage = widget.initialPage.clamp(widget.firstPage, widget.lastPage);
     _load();
   }
 
@@ -50,17 +58,17 @@ class _QuranReaderChoiceState extends State<QuranReaderChoice> {
     final reader = choice == 'madani'
         ? MushafPageReader(
             key: ValueKey('madani_${widget.firstPage}_${widget.lastPage}'),
-            initialPage: widget.initialPage,
+            initialPage: currentPage,
             firstPage: widget.firstPage,
             lastPage: widget.lastPage,
-            onPage: widget.onPage,
+            onPage: (page) { currentPage = page; widget.onPage?.call(page); },
           )
         : ReactQuranPreview(
             key: ValueKey('ottoman_${widget.firstPage}_${widget.lastPage}'),
-            initialPage: widget.initialPage,
+            initialPage: currentPage,
             firstPage: widget.firstPage,
             lastPage: widget.lastPage,
-            onPage: widget.onPage,
+            onPage: (page) { currentPage = page; widget.onPage?.call(page); },
           );
     return Stack(children: [
       Positioned.fill(child: reader),
