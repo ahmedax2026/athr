@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -293,39 +292,6 @@ class _ArchPainter extends CustomPainter {
       ..strokeWidth = 2..style = PaintingStyle.stroke;
     for (var i = -3; i <= 3; i++) {
       canvas.drawLine(Offset(w/2, 0), Offset(w/2 + i*28, h), rays);
-    }
-  }
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _SurahRosette extends StatelessWidget {
-  const _SurahRosette({required this.number});
-  final int number;
-  @override
-  Widget build(BuildContext context) => SizedBox(width: 58, height: 58,
-    child: Stack(alignment: Alignment.center, children: [
-      CustomPaint(size: const Size(58,58), painter: _RosettePainter()),
-      Text('$number', style: const TextStyle(fontSize: 22,
-        fontWeight: FontWeight.w900, color: Color(0xFF111A14))),
-    ]));
-}
-
-class _RosettePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width/2, size.height/2);
-    final paint = Paint()..color = const Color(0xFF735315)..style = PaintingStyle.stroke..strokeWidth = 2.2;
-    for (final (radius, offset) in [(26.0, 0.0), (23.0, math.pi/8)]) {
-      final path = Path();
-      for (var i=0; i<16; i++) {
-        final a = i*math.pi/8+offset;
-        final r = i.isEven ? radius : radius*.84;
-        final point = Offset(center.dx+math.cos(a)*r, center.dy+math.sin(a)*r);
-        if (i==0) { path.moveTo(point.dx,point.dy); }
-        else { path.lineTo(point.dx,point.dy); }
-      }
-      canvas.drawPath(path..close(), paint);
     }
   }
   @override
