@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'admin_and_cases.dart';
 import 'quran.dart';
 import 'khatma.dart';
+import 'tasbeeh.dart';
 import 'settings_and_relief.dart';
 
 const emerald = Color(0xFF073E35);
@@ -363,6 +364,8 @@ class HomeScreen extends StatelessWidget {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const QuranScreen()));
                           } else if (s.$1 == 'الختمات الجماعية') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const KhatmaScreen()));
+                          } else if (s.$1 == 'السبحة') {
+                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TasbeehScreen()));
                           } else if (s.$1 == 'فك كرب') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PublicCasesScreen()));
                           } else {
