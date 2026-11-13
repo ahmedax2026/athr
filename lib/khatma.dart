@@ -274,7 +274,9 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
     final finished=await Navigator.push<bool>(context,MaterialPageRoute<bool>(
       builder:(_)=>KhatmaPartReader(part:part,initialPage:last,onPage:(p)=>prefs.setInt(key,p))));
     if(finished==true){
-      await complete(part,true);
+      final current=await ref.collection('members').doc(widget.uid).get();
+      if(List<int>.from(current.data()?['completed']??[]).contains(part))return;
+      if(!await complete(part,true))return;
       if(!mounted)return;
       final title=(await ref.get()).data()?['title']?.toString()??'صاحب الختمة';
       if(!mounted)return;
@@ -284,7 +286,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
         actions:[FilledButton(onPressed:()=>Navigator.pop(ctx),child:const Text('اللهم آمين'))]));
     }
   }
-  Future<void> complete(int part,bool done) async {
+  Future<bool> complete(int part,bool done) async {
     try {
       final m=ref.collection('members').doc(widget.uid);
       await FirebaseFirestore.instance.runTransaction((tx) async {
@@ -293,7 +295,8 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
         tx.update(m,{'completed':done?FieldValue.arrayUnion([part]):FieldValue.arrayRemove([part])});
         tx.update(ref,{'completedParts':done?FieldValue.arrayUnion([part]):FieldValue.arrayRemove([part])});
       });
-    }catch(_){message('تعذر تحديث الجزء');}
+      return true;
+    }catch(_){message('تعذر تحديث الجزء');return false;}
   }
   Future<void> assign(String uid,List<int> existing) async {
     final selected=existing.toSet();
