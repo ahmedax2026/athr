@@ -310,11 +310,16 @@ class _AzkarReaderState extends State<AzkarReader> {
                           fontSize: 20, fontWeight: FontWeight.w900)),
                       const SizedBox(height: 8),
                     ],
-                    Text(_displayDhikr(item),
-                      textDirection: TextDirection.rtl,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 25, height: 1.65, color: _green)),
+                    Image.asset(
+                      'assets/azkar/g${_groups.keys.toList().indexOf(widget.title)}_a$index.webp',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Text(
+                        _displayDhikr(item),
+                        textDirection: TextDirection.rtl,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 25, height: 1.65, color: _green),
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     Text(item.source, style: const TextStyle(
                       color: Color(0xFF97723E), fontSize: 14)),
