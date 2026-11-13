@@ -6,6 +6,7 @@ import 'admin_and_cases.dart';
 import 'quran.dart';
 import 'khatma.dart';
 import 'tasbeeh.dart';
+import 'azkar.dart';
 import 'settings_and_relief.dart';
 
 const emerald = Color(0xFF073E35);
@@ -292,9 +293,11 @@ class HomeScreen extends StatelessWidget {
           final availableWidth = size.maxWidth - 36;
           final maxWidth = availableWidth > 650 ? 650.0 : availableWidth;
           final tileWidth = (maxWidth - 24) / 3;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
-            child: Center(child: SizedBox(width: maxWidth, child: Column(
+          return Center(child: FittedBox(
+            fit: BoxFit.scaleDown, alignment: Alignment.center,
+            child: SizedBox(width: maxWidth, child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
@@ -322,9 +325,9 @@ class HomeScreen extends StatelessWidget {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: Image.asset('assets/images/father.jpg',
-                            width: 94, height: 135, fit: BoxFit.contain,
+                            width: 94, height: 105, fit: BoxFit.contain,
                             errorBuilder: (_, _, _) => const SizedBox(
-                              width: 94, height: 135,
+                              width: 94, height: 105,
                               child: Icon(Icons.person_outline, color: gold))),
                         ),
                       ),
@@ -336,24 +339,24 @@ class HomeScreen extends StatelessWidget {
                         SizedBox(height: 7),
                         Text('عبدالوكيل عبدالسيد محمد',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: gold, fontSize: 19,
+                          style: TextStyle(color: gold, fontSize: 16,
                             fontWeight: FontWeight.w900, height: 1.5)),
                         SizedBox(height: 10),
                         Text('اللهم اغفر له وارحمه\nوعافه واعف عنه وأكرم نزله\nووسع مدخله واجعل قبره روضة من رياض الجنة',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: cream, fontSize: 12.5, height: 1.7)),
+                          style: TextStyle(color: cream, fontSize: 10.5, height: 1.45)),
                       ])),
                     ]),
                   ]),
                 ),
-                const SizedBox(height: 16),
-                Text('أبواب الخير', style: TextStyle(color: fg, fontSize: 27, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 7),
+                Text('أبواب الخير', style: TextStyle(color: fg, fontSize: 22, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 5),
                 LiveContentText(document: 'home', field: 'tagline', fallback: 'نورٌ يبقى، ودعاءٌ يصل.', style: TextStyle(color: secondary, fontSize: 14)),
                 const SizedBox(height: 12),
                 Wrap(alignment: WrapAlignment.center,
                   runAlignment: WrapAlignment.center,
-                  spacing: 12, runSpacing: 12, children: [
+                  spacing: 12, runSpacing: 8, children: [
                   for (final s in sections)
                     SizedBox(
                       width: tileWidth,
@@ -364,6 +367,8 @@ class HomeScreen extends StatelessWidget {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const QuranScreen()));
                           } else if (s.$1 == 'الختمات الجماعية') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const KhatmaScreen()));
+                          } else if (s.$1 == 'الأذكار') {
+                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AzkarScreen()));
                           } else if (s.$1 == 'السبحة') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TasbeehScreen()));
                           } else if (s.$1 == 'فك كرب') {
@@ -373,7 +378,7 @@ class HomeScreen extends StatelessWidget {
                           }
                         },
                         child: Container(
-                        constraints: const BoxConstraints(minHeight: 124),
+                        constraints: const BoxConstraints(minHeight: 104),
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 12),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft,
@@ -408,14 +413,14 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                 ]),
-                const SizedBox(height: 25),
+                const SizedBox(height: 9),
                 OutlinedButton.icon(
                   key: const ValueKey('pray-for-father-button'),
                   onPressed: () => _showDua(context),
                   icon: const Icon(Icons.favorite_border_rounded),
                   label: const Text('ادعُ له'),
                   style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(56),
+                    minimumSize: const Size.fromHeight(42),
                     foregroundColor: accent,
                     side: BorderSide(color: accent),
                     textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
@@ -430,7 +435,7 @@ class HomeScreen extends StatelessWidget {
                   icon: const Icon(Icons.support_agent_outlined),
                   label: const Text('تواصل معنا'),
                   style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(56),
+                    minimumSize: const Size.fromHeight(42),
                     foregroundColor: accent,
                     side: BorderSide(color: accent),
                     textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
@@ -442,7 +447,7 @@ class HomeScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(color: secondary, fontSize: 13, height: 1.6))),
               ],
-            ))),
+            )))),
           );
         }),
       ),
