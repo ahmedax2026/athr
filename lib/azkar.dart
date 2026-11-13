@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'react_quran_preview.dart';
 
@@ -184,6 +185,7 @@ class _AzkarReaderState extends State<AzkarReader> {
   Map<String, int> counts = {};
   bool loaded = false;
   bool completionShown = false;
+  List<List<String>> imageManifest = const [];
   String get key => 'azkar_${widget.title}';
 
   @override
@@ -193,10 +195,27 @@ class _AzkarReaderState extends State<AzkarReader> {
     final prefs = await SharedPreferences.getInstance();
     final data = jsonDecode(prefs.getString(key) ?? '{}')
         as Map<String, dynamic>;
+    List<List<String>> cards = const [];
+    try {
+      final raw = jsonDecode(await rootBundle.loadString('assets/azkar/manifest.json')) as List<dynamic>;
+      cards = raw.map((group) => (group as List<dynamic>).map((item) => item.toString()).toList()).toList();
+    } catch (_) { /* Keep readable text if assets are missing. */ }
+    // The 12-hour cycle starts only after all counters were completed.
+    final finishedAt = prefs.getInt('${key}_completed_at');
+    final resetEligible = (widget.title == 'أذكار الصباح' || widget.title == 'أذكار المساء') &&
+        finishedAt != null &&
+        DateTime.now().millisecondsSinceEpoch - finishedAt >= const Duration(hours: 12).inMilliseconds;
+    if (resetEligible) {
+      data.clear();
+      await prefs.remove('${key}_completed_at');
+      await prefs.remove(key);
+      await prefs.setInt('${key}_index', 0);
+    }
     if (!mounted) return;
     setState(() {
+      imageManifest = cards;
       counts = data.map((k, v) => MapEntry(k, (v as num).toInt()));
-      index = (prefs.getInt('${key}_index') ?? 0)
+      index = resetEligible ? 0 : (prefs.getInt('${key}_index') ?? 0)
           .clamp(0, widget.items.length - 1);
       loaded = true;
     });
@@ -215,6 +234,10 @@ class _AzkarReaderState extends State<AzkarReader> {
   }
 
   void _showCompletion() {
+    if (widget.title == 'أذكار الصباح' || widget.title == 'أذكار المساء') {
+      SharedPreferences.getInstance().then((prefs) => prefs.setInt(
+        '${key}_completed_at', DateTime.now().millisecondsSinceEpoch));
+    }
     if (completionShown || !mounted) return;
     completionShown = true;
     showDialog<void>(
@@ -339,7 +362,7 @@ class _AzkarReaderState extends State<AzkarReader> {
                       const SizedBox(height: 8),
                     ],
                     Image.asset(
-                      'assets/azkar/g${_groups.keys.toList().indexOf(widget.title)}_a$index.webp',
+                      'assets/azkar/${imageManifest.length > _groups.keys.toList().indexOf(widget.title) && imageManifest[_groups.keys.toList().indexOf(widget.title)].length > index ? imageManifest[_groups.keys.toList().indexOf(widget.title)][index] : 'missing.webp'}',
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) => Text(
                         _displayDhikr(item),
