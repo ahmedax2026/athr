@@ -113,7 +113,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
     appBar: AppBar(
       backgroundColor: const Color(0xFF073E35),
       foregroundColor: Colors.white,
-      title: Text('المصحف • صفحة $page'),
+      title: Text('$page / 604'),
       actions: [
         IconButton(
           tooltip: 'فهرس السور',
@@ -132,10 +132,6 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
           tooltip: bookmark == page ? 'إزالة العلامة' : 'حفظ العلامة',
           onPressed: _toggleBookmark,
           icon: Icon(bookmark == page ? Icons.bookmark : Icons.bookmark_border)),
-        IconButton(
-          tooltip: 'إعادة التحميل',
-          onPressed: controller == null ? null : () => controller!.reload(),
-          icon: const Icon(Icons.refresh)),
       ],
     ),
     body: Stack(children: [
