@@ -55,6 +55,9 @@ jobs:
           python3 -m pip install --quiet Pillow
           python3 tool/bundle_azkar_cards.py
 
+      - name: Bundle attributed adhan audio samples
+        run: python3 tool/bundle_adhan_audio.py
+
       - name: Get dependencies
         run: flutter pub get
 
