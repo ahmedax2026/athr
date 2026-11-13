@@ -46,14 +46,15 @@ for group_index, group in enumerate(data):
     paths = []
     manifest.append(paths)
     for item_index, item in enumerate(group["items"]):
-        content = item["text"]
+        is_kursi = item["source"] == "سورة البقرة: 255"
+        content = item["text"].split(": ", 1)[1] if is_kursi else item["text"]
         if content in seen:
             paths.append(seen[content])
             continue
         filename = f"dhikr_{len(seen):02d}.webp"
         seen[content] = filename
         paths.append(filename)
-        title = item["source"] if item["source"].startswith("سورة") else "ذِكْرٌ وَدُعَاءٌ"
+        title = "آية الكرسي" if is_kursi else (item["source"] if item["source"].startswith("سورة") else "ذِكْرٌ وَدُعَاءٌ")
         width = 1200
         scratch = Image.new("RGB", (width, 20), "#F1E3C6")
         draw = ImageDraw.Draw(scratch)
@@ -70,7 +71,7 @@ for group_index, group in enumerate(data):
             body_font = font(40)
             lines = lines_of(content, draw, body_font, width - 120)
         line_height = int(body_font.size * 1.8)
-        height = max(520, 260 + line_height * len(lines) + 125)
+        height = max(1420 if is_kursi else 520, 260 + line_height * len(lines) + 125)
         card = Image.new("RGB", (width, height), "#F1E3C6")
         d = ImageDraw.Draw(card)
         ink = "#241F18"
