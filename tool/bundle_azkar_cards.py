@@ -53,16 +53,24 @@ for group_index, group in enumerate(data):
         filename = f"dhikr_{len(seen):02d}.webp"
         seen[content] = filename
         paths.append(filename)
-        title = item["source"] if item["source"].startswith("سورة") else "ذِكْرٌ وَدُعَاءٌ"
+        is_short_surah = item["source"] in {"سورة الإخلاص", "سورة الفلق", "سورة الناس"}
+        is_quran_card = is_short_surah or item["source"] == "سورة البقرة: 255"
+        title = ("آية الكرسي" if item["source"] == "سورة البقرة: 255"
+                 else item["source"] if item["source"].startswith("سورة")
+                 else "ذِكْرٌ وَدُعَاءٌ")
+        # The full verified original stays in azkar_data.json. For the image
+        # remove only the Ayat al-Kursi title prefix, never the verse itself.
+        if item["source"] == "سورة البقرة: 255":
+            content = content.split(": ", 1)[1]
         width = 1200
         scratch = Image.new("RGB", (width, 20), "#F1E3C6")
         draw = ImageDraw.Draw(scratch)
         body_font = None
         lines = []
-        for size in (68, 64, 60, 56, 52, 48, 44, 40):
+        for size in ((76, 72, 68, 64, 60, 56, 52, 48, 44) if is_quran_card else (68, 64, 60, 56, 52, 48, 44, 40)):
             ft = font(size)
             candidate = lines_of(content, draw, ft, width - 120)
-            if len(candidate) <= 9:
+            if len(candidate) <= (11 if is_quran_card else 9):
                 body_font = ft
                 lines = candidate
                 break
@@ -70,14 +78,20 @@ for group_index, group in enumerate(data):
             body_font = font(40)
             lines = lines_of(content, draw, body_font, width - 120)
         line_height = int(body_font.size * 1.8)
-        height = max(520, 260 + line_height * len(lines) + 125)
+        body_offset = 130 if is_short_surah else 0
+        height = max(520, 260 + body_offset + line_height * len(lines) + 125)
         card = Image.new("RGB", (width, height), "#F1E3C6")
         d = ImageDraw.Draw(card)
         ink = "#241F18"
         d.line((18, 17, width-18, 17), fill="#AF9980", width=2)
-        d.text((width//2, 54), title, fill=ink, font=font(54), anchor="mt", direction="rtl")
+        d.text((width//2, 52), title, fill=ink,
+               font=font(64 if is_quran_card else 54), anchor="mt", direction="rtl")
         d.line((18, 148, width-18, 148), fill="#AF9980", width=2)
-        top = 205 + max(0, (height - 340 - line_height * len(lines))//2)
+        if is_short_surah:
+            d.text((width//2, 183), "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+                   fill=ink, font=font(60), anchor="mt", direction="rtl")
+        top = 205 + body_offset + max(
+            0, (height - 340 - body_offset - line_height * len(lines))//2)
         for line in lines:
             d.text((width//2, top), line, fill=ink, font=body_font, anchor="mt", direction="rtl")
             top += line_height
@@ -85,7 +99,7 @@ for group_index, group in enumerate(data):
         d.text((width//2, height-30), item["source"], fill="#63533D",
                font=font(24), anchor="mm", direction="rtl")
         target = out / filename
-        card.save(target, format="WEBP", quality=91, method=5)
+        card.save(target, format="WEBP", quality=94, method=6)
         assert target.stat().st_size > 1000
 # Do not ship leftovers from a previous workflow run.
 for stale in out.glob("g*_a*.webp"):
