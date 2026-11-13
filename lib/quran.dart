@@ -41,6 +41,8 @@ class _QuranScreenState extends State<QuranScreen> {
       builder: (_) => MushafPageReader(initialPage: page)));
     _refresh();
   }
+  void _tajweed() => Navigator.push(context, MaterialPageRoute<void>(
+    builder: (_) => const TajweedTrialScreen()));
   void _index() => Navigator.push(context, MaterialPageRoute<void>(
     builder: (_) => const QuranIndexScreen()));
   // Starting pages of the 30 juz in the 604-page Madinah Mushaf.
@@ -110,6 +112,7 @@ class _QuranScreenState extends State<QuranScreen> {
                 crossAxisCount: 3, crossAxisSpacing: 9, mainAxisSpacing: 14,
                 childAspectRatio: .96,
                 children: [
+                  _shortcut(Icons.color_lens_outlined, 'قرآن التجويد', _tajweed),
                   _shortcut(Icons.menu_book_rounded, 'فهرس السور', _index),
                   _shortcut(Icons.layers_rounded, 'الأجزاء', _juz),
                   _shortcut(Icons.star_border_rounded, 'علاماتي', () => _read(lastPage)),
@@ -377,4 +380,137 @@ class QuranSurahScreen extends StatelessWidget {
       final entry = entries.firstWhere((item) => item['number'] == number);
       return MushafPageReader(initialPage: entry['page'] as int);
     });
+}
+
+
+/// Offline trial of a second, text-based Quran reading mode.
+/// The verse text comes exclusively from the bundled Quran JSON.
+/// Tajweed rule coloring is deliberately not claimed until verified data is integrated.
+class TajweedTrialScreen extends StatefulWidget {
+  const TajweedTrialScreen({super.key});
+  @override
+  State<TajweedTrialScreen> createState() => _TajweedTrialScreenState();
+}
+
+class _TajweedTrialScreenState extends State<TajweedTrialScreen> {
+  late final Future<List<dynamic>> chapters = QuranService.fetchAll();
+  int selected = 0;
+  double fontSize = 29;
+
+  String verseText(dynamic verse) {
+    if (verse is String) return verse;
+    if (verse is Map) {
+      for (final key in ['text', 'text_uthmani', 'arabic', 'content']) {
+        final value = verse[key];
+        if (value is String && value.trim().isNotEmpty) return value;
+      }
+    }
+    return '';
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFFFFF8E8),
+    appBar: AppBar(
+      backgroundColor: emerald,
+      foregroundColor: cream,
+      title: const Text('قرآن التجويد • تجربة'),
+      actions: [
+        IconButton(
+          tooltip: 'تصغير الخط',
+          onPressed: () => setState(() => fontSize = (fontSize - 2).clamp(22, 48)),
+          icon: const Icon(Icons.text_decrease)),
+        IconButton(
+          tooltip: 'تكبير الخط',
+          onPressed: () => setState(() => fontSize = (fontSize + 2).clamp(22, 48)),
+          icon: const Icon(Icons.text_increase)),
+      ],
+    ),
+    body: FutureBuilder<List<dynamic>>(
+      future: chapters,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('تعذر تحميل بيانات القرآن المحلية'));
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final all = snapshot.data!;
+        final surah = all[selected] as Map;
+        final verses = surah['ayahs'] as List;
+        return Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: DropdownButtonFormField<int>(
+              key: ValueKey(selected),
+              initialValue: selected,
+              decoration: InputDecoration(
+                labelText: 'اختر السورة',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14))),
+              isExpanded: true,
+              items: [
+                for (var i = 0; i < all.length; i++)
+                  DropdownMenuItem(value: i,
+                    child: Text('${i + 1} - ${all[i]['name']}')),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => selected = value);
+              },
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 18, vertical: 5),
+            child: Text('وضع تجريبي للنص المكبّر — تلوين أحكام التجويد قيد الدمج والتحقق',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFF805C22), fontSize: 12)),
+          ),
+          Expanded(child: ListView(
+            key: ValueKey('tajweed-surah-$selected'),
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 32),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B503D),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: gold)),
+                child: Text('سورة ${surah['name']}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 25, fontWeight: FontWeight.w800, color: cream)),
+              ),
+              const SizedBox(height: 16),
+              if (selected != 0 && selected != 8)
+                const Text('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 25, color: darkInk, height: 2)),
+              const SizedBox(height: 12),
+              for (var i = 0; i < verses.length; i++)
+                if (verseText(verses[i]).isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Text.rich(
+                      TextSpan(children: [
+                        TextSpan(text: verseText(verses[i])),
+                        TextSpan(
+                          text: '  ۞ ${i + 1}  ',
+                          style: TextStyle(
+                            fontSize: fontSize * .65,
+                            color: const Color(0xFF9C7226),
+                            fontWeight: FontWeight.w700)),
+                      ]),
+                      textAlign: TextAlign.justify,
+                      textDirection: TextDirection.rtl,
+                      style: TextStyle(
+                        fontSize: fontSize, height: 2.0, color: darkInk)),
+                  ),
+            ],
+          )),
+        ]);
+      },
+    ),
+  );
 }
