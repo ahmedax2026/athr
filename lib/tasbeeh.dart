@@ -60,25 +60,26 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
   }
 
   void _increment() {
+    if (_goal != 0 && (_counts[_selected] ?? 0) >= _goal) return;
     setState(() => _counts[_selected] = (_counts[_selected] ?? 0) + 1);
     _save();
   }
 
   Future<void> _addCustom() async {
-    final controller = TextEditingController();
+    var entered = '';
     final value = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('إضافة ذكر خاص'),
-        content: TextField(controller: controller, maxLines: 4, maxLength: 500,
+        content: TextField(onChanged: (v) => entered = v, maxLines: 4, maxLength: 500,
           decoration: const InputDecoration(labelText: 'اكتب الذكر أو الدعاء كاملًا', border: OutlineInputBorder())),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('إضافة')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, entered.trim()), child: const Text('إضافة')),
         ],
       ),
     );
-    controller.dispose();
+    if (!mounted) return;
     if (value == null || value.isEmpty || [..._defaults, ..._custom].contains(value)) return;
     setState(() { _custom.add(value); _selected = value; });
     _save();
@@ -97,6 +98,7 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
     final isLong = _selected.length > 95;
     final isMedium = _selected.length > 28;
     final fontSize = isLong ? 19.0 : isMedium ? 25.0 : 34.0;
+    final diameter = (MediaQuery.sizeOf(context).width - 66).clamp(220.0, 380.0);
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('السبحة الإلكترونية')),
@@ -137,13 +139,14 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
                 onTap: _increment,
                 behavior: HitTestBehavior.opaque,
                 child: Container(
-                  width: double.infinity,
-                  constraints: BoxConstraints(minHeight: isLong ? 350 : 245),
+                  width: diameter,
+                  height: isLong ? null : diameter,
+                  constraints: BoxConstraints(minHeight: isLong ? diameter : 0),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 26),
                   decoration: BoxDecoration(
                     color: const Color(0xFF0A493D),
                     border: Border.all(color: _gold, width: 2),
-                    borderRadius: BorderRadius.circular(isLong ? 35 : 120),
+                    shape: BoxShape.circle,
                   ),
                   child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Text(_selected, textAlign: TextAlign.center,
@@ -162,13 +165,9 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
                   ]),
                 ),
               ),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: _increment, icon: const Icon(Icons.touch_app_outlined),
-                label: const Text('تسبيح'),
-                style: FilledButton.styleFrom(backgroundColor: _gold,
-                  foregroundColor: _green, minimumSize: const Size.fromHeight(54)),
-              ),
+              const SizedBox(height: 12),
+              Text(_goal != 0 && count >= _goal ? 'اكتمل العدد المستهدف ✓' : 'المس الدائرة للتسبيح',
+                style: const TextStyle(color: _gold, fontSize: 16)),
               const SizedBox(height: 12),
               Wrap(spacing: 8, alignment: WrapAlignment.center, children: [
                 OutlinedButton.icon(onPressed: count == 0 ? null : () {
@@ -189,7 +188,7 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
             for (final goal in [33, 100, 1000, 0])
               ChoiceChip(label: Text(goal == 0 ? 'مفتوح' : '$goal'),
                 selected: _goal == goal,
-                onSelected: (_) { setState(() => _goal = goal); _save(); }),
+                onSelected: (_) { setState(() { _goal = goal; if (goal != 0 && (_counts[_selected] ?? 0) > goal) _counts[_selected] = goal; }); _save(); }),
           ]),
           const SizedBox(height: 14),
           Card(child: ListTile(
