@@ -33,8 +33,9 @@ class _EngineQuranScreenState extends State<EngineQuranScreen> {
     final saved = (prefs.getInt('qcf_last_page') ?? 1).clamp(1, 604);
     if (!mounted) return;
     setState(() => _page = saved);
-    if (_controller.hasClients) _controller.jumpToPage(saved - 1);
-    else {
+    if (_controller.hasClients) {
+      _controller.jumpToPage(saved - 1);
+    } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _controller.hasClients) {
           _controller.jumpToPage(saved - 1);
