@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'mushaf_reader.dart';
 import 'engine_quran.dart';
+import 'react_quran_preview.dart';
 
 const emerald = Color(0xFF003D30);
 const gold = Color(0xFFFFD77A);
@@ -86,6 +87,20 @@ class _QuranScreenState extends State<QuranScreen> {
             colors: [Color(0xFF002D27), Color(0xFF075742), Color(0xFF00372C)])),
           child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 480),
             child: ListView(padding: const EdgeInsets.fromLTRB(12, 0, 12, 26), children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.push(context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ReactQuranPreview())),
+                  icon: const Icon(Icons.science_outlined),
+                  label: const Text('تجربة مصحف React الجديد'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: gold,
+                    side: const BorderSide(color: gold),
+                    minimumSize: const Size.fromHeight(46)),
+                ),
+              ),
               const QuranOrnament(),
               const SizedBox(height: 4),
               const Text('الْقُرْآنُ الْكَرِيمُ', textAlign: TextAlign.center,
