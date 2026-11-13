@@ -6,8 +6,10 @@ import 'quran.dart';
 
 /// Locally bundled react-quran. No network or external website is needed.
 class ReactQuranPreview extends StatefulWidget {
-  const ReactQuranPreview({super.key, this.initialPage});
+  const ReactQuranPreview({super.key, this.initialPage, this.firstPage = 1, this.lastPage = 604, this.onPage});
   final int? initialPage;
+  final int firstPage, lastPage;
+  final ValueChanged<int>? onPage;
 
   @override
   State<ReactQuranPreview> createState() => _ReactQuranPreviewState();
@@ -32,7 +34,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   Future<void> _start() async {
     final prefs = await SharedPreferences.getInstance();
     darkReading = prefs.getBool('ottoman_mushaf_dark') ?? true;
-    page = (widget.initialPage ?? prefs.getInt('react_quran_last_page') ?? 1).clamp(1, 604);
+    page = (widget.initialPage ?? prefs.getInt('react_quran_last_page') ?? widget.firstPage).clamp(widget.firstPage, widget.lastPage);
     zoom = (prefs.getDouble('react_quran_zoom') ?? 1.0).clamp(0.8, 1.8);
     bookmark = prefs.getInt('react_quran_bookmark');
     final web = WebViewController();
@@ -48,11 +50,17 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
             readerReady = true;
             await _applyZoom();
             await _applyReadingTheme();
+            await _installSwipeNavigation();
             if (mounted) setState(() { loading = false; error = null; });
           }
           if (data['type'] == 'page' && data['page'] is num) {
-            final next = ((data['page'] as num).toInt()).clamp(1, 604);
+            final reported = (data['page'] as num).toInt();
+            final next = reported.clamp(widget.firstPage, widget.lastPage);
+            if (reported != next) {
+              await web.runJavaScript('window.setQuranPage && window.setQuranPage($next)');
+            }
             if (mounted) setState(() => page = next);
+            widget.onPage?.call(next);
             await prefs.setInt('react_quran_last_page', next);
           }
         } catch (_) { /* Ignore malformed page events. */ }
@@ -63,6 +71,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
             await web.runJavaScript('window.setQuranPage && window.setQuranPage($page)');
             await _applyZoom();
             await _applyReadingTheme();
+            await _installSwipeNavigation();
           } catch (_) { /* Show bundled page even if JS bridge is unavailable. */ }
           // Do not mistake a loaded HTML shell for a successfully rendered Quran.
           await Future<void>.delayed(const Duration(seconds: 3));
@@ -83,6 +92,43 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
     } catch (failure) {
       if (mounted) setState(() { loading = false; error = '$failure'; });
     }
+  }
+
+  Future<void> _installSwipeNavigation() async {
+    final web = controller;
+    if (web == null) return;
+    // Keep pagination within the selected juz even when the embedded
+    // Ottoman reader attempts to navigate beyond its page boundaries.
+    try {
+      await web.runJavaScript("""
+        (() => {
+          if (window.__athrSwipeInstalled) return;
+          window.__athrSwipeInstalled = true;
+          const min = ${widget.firstPage}, max = ${widget.lastPage};
+          let x = null, y = null;
+          document.addEventListener('touchstart', e => {
+            if (e.touches.length !== 1) { x = null; return; }
+            x = e.touches[0].clientX;
+            y = e.touches[0].clientY;
+          }, {passive:true});
+          document.addEventListener('touchend', e => {
+            if (x === null || !e.changedTouches.length) return;
+            const dx = e.changedTouches[0].clientX - x;
+            const dy = e.changedTouches[0].clientY - y;
+            x = null;
+            if (Math.abs(dx) < 65 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+            const current = Number(window.__athrCurrentPage || ${page});
+            const target = Math.max(min, Math.min(max, current + (dx < 0 ? 1 : -1)));
+            if (typeof window.setQuranPage === 'function') window.setQuranPage(target);
+          }, {passive:true});
+          // Intercept page bridge notifications so navigation never leaves this part.
+          const original = window.setQuranPage;
+          if (typeof original === 'function') {
+            window.setQuranPage = p => original(Math.max(min, Math.min(max, Number(p))));
+          }
+        })();
+      """);
+    } catch (_) { /* Existing controls remain available. */ }
   }
 
   Future<void> _applyReadingTheme() async {
@@ -150,7 +196,8 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
     appBar: AppBar(
       backgroundColor: const Color(0xFF073E35),
       foregroundColor: Colors.white,
-      title: Text('$page / 604'),
+      title: Text(widget.firstPage == 1 && widget.lastPage == 604
+          ? '$page / 604' : '$page / ${widget.lastPage}'),
       actions: [
         IconButton(
           tooltip: darkReading ? 'الوضع الفاتح' : 'الوضع الأخضر الداكن',
@@ -189,6 +236,12 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
             Text(error!, textAlign: TextAlign.center),
           ]),
         )),
+      if (widget.lastPage < 604 && page == widget.lastPage && !loading && error == null)
+        Positioned(bottom: 18, left: 16, right: 16,
+          child: SafeArea(top: false, child: FilledButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text('أتممت قراءة الجزء')))),
     ]),
   );
 }
