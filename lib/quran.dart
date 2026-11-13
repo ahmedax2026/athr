@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'mushaf_reader.dart';
+import 'engine_quran.dart';
 
 const emerald = Color(0xFF003D30);
 const gold = Color(0xFFFFD77A);
@@ -42,7 +43,7 @@ class _QuranScreenState extends State<QuranScreen> {
     _refresh();
   }
   void _tajweed() => Navigator.push(context, MaterialPageRoute<void>(
-    builder: (_) => const TajweedTrialScreen()));
+    builder: (_) => const EngineQuranScreen()));
   void _index() => Navigator.push(context, MaterialPageRoute<void>(
     builder: (_) => const QuranIndexScreen()));
   // Starting pages of the 30 juz in the 604-page Madinah Mushaf.
