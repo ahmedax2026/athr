@@ -293,11 +293,9 @@ class HomeScreen extends StatelessWidget {
           final availableWidth = size.maxWidth - 36;
           final maxWidth = availableWidth > 650 ? 650.0 : availableWidth;
           final tileWidth = (maxWidth - 24) / 3;
-          return Center(child: FittedBox(
-            fit: BoxFit.scaleDown, alignment: Alignment.center,
-            child: SizedBox(width: maxWidth, child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-            child: Column(
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+            child: Center(child: SizedBox(width: maxWidth, child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
@@ -451,7 +449,7 @@ class HomeScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(color: secondary, fontSize: 13, height: 1.6))),
               ],
-            )))),
+            ))),
           );
         }),
       ),
