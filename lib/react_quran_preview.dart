@@ -152,11 +152,11 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
     if (web == null) return;
     // The page is always light paper with dark Quran text. A previous
     // dark-theme override made the original cream page nearly illegible.
-    final background = eyeComfort ? '#F1E4C6' : (darkReading ? '#E8D8BA' : '#FFF9EC');
+    final background = eyeComfort ? '#F1E4C6' : (darkReading ? '#E8D8BA' : '#FFFDF6');
     final foreground = eyeComfort ? '#332E25' : '#172820';
     await web.setBackgroundColor(eyeComfort
         ? const Color(0xFFF1E4C6) : (darkReading
-          ? const Color(0xFFE8D8BA) : const Color(0xFFFFF9EC)));
+          ? const Color(0xFFE8D8BA) : const Color(0xFFFFFDF6)));
     try {
       await web.runJavaScript("""
         (() => {
@@ -167,7 +167,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
             document.head.appendChild(style);
           }
           style.textContent = 'html, body, #root, main, .reader, .page-surface {' +
-            'background-color: $background !important; color: $foreground !important;}' +
+            'background-color: $background !important; color: $foreground !important; min-height: 100%;}' +
             '.reader, .reader * { color: $foreground !important; }' +
             '.reader svg text, .reader svg tspan {' +
             'fill: $foreground !important; }';
@@ -241,13 +241,13 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: eyeComfort ? const Color(0xFFF1E4C6) : (darkReading ? const Color(0xFFE8D8BA) : const Color(0xFFFFF9EC)),
+    backgroundColor: eyeComfort ? const Color(0xFFF1E4C6) : (darkReading ? const Color(0xFFE8D8BA) : const Color(0xFFFFFDF6)),
     appBar: AppBar(
       backgroundColor: const Color(0xFF073E35),
       foregroundColor: Colors.white,
-      title: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+      title: Column(crossAxisAlignment: CrossAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
         Text(surahName, maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
         Text('الجزء $juzNumber • صفحة $page',
           style: const TextStyle(fontSize: 11, color: Color(0xFFE6D8B6))),
       ]),
