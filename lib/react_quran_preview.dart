@@ -19,6 +19,8 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   WebViewController? controller;
   bool loading = true;
   bool readerReady = false;
+  bool readerConfigured = false;
+  bool openingPageAcknowledged = false;
   double zoom = 1.0;
   int? bookmark;
   String? error;
@@ -53,6 +55,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
             await _applyZoom();
             await _applyReadingTheme();
             await _configureReaderBounds();
+            readerConfigured = true;
             if (mounted) setState(() { loading = false; error = null; });
           }
           if (data['type'] == 'partEnd' && mounted) {
@@ -63,23 +66,33 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
           }
           if (data['type'] == 'page' && data['page'] is num) {
             final reported = (data['page'] as num).toInt();
+            // React initially renders page 1 before Flutter restores the
+            // saved position. Never save that temporary startup page.
+            if (!readerConfigured) return;
+            if (!openingPageAcknowledged) {
+              if (reported != page) return;
+              openingPageAcknowledged = true;
+            }
             final next = reported.clamp(widget.firstPage, widget.lastPage);
             if (reported != next) {
               await web.runJavaScript('window.setQuranPage && window.setQuranPage($next)');
             }
             if (mounted) setState(() => page = next);
             widget.onPage?.call(next);
-            await prefs.setInt('react_quran_last_page', next);
+            // Juz and khatma progress is tracked separately. Only normal
+            // reading updates the main Quran resume position.
+            if (widget.firstPage == 1 && widget.lastPage == 604 &&
+                widget.onPage == null) {
+              await prefs.setInt('react_quran_last_page', next);
+            }
           }
         } catch (_) { /* Ignore malformed page events. */ }
       });
     await web.setNavigationDelegate(NavigationDelegate(
         onPageFinished: (_) async {
           try {
-            await _configureReaderBounds();
             await _applyZoom();
             await _applyReadingTheme();
-            await _configureReaderBounds();
           } catch (_) { /* Show bundled page even if JS bridge is unavailable. */ }
           // Do not mistake a loaded HTML shell for a successfully rendered Quran.
           await Future<void>.delayed(const Duration(seconds: 3));
