@@ -1,10 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _green = Color(0xFF073E35);
 const _gold = Color(0xFFD6B56C);
 const _ibrahim = 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا صَلَّيْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ.\n\nاللَّهُمَّ بَارِكْ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا بَارَكْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ.';
+// Strip Arabic vowel marks, shadda and tanween from tasbeeh labels.
+String _plain(String value) => value.replaceAll(RegExp(r'[\u064B-\u065F\u0670\u06D6-\u06ED]'), '').trim();
+
 const _defaults = <String>[
   'سُبْحَانَ اللَّهِ', 'الْحَمْدُ لِلَّهِ', 'اللَّهُ أَكْبَرُ',
   'لَا إِلَهَ إِلَّا اللَّهُ', 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ',
@@ -25,6 +29,11 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
   String _selected = _defaults.first;
   int _goal = 33;
   bool _loaded = false;
+  String get _storagePrefix {
+    final user = FirebaseAuth.instance.currentUser;
+    return user == null ? 'tasbeeh_local_' : 'tasbeeh_${user.uid}_';
+  }
+  String _key(String suffix) => '$_storagePrefix$suffix';
 
   @override
   void initState() {
@@ -35,15 +44,15 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     try {
-      final custom = (jsonDecode(prefs.getString('tasbeeh_custom') ?? '[]') as List).cast<String>();
-      final raw = (jsonDecode(prefs.getString('tasbeeh_counts') ?? '{}') as Map).cast<String, dynamic>();
+      final custom = (jsonDecode(prefs.getString(_key('custom')) ?? '[]') as List).cast<String>();
+      final raw = (jsonDecode(prefs.getString(_key('counts')) ?? '{}') as Map).cast<String, dynamic>();
       if (!mounted) return;
       setState(() {
         _custom = custom;
         _counts = raw.map((key, value) => MapEntry(key, (value as num).toInt()));
-        final saved = prefs.getString('tasbeeh_selected');
+        final saved = prefs.getString(_key('selected'));
         if (saved != null && [..._defaults, ...custom].contains(saved)) _selected = saved;
-        _goal = prefs.getInt('tasbeeh_goal') ?? 33;
+        _goal = prefs.getInt(_key('goal')) ?? 33;
         _loaded = true;
       });
     } catch (_) {
@@ -53,10 +62,10 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
 
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('tasbeeh_custom', jsonEncode(_custom));
-    await prefs.setString('tasbeeh_counts', jsonEncode(_counts));
-    await prefs.setString('tasbeeh_selected', _selected);
-    await prefs.setInt('tasbeeh_goal', _goal);
+    await prefs.setString(_key('custom'), jsonEncode(_custom));
+    await prefs.setString(_key('counts'), jsonEncode(_counts));
+    await prefs.setString(_key('selected'), _selected);
+    await prefs.setInt(_key('goal'), _goal);
   }
 
   void _increment() {
@@ -80,8 +89,10 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
       ),
     );
     if (!mounted) return;
-    if (value == null || value.isEmpty || [..._defaults, ..._custom].contains(value)) return;
-    setState(() { _custom.add(value); _selected = value; });
+    if (value == null || _plain(value).isEmpty ||
+        [..._defaults, ..._custom].any((v) => _plain(v) == _plain(value))) return;
+    final clean = _plain(value);
+    setState(() { _custom.add(clean); _selected = clean; });
     _save();
   }
 
@@ -97,7 +108,7 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
     final count = _counts[_selected] ?? 0;
     final isLong = _selected.length > 95;
     final isMedium = _selected.length > 28;
-    final fontSize = isLong ? 19.0 : isMedium ? 25.0 : 34.0;
+    final fontSize = isLong ? 26.0 : isMedium ? 25.0 : 34.0;
     final diameter = (MediaQuery.sizeOf(context).width - 66).clamp(220.0, 380.0);
     final theme = Theme.of(context);
     return Scaffold(
@@ -113,7 +124,7 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
               isExpanded: true,
               decoration: const InputDecoration(border: OutlineInputBorder()),
               items: [..._defaults, ..._custom].map((v) => DropdownMenuItem(
-                value: v, child: Text(v == _ibrahim ? 'الصلاة الإبراهيمية كاملة' : v,
+                value: v, child: Text(v == _ibrahim ? 'الصلاة الإبراهيمية كاملة' : _plain(v),
                   maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
               onChanged: (v) { if (v != null) { setState(() { _selected = v; if (_goal != 0 && (_counts[v] ?? 0) > _goal) _counts[v] = _goal; }); _save(); } },
             ),
@@ -127,45 +138,58 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
           const SizedBox(height: 14),
           Container(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [_green, Color(0xFF125E4C)]),
+              color: _green,
               borderRadius: BorderRadius.circular(28),
               border: Border.all(color: _gold, width: 1.5),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 22),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
             child: Column(children: [
-              const Text('اذْكُرِ اللَّهَ', style: TextStyle(color: _gold, fontSize: 16)),
-              const SizedBox(height: 16),
               GestureDetector(
                 onTap: _increment,
                 behavior: HitTestBehavior.opaque,
                 child: Container(
                   width: diameter,
                   height: diameter,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 26),
+                  clipBehavior: Clip.antiAlias,
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: const Color(0xFF0A493D),
                     border: Border.all(color: _gold, width: 2),
                     shape: BoxShape.circle,
                   ),
-                  child: SingleChildScrollView(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text(_selected, textAlign: TextAlign.center,
-                      softWrap: true,
-                      style: TextStyle(color: const Color(0xFFFFE6AB), fontSize: fontSize,
-                        fontWeight: FontWeight.w700, height: isLong ? 1.9 : 1.6)),
-                    const SizedBox(height: 18),
-                    const Divider(color: _gold, indent: 35, endIndent: 35),
-                    const SizedBox(height: 10),
-                    Text('$count', style: const TextStyle(color: Colors.white,
-                      fontSize: 46, fontWeight: FontWeight.bold)),
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Expanded(
+                      child: SizedBox(width: diameter - 58,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.center,
+                          child: SizedBox(
+                            width: diameter - 58,
+                            child: Text(_plain(_selected),
+                              textAlign: TextAlign.center,
+                              softWrap: true,
+                              textDirection: TextDirection.rtl,
+                              style: TextStyle(
+                                color: const Color(0xFFFFE6AB),
+                                fontSize: fontSize,
+                                fontWeight: FontWeight.w700,
+                                height: isLong ? 1.45 : 1.35,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text('$count', style: const TextStyle(
+                      color: Colors.white, fontSize: 38, fontWeight: FontWeight.bold)),
                     Text(_goal == 0 ? 'تسبيح مفتوح' : 'الهدف: $_goal',
-                      style: const TextStyle(color: _gold, fontSize: 15)),
-                    const SizedBox(height: 6),
-                    const Text('اضغط هنا للتسبيح', style: TextStyle(color: Colors.white70)),
-                  ])),
+                      style: const TextStyle(color: _gold, fontSize: 13)),
+                  ]),
                 ),
               ),
               const SizedBox(height: 12),
-              Text(_goal != 0 && count >= _goal ? 'اكتمل العدد المستهدف ✓' : 'المس الدائرة للتسبيح',
+              Text(_goal != 0 && count >= _goal ? 'اكتمل العدد المستهدف' : 'المس الدائرة للتسبيح',
                 style: const TextStyle(color: _gold, fontSize: 16)),
               const SizedBox(height: 12),
               Wrap(spacing: 8, alignment: WrapAlignment.center, children: [
