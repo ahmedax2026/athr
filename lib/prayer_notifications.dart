@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 /// Prayer notification diagnostics. Sound of the full adhan is deliberately
@@ -15,6 +16,7 @@ class PrayerNotificationStatus {
 }
 
 class PrayerNotifications {
+  static const MethodChannel _adhanAlarmChannel = MethodChannel('athr/adhan_alarms');
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
@@ -128,19 +130,18 @@ class PrayerNotifications {
 
     final preferences = await SharedPreferences.getInstance();
     final useAdhan = preferences.getBool('adhan') ?? false;
-    final normalVoice = preferences.getString('adhan_voice') ?? 'adhan_voice_1';
+    final normalVoice = preferences.getString('adhan_voice') ?? 'adhan_makkah';
     const choices = {'adhan_makkah', 'adhan_afasy'};
     NotificationDetails detailsFor(String name) {
+      // Full recordings are played by a native foreground playback service;
+      // keep this notification silent to avoid duplicate competing audio.
       if (!useAdhan) return _details;
-      final requested = normalVoice;
-      final voice = choices.contains(requested) ? requested : 'adhan_makkah';
-      return NotificationDetails(android: AndroidNotificationDetails(
-        'athr_adhan_${voice}_v2', 'أذان الصلاة',
-        channelDescription: 'صوت أذان اختياري عند دخول وقت الصلاة',
+      return const NotificationDetails(android: AndroidNotificationDetails(
+        'athr_adhan_service_v3', 'أذان الصلاة الكامل',
+        channelDescription: 'إشعار وقت الصلاة مع تشغيل الأذان كاملًا في الخلفية',
         importance: Importance.high,
         priority: Priority.high,
-        playSound: true,
-        sound: RawResourceAndroidNotificationSound(voice),
+        playSound: false,
       ));
     }
     final precise = await _android?.canScheduleExactNotifications() ?? false;
@@ -150,12 +151,22 @@ class PrayerNotifications {
     const prayerNames = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
     final now = DateTime.now();
     var count = 0;
+    final fullAdhanAlarms = <Map<String, Object>>[];
     for (var day = 0; day < days.length; day++) {
       for (var prayer = 0; prayer < prayerNames.length; prayer++) {
         final name = prayerNames[prayer];
         final prayerTime = days[day][name];
         if (prayerTime == null) continue;
         if (prayerTime.isAfter(now)) {
+          if (useAdhan) {
+            final chosen = name == 'الفجر'
+                ? (preferences.getString('adhan_fajr_voice') ?? normalVoice)
+                : normalVoice;
+            fullAdhanAlarms.add({
+              'at': prayerTime.millisecondsSinceEpoch,
+              'voice': choices.contains(chosen) ? chosen : 'adhan_makkah',
+            });
+          }
           await _plugin.zonedSchedule(
             id: 1000 + day * 20 + prayer * 2,
             title: 'حان الآن موعد صلاة $name',
@@ -171,8 +182,8 @@ class PrayerNotifications {
           if (before.isAfter(now)) {
             await _plugin.zonedSchedule(
               id: 1001 + day * 20 + prayer * 2,
-              title: 'اقترب موعد صلاة $name',
-              body: 'باقي $reminderMinutes دقيقة على صلاة $name',
+              title: 'اقتربت صلاة $name',
+              body: 'اقتربت صلاة $name • متبقي $reminderMinutes دقيقة',
               scheduledDate: tz.TZDateTime.from(before, zone),
               notificationDetails: _details,
               androidScheduleMode: mode,
@@ -182,6 +193,7 @@ class PrayerNotifications {
         }
       }
     }
+    await _adhanAlarmChannel.invokeMethod<void>('schedule', fullAdhanAlarms);
     return count;
   }
 }
