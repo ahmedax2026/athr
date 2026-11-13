@@ -414,7 +414,7 @@ class _TajweedTrialScreenState extends State<TajweedTrialScreen> {
     appBar: AppBar(
       backgroundColor: emerald,
       foregroundColor: cream,
-      title: const Text('قرآن التجويد • تجربة'),
+      title: const Text('القرآن الكريم • قراءة متصلة'),
       actions: [
         IconButton(
           tooltip: 'تصغير الخط',
@@ -446,6 +446,8 @@ class _TajweedTrialScreenState extends State<TajweedTrialScreen> {
               initialValue: selected,
               decoration: InputDecoration(
                 labelText: 'اختر السورة',
+                labelStyle: const TextStyle(color: darkInk),
+                floatingLabelStyle: const TextStyle(color: emerald),
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
@@ -463,7 +465,7 @@ class _TajweedTrialScreenState extends State<TajweedTrialScreen> {
           ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 18, vertical: 5),
-            child: Text('وضع تجريبي للنص المكبّر — تلوين أحكام التجويد قيد الدمج والتحقق',
+            child: Text('قراءة متصلة بخط مكبّر — ألوان أحكام التجويد لم تُفعّل بعد',
               textAlign: TextAlign.center,
               style: TextStyle(color: Color(0xFF805C22), fontSize: 12)),
           ),
@@ -488,25 +490,29 @@ class _TajweedTrialScreenState extends State<TajweedTrialScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 25, color: darkInk, height: 2)),
               const SizedBox(height: 12),
-              for (var i = 0; i < verses.length; i++)
-                if (verseText(verses[i]).isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: Text.rich(
-                      TextSpan(children: [
-                        TextSpan(text: verseText(verses[i])),
-                        TextSpan(
-                          text: '  ۞ ${i + 1}  ',
-                          style: TextStyle(
-                            fontSize: fontSize * .65,
-                            color: const Color(0xFF9C7226),
-                            fontWeight: FontWeight.w700)),
-                      ]),
-                      textAlign: TextAlign.justify,
-                      textDirection: TextDirection.rtl,
-                      style: TextStyle(
-                        fontSize: fontSize, height: 2.0, color: darkInk)),
-                  ),
+              // A single paragraph allows verses to flow naturally on the same line.
+              // Verse-end ornaments are inline spans rather than separate blocks.
+              Text.rich(
+                TextSpan(children: [
+                  for (var i = 0; i < verses.length; i++)
+                    if (verseText(verses[i]).isNotEmpty) ...[
+                      TextSpan(text: '${verseText(verses[i]).trim()} '),
+                      TextSpan(
+                        text: '۞${i + 1} ',
+                        style: TextStyle(
+                          fontSize: fontSize * .66,
+                          color: const Color(0xFF926A26),
+                          fontWeight: FontWeight.w700)),
+                    ],
+                ]),
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.start,
+                softWrap: true,
+                style: TextStyle(
+                  fontSize: fontSize,
+                  height: 1.7,
+                  color: darkInk),
+              ),
             ],
           )),
         ]);
