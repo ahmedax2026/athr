@@ -115,7 +115,7 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
               items: [..._defaults, ..._custom].map((v) => DropdownMenuItem(
                 value: v, child: Text(v == _ibrahim ? 'الصلاة الإبراهيمية كاملة' : v,
                   maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
-              onChanged: (v) { if (v != null) { setState(() => _selected = v); _save(); } },
+              onChanged: (v) { if (v != null) { setState(() { _selected = v; if (_goal != 0 && (_counts[v] ?? 0) > _goal) _counts[v] = _goal; }); _save(); } },
             ),
             const SizedBox(height: 8),
             Wrap(alignment: WrapAlignment.center, spacing: 8, children: [
@@ -140,15 +140,14 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
                 behavior: HitTestBehavior.opaque,
                 child: Container(
                   width: diameter,
-                  height: isLong ? null : diameter,
-                  constraints: BoxConstraints(minHeight: isLong ? diameter : 0),
+                  height: diameter,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 26),
                   decoration: BoxDecoration(
                     color: const Color(0xFF0A493D),
                     border: Border.all(color: _gold, width: 2),
                     shape: BoxShape.circle,
                   ),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  child: SingleChildScrollView(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Text(_selected, textAlign: TextAlign.center,
                       softWrap: true,
                       style: TextStyle(color: const Color(0xFFFFE6AB), fontSize: fontSize,
@@ -162,7 +161,7 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
                       style: const TextStyle(color: _gold, fontSize: 15)),
                     const SizedBox(height: 6),
                     const Text('اضغط هنا للتسبيح', style: TextStyle(color: Colors.white70)),
-                  ]),
+                  ])),
                 ),
               ),
               const SizedBox(height: 12),
