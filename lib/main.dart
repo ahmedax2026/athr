@@ -291,7 +291,7 @@ class HomeScreen extends StatelessWidget {
           // Account for the scroll view's 18px padding on both sides.
           final availableWidth = size.maxWidth - 36;
           final maxWidth = availableWidth > 650 ? 650.0 : availableWidth;
-          final tileWidth = (maxWidth - 12) / 2;
+          final tileWidth = (maxWidth - 24) / 3;
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
             child: Center(child: SizedBox(width: maxWidth, child: Column(
@@ -346,11 +346,11 @@ class HomeScreen extends StatelessWidget {
                     ]),
                   ]),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 Text('أبواب الخير', style: TextStyle(color: fg, fontSize: 27, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 5),
                 LiveContentText(document: 'home', field: 'tagline', fallback: 'نورٌ يبقى، ودعاءٌ يصل.', style: TextStyle(color: secondary, fontSize: 14)),
-                const SizedBox(height: 17),
+                const SizedBox(height: 12),
                 Wrap(alignment: WrapAlignment.center,
                   runAlignment: WrapAlignment.center,
                   spacing: 12, runSpacing: 12, children: [
@@ -373,8 +373,8 @@ class HomeScreen extends StatelessWidget {
                           }
                         },
                         child: Container(
-                        constraints: const BoxConstraints(minHeight: 138),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+                        constraints: const BoxConstraints(minHeight: 124),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 12),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft,
                             colors: [tile, isDark ? const Color(0xFF0C3B33) : const Color(0xFFF4EBD7)]),
@@ -389,19 +389,19 @@ class HomeScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Container(
-                              width: 52, height: 52,
+                              width: 43, height: 43,
                               decoration: BoxDecoration(
                                 color: accent.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(26),
                               ),
-                              child: Icon(s.$3, color: accent, size: 27),
+                              child: Icon(s.$3, color: accent, size: 24),
                             ),
                             const SizedBox(height: 10),
                             Text(s.$1, textAlign: TextAlign.center,
-                              style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 16)),
+                              style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 13)),
                             const SizedBox(height: 5),
                             Text(s.$2, textAlign: TextAlign.center,
-                              style: TextStyle(color: secondary, fontSize: 12, height: 1.5)),
+                              style: TextStyle(color: secondary, fontSize: 10, height: 1.3)),
                           ],
                         ),
                       ),
