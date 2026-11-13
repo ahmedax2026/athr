@@ -85,7 +85,7 @@ class _QcfIndexScreenState extends State<QcfIndexScreen> {
                   ? ListView.separated(
                       padding: const EdgeInsets.fromLTRB(14, 9, 14, 18),
                       itemCount: surahNumbers.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final n = surahNumbers[index];
                         final page = getPageNumber(n, 1);
@@ -100,7 +100,7 @@ class _QcfIndexScreenState extends State<QcfIndexScreen> {
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(14, 16, 14, 18),
                       itemCount: 30,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final n = index + 1;
                         final page = _juzPages[index];
