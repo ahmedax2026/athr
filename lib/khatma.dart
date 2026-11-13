@@ -8,6 +8,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 const _starts = <int>[1,22,42,62,82,102,121,142,162,182,201,222,242,262,282,302,322,342,362,382,402,422,442,462,482,502,522,542,562,582];
 const _green = Color(0xFF075143);
+int _firstPage(int part) => _starts[part - 1];
+int _lastPage(int part) => part == 30 ? 604 : _starts[part] - 1;
+String _range(int part) => 'صفحة ${_firstPage(part)} إلى ${_lastPage(part)}';
 
 class KhatmaScreen extends StatefulWidget {
   const KhatmaScreen({super.key});
@@ -360,8 +363,9 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
       title:const Text('توزيع الأجزاء'),
       content:SizedBox(width:350,height:380,child:ListView(children:[
         for(var i=1;i<=30;i++)CheckboxListTile(title:Text('الجزء $i'),
+          subtitle:Text(_range(i)),
           value:selected.contains(i),
-          subtitle:occupied.contains(i)?const Text('مخصص لمشارك آخر'):null,
+          secondary:occupied.contains(i)?const Icon(Icons.lock_outline):null,
           onChanged:occupied.contains(i)?null:(v)=>update(()=>v==true?selected.add(i):selected.remove(i))),
       ])),
       actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('إلغاء')),
@@ -469,7 +473,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
                 for(final p in List<int>.from(mine['parts']??[])..sort())
                   Card(child:Column(children:[
                     ListTile(title:Text('الجزء $p',style:const TextStyle(fontWeight:FontWeight.w800)),
-                      subtitle:Text(List<int>.from(mine['completed']??[]).contains(p)?'مكتمل':'بانتظار القراءة'),
+                      subtitle:Text('${_range(p)} • ${List<int>.from(mine['completed']??[]).contains(p)?'مكتمل':'بانتظار القراءة'}'),
                       trailing:Icon(List<int>.from(mine['completed']??[]).contains(p)?Icons.check_circle:Icons.menu_book,color:_green)),
                     Row(children:[
                       Expanded(child:TextButton.icon(onPressed:started?()=>readPart(p):null,
@@ -521,15 +525,15 @@ class _KhatmaPartReaderState extends State<KhatmaPartReader> {
   late final int first,last;
   @override void initState(){
     super.initState();
-    first=_starts[widget.part-1];
-    last=widget.part==30?604:_starts[widget.part]-1;
+    first=_firstPage(widget.part);
+    last=_lastPage(widget.part);
     page=widget.initialPage.clamp(first,last);
     controller=PageController(initialPage:page-first);
   }
   @override void dispose(){controller.dispose();super.dispose();}
   @override Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:Text('الجزء ${widget.part} • صفحة $page من $last')),
-    body:Column(children:[Expanded(child:Directionality(textDirection:TextDirection.rtl,
+    body:Column(children:[Padding(padding:const EdgeInsets.all(10),child:Text('الجزء ${widget.part} • ${_range(widget.part)}',style:const TextStyle(fontWeight:FontWeight.bold,color:_green))),Expanded(child:Directionality(textDirection:TextDirection.rtl,
       child:PageView.builder(controller:controller,itemCount:last-first+1,
         onPageChanged:(i){setState(()=>page=first+i);widget.onPage(page);},
         itemBuilder:(context,i)=>InteractiveViewer(minScale:1,maxScale:5,
