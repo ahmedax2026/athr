@@ -11,10 +11,8 @@ root = Path(__file__).resolve().parents[1]
 data = json.loads((root / "tool/azkar_data.json").read_text(encoding="utf-8"))
 out = root / "assets/azkar"
 out.mkdir(parents=True, exist_ok=True)
-f_candidates = list((root / "react_quran/node_modules/react-quran").rglob("*.ttf"))
-f_candidates = sorted(f_candidates, key=lambda p: (0 if "uthman" in p.name.lower() else 1, str(p)))
-fallback = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
-font_path = f_candidates[0] if f_candidates else fallback
+# System font independent of previously deleted Quran frameworks.
+font_path = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
 assert font_path.exists(), f"Missing Arabic font {font_path}"
 
 def font(size):
