@@ -470,7 +470,15 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       isScrollControlled: true,
       showDragHandle: true,
       backgroundColor: _cream,
-      builder: (ctx) => StatefulBuilder(
+      builder: (ctx) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: _forest,
+            brightness: Brightness.light,
+            surface: _cream),
+          textTheme: Theme.of(ctx).textTheme.apply(
+            bodyColor: _forest, displayColor: _forest)),
+        child: StatefulBuilder(
         builder: (ctx, refresh) => SafeArea(
           child: FractionallySizedBox(
             heightFactor: 0.94,
@@ -602,7 +610,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 
