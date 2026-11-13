@@ -10,6 +10,10 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  errors:
+    # Flutter 3.50 flags the legacy Material import as informational.
+    # Keep actual analyzer errors and other warnings enabled.
+    deprecated_member_use: ignore
   exclude:
     - build/**
     - android/**
