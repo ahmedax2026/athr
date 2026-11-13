@@ -25,7 +25,8 @@ class AthrQcfReader extends StatefulWidget {
 class _AthrQcfReaderState extends State<AthrQcfReader> {
   static const _green = Color(0xFF073E35);
   static const _gold = Color(0xFFD6B56C);
-  static const _beige = Color(0xFFF0E6D1);
+  // Sampled from the user's reference: uniform warm paper beige.
+  static const _beige = Color(0xFFEFE3C9);
   static const _paper = Color(0xFFFFFCF5);
   static const _ink = Color(0xFF29231E);
 
@@ -55,6 +56,8 @@ class _AthrQcfReaderState extends State<AthrQcfReader> {
       _bookmark = prefs.getInt('react_quran_bookmark');
       _comfortable = prefs.getBool('athr_qcf_eye_comfort') ?? false;
       _dark = prefs.getBool('athr_qcf_dark') ?? false;
+      // Eye comfort is a paper mode, never combine it with dark mode.
+      if (_comfortable) _dark = false;
       _controller = PageController(initialPage: page - 1);
       _reading = true;
     });
@@ -85,15 +88,25 @@ class _AthrQcfReaderState extends State<AthrQcfReader> {
   }
 
   Future<void> _toggleComfort() async {
-    setState(() => _comfortable = !_comfortable);
+    final enable = !_comfortable;
+    setState(() {
+      _comfortable = enable;
+      if (enable) _dark = false;
+    });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('athr_qcf_eye_comfort', _comfortable);
+    if (enable) await prefs.setBool('athr_qcf_dark', false);
   }
 
   Future<void> _toggleDark() async {
-    setState(() => _dark = !_dark);
+    final enable = !_dark;
+    setState(() {
+      _dark = enable;
+      if (enable) _comfortable = false;
+    });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('athr_qcf_dark', _dark);
+    if (enable) await prefs.setBool('athr_qcf_eye_comfort', false);
   }
 
   Future<void> _saveBookmark() async {
@@ -134,7 +147,7 @@ class _AthrQcfReaderState extends State<AthrQcfReader> {
             onPressed: _openIndex,
           ),
           IconButton(
-            tooltip: _comfortable ? 'إيقاف راحة العين' : 'راحة العين',
+            tooltip: _comfortable ? 'إيقاف راحة العين' : 'وضع راحة العين البيج',
             icon: Icon(_comfortable ? Icons.visibility : Icons.visibility_outlined,
                 color: _comfortable ? _gold : Colors.white),
             onPressed: _toggleComfort,
