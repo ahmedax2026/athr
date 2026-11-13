@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:adhan_dart/adhan_dart.dart' as adhan;
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
@@ -26,6 +27,15 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   String method = 'egypt';
   int reminder = 10;
   bool adhanEnabled = false;
+  final AudioPlayer adhanPreview = AudioPlayer();
+  String adhanVoice = 'adhan_voice_1';
+  String fajrVoice = 'adhan_fajr';
+  String? previewingVoice;
+  static const voiceNames = <String, String>{
+    'adhan_voice_1': 'الأذان الأول',
+    'adhan_voice_2': 'الأذان الثاني',
+    'adhan_fajr': 'أذان الفجر (الصلاة خير من النوم)',
+  };
   PrayerNotificationStatus? notificationStatus;
   bool checkingNotifications = false;
   bool busy = true;
@@ -63,6 +73,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   @override
   void dispose() {
     timer?.cancel();
+    adhanPreview.dispose();
     super.dispose();
   }
 
@@ -118,6 +129,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     method = prefs.getString('prayer_method') ?? 'egypt';
     reminder = prefs.getInt('prayer_reminder') ?? 10;
     adhanEnabled = prefs.getBool('adhan') ?? false;
+    adhanVoice = prefs.getString('adhan_voice') ?? 'adhan_voice_1';
+    fajrVoice = prefs.getString('adhan_fajr_voice') ?? 'adhan_fajr';
     // Ask for notification permission when the prayer timetable opens.
     // The Android exact-alarm special access remains a separate user action.
     try {
@@ -284,6 +297,73 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('التوقيت الدقيق لم يُفعّل بعد. سيستمر استخدام التنبيهات التقريبية.')));
     }
+  }
+
+  Future<void> _setVoice(String key, String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(key, value);
+    if (mounted) {
+      setState(() {
+        if (key == 'adhan_voice') {
+          adhanVoice = value;
+        } else {
+          fajrVoice = value;
+        }
+      });
+    }
+    await _schedule();
+  }
+
+  Future<void> _previewVoice(String voice) async {
+    try {
+      if (previewingVoice == voice) {
+        await adhanPreview.stop();
+        if (mounted) setState(() => previewingVoice = null);
+        return;
+      }
+      await adhanPreview.stop();
+      await adhanPreview.play(AssetSource('adhan/$voice.mp3'));
+      if (mounted) setState(() => previewingVoice = voice);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('تعذر تشغيل الصوت التجريبي: $e')));
+      }
+    }
+  }
+
+  Widget _voiceSelector(String label, String value, String prefKey) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(
+          color: _forest, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 7),
+        Row(children: [
+          Expanded(child: DropdownButtonFormField<String>(
+            initialValue: voiceNames.containsKey(value) ? value : 'adhan_voice_1',
+            isExpanded: true,
+            decoration: const InputDecoration(
+              isDense: true, border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
+            items: voiceNames.entries.map((entry) => DropdownMenuItem(
+              value: entry.key,
+              child: Text(entry.value, overflow: TextOverflow.ellipsis),
+            )).toList(),
+            onChanged: (choice) {
+              if (choice != null) _setVoice(prefKey, choice);
+            },
+          )),
+          const SizedBox(width: 7),
+          IconButton.filledTonal(
+            tooltip: previewingVoice == value ? 'إيقاف التجربة' : 'تجربة الصوت',
+            onPressed: () => _previewVoice(value),
+            icon: Icon(previewingVoice == value
+              ? Icons.stop_circle_outlined : Icons.play_arrow_rounded),
+          ),
+        ]),
+      ]),
+    );
   }
 
   Future<void> _testNotification() async {
@@ -551,8 +631,23 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.setBool('adhan', value);
                   if (mounted) setState(() => adhanEnabled = value);
+                  await _schedule();
                 },
               ),
+              if (adhanEnabled) ...[
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                _voiceSelector('صوت الأذان للصلوات', adhanVoice, 'adhan_voice'),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                _voiceSelector('صوت أذان الفجر', fajrVoice, 'adhan_fajr_voice'),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(14, 2, 14, 12),
+                  child: Text(
+                    'تجربة التشغيل تعمل داخل التطبيق. تشغيل التسجيل كاملًا '
+                    'عند وصول الإشعار في الخلفية يخضع لقيود Android ويحتاج اختبارًا على الجهاز.',
+                    style: TextStyle(color: Color(0xFF877454), fontSize: 12, height: 1.6),
+                  ),
+                ),
+              ],
               const Divider(height: 1, indent: 16, endIndent: 16),
               ListTile(
                 leading: const Icon(Icons.alarm_rounded, color: _forest),
