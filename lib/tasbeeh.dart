@@ -90,7 +90,9 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
     );
     if (!mounted) return;
     if (value == null || _plain(value).isEmpty ||
-        [..._defaults, ..._custom].any((v) => _plain(v) == _plain(value))) return;
+        [..._defaults, ..._custom].any((v) => _plain(v) == _plain(value))) {
+      return;
+    }
     final clean = _plain(value);
     setState(() { _custom.add(clean); _selected = clean; });
     _save();
