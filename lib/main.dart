@@ -168,7 +168,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 const SizedBox(height: 8),
                 _PrayerHeart(count: _count, onTap: _pray),
                 const SizedBox(height: 8),
-                const Text('اضغط على القلب ثلاث مرات وادعُ له بالرحمة', textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 12)),
+                const Text('اضغط على القلب 3 مرات للدخول إلى أبواب الخير', textAlign: TextAlign.center, style: TextStyle(color: cream, fontSize: 13, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 7),
+                const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(Icons.menu_book_outlined, color: gold, size: 17),
+                  SizedBox(width: 6),
+                  Text('قرآن كريم  •  أذكار  •  ختمات جماعية', style: TextStyle(color: muted, fontSize: 11)),
+                ]),
               ]),
               ),
             ),
@@ -229,7 +235,7 @@ class HomeScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final fg = isDark ? cream : const Color(0xFF163C32);
     final secondary = isDark ? muted : const Color(0xFF647A6E);
-    final tile = isDark ? const Color(0xFF10473D) : Colors.white;
+    final tile = isDark ? const Color(0xFF135145) : const Color(0xFFFFFCF3);
     final accent = isDark ? gold : const Color(0xFF94702F);
     return Scaffold(
       appBar: AppBar(
@@ -313,7 +319,7 @@ class HomeScreen extends StatelessWidget {
                   ]),
                 ),
                 const SizedBox(height: 24),
-                Text('أبواب الخير', style: TextStyle(color: fg, fontSize: 25, fontWeight: FontWeight.w800)),
+                Text('اكتشف أبواب الخير', style: TextStyle(color: fg, fontSize: 27, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 5),
                 LiveContentText(document: 'home', field: 'tagline', fallback: 'نورٌ يبقى، ودعاءٌ يصل.', style: TextStyle(color: secondary, fontSize: 14)),
                 const SizedBox(height: 17),
@@ -337,32 +343,33 @@ class HomeScreen extends StatelessWidget {
                           }
                         },
                         child: Container(
-                        constraints: const BoxConstraints(minHeight: 160),
-                        padding: const EdgeInsets.all(16),
+                        constraints: const BoxConstraints(minHeight: 145),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
                         decoration: BoxDecoration(
-                          color: tile,
+                          gradient: LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft,
+                            colors: [tile, isDark ? const Color(0xFF0C3B33) : const Color(0xFFF4EBD7)]),
                           borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: accent.withValues(alpha: 0.28)),
+                          border: Border.all(color: accent.withValues(alpha: 0.48), width: 1.1),
                           boxShadow: [BoxShadow(
                             color: Colors.black.withValues(alpha: isDark ? 0.10 : 0.045),
-                            blurRadius: 14, offset: const Offset(0, 5),
+                            blurRadius: 20, offset: const Offset(0, 9),
                           )],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Container(
-                              width: 48, height: 48,
+                              width: 52, height: 52,
                               decoration: BoxDecoration(
                                 color: accent.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(15),
+                                borderRadius: BorderRadius.circular(26),
                               ),
                               child: Icon(s.$3, color: accent, size: 27),
                             ),
-                            const SizedBox(height: 13),
+                            const SizedBox(height: 10),
                             Text(s.$1, textAlign: TextAlign.center,
                               style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 16)),
-                            const SizedBox(height: 7),
+                            const SizedBox(height: 5),
                             Text(s.$2, textAlign: TextAlign.center,
                               style: TextStyle(color: secondary, fontSize: 12, height: 1.5)),
                           ],
