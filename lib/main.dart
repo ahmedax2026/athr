@@ -330,7 +330,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(child: Column(children: [
+                      Expanded(child: Column(children: [
                         Text('على روح المغفور له بإذن الله',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: cream, fontSize: 13, height: 1.6)),
