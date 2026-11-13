@@ -224,13 +224,36 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, this.onToggleTheme});
   final VoidCallback? onToggleTheme;
   static const sections = [
-    ('القرآن الكريم', 'آيات تتلى وأجر يبقى', Icons.menu_book_outlined),
-    ('الأذكار', 'ذكر يطمئن القلب', Icons.auto_awesome_outlined),
-    ('السبحة', 'مساحة للتسبيح والدعاء', Icons.favorite_outline),
-    ('مواقيت الصلاة', 'تذكير بمواقيت الصلاة', Icons.access_time),
-    ('الختمات الجماعية', 'ختمة يجتمع عليها الأحبة', Icons.groups_outlined),
-    ('فك كرب', 'ساهم في تفريج كرب المحتاجين', Icons.volunteer_activism_outlined),
+    ('القرآن الكريم', 'تلاوة وتدبر وختمات', Icons.menu_book_rounded),
+    ('الأذكار', 'ذكر يطمئن القلب', Icons.auto_awesome_rounded),
+    ('الختمات الجماعية', 'معًا لختم القرآن', Icons.groups_rounded),
+    ('مواقيت الصلاة', 'تنبيه بمواقيت الصلاة', Icons.access_time_rounded),
+    ('السبحة', 'تسبيح وذكر ودعاء', Icons.favorite_border_rounded),
+    ('فك كرب', 'مساعدة المحتاجين', Icons.volunteer_activism_rounded),
   ];
+
+  void _showDua(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.volunteer_activism_rounded, size: 42, color: gold),
+          const SizedBox(height: 12),
+          const Text('دعوة من القلب', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 16),
+          const Text('اللهم اغفر لعبدالوكيل عبدالسيد محمد وارحمه، وعافه واعف عنه، وأكرم نزله، ووسع مدخله، واجعل قبره روضة من رياض الجنة.',
+            textAlign: TextAlign.center, style: TextStyle(fontSize: 18, height: 1.9)),
+          const SizedBox(height: 18),
+          FilledButton.icon(onPressed: () => Navigator.pop(ctx),
+            icon: const Icon(Icons.favorite_rounded),
+            label: const Text('اللهم آمين')),
+        ]),
+      )),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -274,54 +297,56 @@ class HomeScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 17),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      begin: Alignment.topRight,
-                      end: Alignment.bottomLeft,
-                      colors: [Color(0xFF176451), Color(0xFF06372F)],
-                    ),
-                    borderRadius: BorderRadius.circular(26),
-                    border: Border.all(color: gold.withValues(alpha: 0.6)),
+                      begin: Alignment.topRight, end: Alignment.bottomLeft,
+                      colors: [Color(0xFF176451), Color(0xFF06372F)]),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: gold.withValues(alpha: 0.72), width: 1.2),
                     boxShadow: [BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.09),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    )],
+                      color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.10),
+                      blurRadius: 22, offset: const Offset(0, 10))],
                   ),
-                  child: Row(children: [
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: gold),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Image.asset(
-                          'assets/images/father.jpg',
-                          width: 80, height: 94, fit: BoxFit.contain,
+                  child: Column(children: [
+                    const Text('صَدَقَةٌ جَارِيَة', textAlign: TextAlign.center,
+                      style: TextStyle(color: gold, fontSize: 17, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 12),
+                    Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: gold, width: 1.4)),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.asset('assets/images/father.jpg',
+                            width: 94, height: 135, fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => const SizedBox(
+                              width: 94, height: 135,
+                              child: Icon(Icons.person_outline, color: gold))),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 15),
-                    const Expanded(child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-                            style: TextStyle(color: gold, fontSize: 13)),
-                        SizedBox(height: 8),
-                        LiveContentText(document: 'home', field: 'greeting', fallback: 'أهلًا بك في أثر لا ينقطع',
-                            style: TextStyle(color: cream, fontSize: 19, fontWeight: FontWeight.w800, height: 1.5)),
-                        SizedBox(height: 5),
-                        Text('صدقة جارية على روح عبدالوكيل عبدالسيد محمد',
-                            style: TextStyle(color: Color(0xFFE4E9D9), fontSize: 12, height: 1.6)),
-                      ],
-                    )),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Column(children: [
+                        Text('على روح المغفور له بإذن الله',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: cream, fontSize: 13, height: 1.6)),
+                        SizedBox(height: 7),
+                        Text('عبدالوكيل عبدالسيد محمد',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: gold, fontSize: 19,
+                            fontWeight: FontWeight.w900, height: 1.5)),
+                        SizedBox(height: 10),
+                        Text('اللهم اغفر له وارحمه\nوعافه واعف عنه وأكرم نزله\nووسع مدخله واجعل قبره روضة من رياض الجنة',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: cream, fontSize: 12.5, height: 1.7)),
+                      ])),
+                    ]),
                   ]),
                 ),
                 const SizedBox(height: 24),
-                Text('اكتشف أبواب الخير', style: TextStyle(color: fg, fontSize: 27, fontWeight: FontWeight.w900)),
+                Text('أبواب الخير', style: TextStyle(color: fg, fontSize: 27, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 5),
                 LiveContentText(document: 'home', field: 'tagline', fallback: 'نورٌ يبقى، ودعاءٌ يصل.', style: TextStyle(color: secondary, fontSize: 14)),
                 const SizedBox(height: 17),
@@ -345,16 +370,16 @@ class HomeScreen extends StatelessWidget {
                           }
                         },
                         child: Container(
-                        constraints: const BoxConstraints(minHeight: 145),
+                        constraints: const BoxConstraints(minHeight: 138),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft,
                             colors: [tile, isDark ? const Color(0xFF0C3B33) : const Color(0xFFF4EBD7)]),
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: accent.withValues(alpha: 0.48), width: 1.1),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: accent.withValues(alpha: 0.55), width: 1.1),
                           boxShadow: [BoxShadow(
                             color: Colors.black.withValues(alpha: isDark ? 0.10 : 0.045),
-                            blurRadius: 20, offset: const Offset(0, 9),
+                            blurRadius: 22, offset: const Offset(0, 11),
                           )],
                         ),
                         child: Column(
@@ -381,6 +406,20 @@ class HomeScreen extends StatelessWidget {
                     ),
                 ]),
                 const SizedBox(height: 25),
+                OutlinedButton.icon(
+                  key: const ValueKey('pray-for-father-button'),
+                  onPressed: () => _showDua(context),
+                  icon: const Icon(Icons.favorite_border_rounded),
+                  label: const Text('ادعُ له'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(56),
+                    foregroundColor: accent,
+                    side: BorderSide(color: accent),
+                    textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 OutlinedButton.icon(
                   key: const ValueKey('contact-us-button'),
                   onPressed: () => Navigator.of(context).push(
