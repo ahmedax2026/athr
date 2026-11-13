@@ -216,6 +216,29 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
     if (mounted) setState(() => bookmark = next);
   }
 
+  Future<void> _confirmPartFinished() async {
+    if (loading || error != null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('إتمام قراءة الجزء'),
+        content: Text(page < widget.lastPage
+            ? 'لم تصل لآخر صفحة من الجزء بعد (صفحة ${widget.lastPage}). هل أتممت قراءته بالفعل؟'
+            : 'هل أتممت قراءة الجزء كاملًا؟ سيتم تسجيل إنجازك في الختمة.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء')),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text('نعم، أتممت القراءة')),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) Navigator.of(context).pop(true);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: eyeComfort ? const Color(0xFFF1E4C6) : (darkReading ? const Color(0xFFE8D8BA) : const Color(0xFFFFF9EC)),
@@ -270,12 +293,39 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
             Text(error!, textAlign: TextAlign.center),
           ]),
         )),
-      if ((widget.firstPage != 1 || widget.lastPage != 604) && page == widget.lastPage && !loading && error == null)
-        Positioned(bottom: 18, left: 16, right: 16,
-          child: SafeArea(top: false, child: FilledButton.icon(
-            onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.check_circle_outline),
-            label: const Text('أتممت قراءة الجزء')))),
     ]),
+    bottomNavigationBar: (widget.firstPage != 1 || widget.lastPage != 604)
+        ? SafeArea(top: false, child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 11, 16, 13),
+            decoration: const BoxDecoration(
+              color: Color(0xFF073E35),
+              border: Border(top: BorderSide(color: Color(0xFFB9944D), width: 1.5)),
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(page >= widget.lastPage
+                  ? 'تقبل الله تلاوتك • وصلت لنهاية الجزء'
+                  : 'بعد الانتهاء من الجزء اضغط الزر لتسجيل إنجازك',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFFFFF3D1), fontSize: 12)),
+              const SizedBox(height: 9),
+              SizedBox(width: double.infinity, height: 56,
+                child: FilledButton.icon(
+                  onPressed: loading || error != null ? null : _confirmPartFinished,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFD77A),
+                    foregroundColor: const Color(0xFF073E35),
+                    disabledBackgroundColor: const Color(0xFF9C9071),
+                    elevation: 5,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: const BorderSide(color: Color(0xFFFFE7A9), width: 1.5))),
+                  icon: const Icon(Icons.verified_rounded, size: 27),
+                  label: const Text('أتممت قراءة الجزء',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
+                ),
+              ),
+            ]),
+          ))
+        : null,
   );
 }
