@@ -462,63 +462,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     }
   }
 
-  Widget _prayerTile(String prayer) {
-    final highlighted = nextTime != null && nextName == prayer;
-    final isSunrise = prayer == 'الشروق';
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
-      decoration: BoxDecoration(
-        color: highlighted ? const Color(0xFFEFE0B9) : Colors.white,
-        borderRadius: BorderRadius.circular(21),
-        border: Border.all(
-          color: highlighted ? const Color(0xFFC9A45C) : const Color(0xFFE8DDC7),
-          width: highlighted ? 1.7 : 1,
-        ),
-        boxShadow: const [
-          BoxShadow(color: Color(0x100A4538), blurRadius: 14, offset: Offset(0, 5)),
-        ],
-      ),
-      child: Row(children: [
-        Container(
-          width: 52, height: 52,
-          decoration: BoxDecoration(
-            color: highlighted ? _forest : const Color(0xFFF4EDE0),
-            borderRadius: BorderRadius.circular(17),
-          ),
-          child: Icon(_prayerIcon(prayer),
-            color: highlighted ? _gold : _forest, size: 27),
-        ),
-        const SizedBox(width: 13),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(prayer, style: const TextStyle(
-            color: _forest, fontSize: 19, fontWeight: FontWeight.w800)),
-          Text(highlighted ? 'الصلاة القادمة' : (isSunrise ? 'وقت الشروق' : 'موعد الصلاة'),
-            style: const TextStyle(color: Color(0xFF887961), fontSize: 12)),
-        ])),
-        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text(_clock(today[prayer]), textDirection: TextDirection.ltr,
-            style: const TextStyle(color: _forest, fontSize: 18,
-              fontWeight: FontWeight.w900)),
-          if (highlighted)
-            const Text('● التالية', style: TextStyle(
-              color: Color(0xFF8C6A2C), fontSize: 11, fontWeight: FontWeight.w700)),
-        ]),
-      ]),
-    );
-  }
-
-  Widget _sectionHeader(String title, IconData icon) => Padding(
-    padding: const EdgeInsets.only(top: 9, bottom: 13),
-    child: Row(children: [
-      Icon(icon, color: _forest, size: 24),
-      const SizedBox(width: 10),
-      Text(title, style: const TextStyle(
-        color: _forest, fontSize: 22, fontWeight: FontWeight.w900)),
-    ]),
-  );
-
-
   void _openSettings() {
     showModalBottomSheet<void>(
       context: context,
@@ -564,7 +507,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                     value: reminder,
                     items: [0, 5, 10, 15, 30].map((v) =>
                       DropdownMenuItem(value: v,
-                        child: Text(v == 0 ? 'إيقاف' : v.toString() + ' دقيقة'))).toList(),
+                        child: Text(v == 0 ? 'إيقاف' : '$v دقيقة'))).toList(),
                     onChanged: (v) async {
                       if (v == null) return;
                       await _setReminder(v);
@@ -594,7 +537,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                       : !notificationStatus!.enabled ? 'الإشعارات محظورة'
                       : !notificationStatus!.exact ? 'التوقيت الدقيق غير مفعل؛ قد تتأخر التنبيهات'
                       : notificationStatus!.pending == 0 ? 'لا توجد تنبيهات مجدولة'
-                      : 'تمت جدولة ' + notificationStatus!.pending.toString() + ' إشعار؛ اختبر وصولها على هاتفك',
+                      : 'تمت جدولة ${notificationStatus!.pending} إشعار؛ اختبر وصولها على هاتفك',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: _forest, fontWeight: FontWeight.w800)),
                 ),
@@ -717,7 +660,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                         visualDensity: VisualDensity.compact),
                     ]),
                     Text(nextTime == null ? 'حدد المدينة لعرض المواقيت'
-                      : 'الصلاة القادمة: ' + nextName + ' • ' + _clock(nextTime),
+                      : 'الصلاة القادمة: $nextName • ${_clock(nextTime)}',
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: _gold, fontSize: 13,
                         fontWeight: FontWeight.w800)),
@@ -774,7 +717,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                           style: const TextStyle(color: _forest,
                             fontSize: 12, fontWeight: FontWeight.w800)),
                         Text(reminder == 0 ? 'بدون تنبيه مسبق'
-                            : 'قبل الصلاة بـ ' + reminder.toString() + ' دقيقة',
+                            : 'قبل الصلاة بـ $reminder دقيقة',
                           style: const TextStyle(color: Color(0xFF776A55),
                             fontSize: 11)),
                       ])),
