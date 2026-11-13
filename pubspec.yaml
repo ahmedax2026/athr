@@ -66,7 +66,7 @@ flutter:
   assets:
     - assets/images/
     - assets/quran/quran.json
-    - assets/mushaf/
+    - assets/mushaf/surah_pages.json
     - assets/react_quran/
 
   # An image asset can refer to one or more resolution-specific "variants", see
