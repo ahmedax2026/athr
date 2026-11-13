@@ -30,152 +30,186 @@ class QuranScreen extends StatefulWidget {
 
 class _QuranScreenState extends State<QuranScreen> {
   int lastPage = 1;
-  late final Future<List<dynamic>> chapters = QuranService.fetchAll();
-  @override
-  void initState() { super.initState(); _refresh(); }
-  Future<void> _refresh() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) setState(() => lastPage = prefs.getInt('react_quran_last_page') ?? 1);
-  }
-  Future<void> _read(int page) async {
-    await Navigator.push(context, MaterialPageRoute<void>(
-      builder: (_) => ReactQuranPreview(initialPage: page)));
-    _refresh();
-  }
-  Future<void> _openBookmark() async {
-    final prefs = await SharedPreferences.getInstance();
-    final mark = prefs.getInt('react_quran_bookmark');
-    if (!mounted) return;
-    if (mark == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('افتح المصحف واضغط علامة الحفظ أولًا')));
-      return;
-    }
-    await _read(mark);
-  }
-  void _tajweed() => _index();
-  void _index() => Navigator.push(context, MaterialPageRoute<void>(
-    builder: (_) => const QuranIndexScreen()));
-  // Starting pages of the 30 juz in the 604-page Madinah Mushaf.
+  int? bookmark;
   static const List<int> juzStartPages = [
     1, 22, 42, 62, 82, 102, 121, 142, 162, 182,
     201, 222, 242, 262, 282, 302, 322, 342, 362, 382,
     402, 422, 442, 462, 482, 502, 522, 542, 562, 582,
   ];
 
-  void _juz() {
-    Navigator.push(context, MaterialPageRoute<void>(
-      builder: (_) => const QuranJuzScreen()));
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
   }
-  void _pages() async {
-    final choice = await showDialog<int>(context: context, builder: (context) {
-      int value = lastPage;
-      return StatefulBuilder(builder: (context, setLocal) => AlertDialog(
-        title: const Text('اختر صفحة المصحف'),
+
+  Future<void> _refresh() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        lastPage = (prefs.getInt('react_quran_last_page') ?? 1).clamp(1, 604);
+        bookmark = prefs.getInt('react_quran_bookmark');
+      });
+    }
+  }
+
+  Future<void> _read(int page) async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => ReactQuranPreview(initialPage: page.clamp(1, 604))));
+    if (mounted) await _refresh();
+  }
+
+  Future<void> _openBookmark() async {
+    if (bookmark != null) {
+      await _read(bookmark!);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('افتح المصحف واضغط علامة الحفظ أولًا')));
+    }
+  }
+
+  void _index() => Navigator.push(context, MaterialPageRoute<void>(
+    builder: (_) => const QuranIndexScreen()));
+  void _juz() => Navigator.push(context, MaterialPageRoute<void>(
+    builder: (_) => const QuranJuzScreen()));
+
+  Future<void> _pages() async {
+    var selected = lastPage;
+    final result = await showDialog<int>(context: context, builder: (ctx) =>
+      StatefulBuilder(builder: (ctx, setLocal) => AlertDialog(
+        title: const Text('اختيار الصفحة'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('الصفحة $value من 604'),
-          Slider(min: 1, max: 604, divisions: 603, value: value.toDouble(),
-            onChanged: (v) => setLocal(() => value = v.round())),
+          Text('الصفحة $selected من 604'),
+          Slider(min: 1, max: 604, divisions: 603,
+            value: selected.toDouble(),
+            onChanged: (value) => setLocal(() => selected = value.round())),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-          TextButton(onPressed: () => Navigator.pop(context, value), child: const Text('فتح')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(ctx, selected), child: const Text('فتح')),
         ],
-      ));
-    });
-    if (choice != null) _read(choice);
+      )));
+    if (result != null && mounted) await _read(result);
   }
+
+  Widget _tile(IconData icon, String text, VoidCallback action) =>
+    Material(color: Colors.transparent, child: InkWell(
+      onTap: action,
+      borderRadius: BorderRadius.circular(20),
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topRight, end: Alignment.bottomLeft,
+            colors: [Color(0xFF145C4B), Color(0xFF07362F)]),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: gold.withValues(alpha: .65)),
+          boxShadow: const [BoxShadow(
+            color: Color(0x44001510), blurRadius: 13, offset: Offset(0, 6))]),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, color: gold, size: 34),
+          const SizedBox(height: 10),
+          FittedBox(fit: BoxFit.scaleDown, child: Text(text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: cream, fontSize: 17,
+              fontWeight: FontWeight.w800))),
+        ]),
+      ),
+    ));
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: emerald,
-    body: SafeArea(child: FutureBuilder<List<dynamic>>(
-      future: chapters, builder: (context, snapshot) {
-        return Container(
-          decoration: const BoxDecoration(gradient: LinearGradient(
-            begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [Color(0xFF002D27), Color(0xFF075742), Color(0xFF00372C)])),
-          child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 480),
-            child: ListView(padding: const EdgeInsets.fromLTRB(12, 0, 12, 26), children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.push(context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => const QuranIndexScreen())),
-                  icon: const Icon(Icons.science_outlined),
-                  label: const Text('المصحف العثماني الجديد'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: gold,
-                    side: const BorderSide(color: gold),
-                    minimumSize: const Size.fromHeight(46)),
-                ),
-              ),
-              const QuranOrnament(),
+    backgroundColor: const Color(0xFF062F29),
+    appBar: AppBar(backgroundColor: const Color(0xFF062F29),
+      foregroundColor: cream, centerTitle: true,
+      title: const Text('القرآن الكريم', style: TextStyle(
+        fontSize: 25, color: gold, fontWeight: FontWeight.bold))),
+    body: SafeArea(child: Center(child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 520),
+      child: ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0B4439),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: gold.withValues(alpha: .55))),
+            child: Column(children: [
+              const Icon(Icons.auto_stories_rounded, size: 62, color: gold),
+              const SizedBox(height: 7),
+              const Text('المصحف العثماني', style: TextStyle(
+                color: cream, fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              const Text('الْقُرْآنُ الْكَرِيمُ', textAlign: TextAlign.center,
-                style: TextStyle(color: cream, fontSize: 36, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              SizedBox(height: 170, child: Stack(alignment: Alignment.center, children: [
-                Container(width: 240, height: 150, decoration: BoxDecoration(
-                  shape: BoxShape.circle, boxShadow: [BoxShadow(
-                    color: gold.withValues(alpha: .22), blurRadius: 70, spreadRadius: 25)])),
-                const Icon(Icons.auto_stories_rounded, color: Color(0xFFF7D78C), size: 154),
-                const Positioned(bottom: 0, child: Icon(Icons.keyboard_double_arrow_up_rounded,
-                  color: gold, size: 42)),
-              ])),
-              const SizedBox(height: 24),
-              TextField(readOnly: true, onTap: _index,
-                decoration: InputDecoration(
-                  hintText: 'ابحث عن سورة...',
-                  suffixIcon: const Icon(Icons.search, size: 30, color: Colors.black),
-                  filled: true, fillColor: const Color(0xFFFFFCF4),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 17, horizontal: 22),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(35),
-                    borderSide: BorderSide.none))),
-              const SizedBox(height: 20),
-              GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 3, crossAxisSpacing: 9, mainAxisSpacing: 14,
-                childAspectRatio: .96,
-                children: [
-                  _shortcut(Icons.color_lens_outlined, 'المصحف العثماني', _tajweed),
-                  _shortcut(Icons.menu_book_rounded, 'فهرس السور', _index),
-                  _shortcut(Icons.layers_rounded, 'الأجزاء', _juz),
-                  _shortcut(Icons.star_border_rounded, 'علاماتي', _openBookmark),
-                  _shortcut(Icons.access_time_rounded, 'آخر قراءة', () => _read(lastPage)),
-                  _shortcut(Icons.article_outlined, 'الصفحات', _pages),
-                ]),
-              const SizedBox(height: 26),
-              InkWell(onTap: () => _read(lastPage), borderRadius: BorderRadius.circular(20),
-                child: _IvoryPanel(child: Row(children: [
-                  CircleAvatar(radius: 27, backgroundColor: gold,
-                    child: const Icon(Icons.play_arrow_rounded, color: cream, size: 35)),
-                  const SizedBox(width: 16),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    const Text('متابعة القراءة', style: TextStyle(fontSize: 23,
-                      fontWeight: FontWeight.bold, color: Color(0xFF18201C))),
-                    const SizedBox(height: 7),
-                    Text('الصفحة $lastPage من 604',
-                      style: const TextStyle(fontSize: 19, color: Color(0xFF30302B))),
-                  ])),
-                ]))),
-            ]))),
-        );
-      },
-    )),
+              const Text('قراءة وطمأنينة في كل صفحة',
+                style: TextStyle(color: Color(0xFFCAD9D0), fontSize: 14)),
+              const SizedBox(height: 15),
+              FilledButton.icon(
+                onPressed: () => _read(lastPage),
+                icon: const Icon(Icons.menu_book_rounded),
+                label: const Text('افتح المصحف'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: gold,
+                  foregroundColor: const Color(0xFF07372F),
+                  minimumSize: const Size.fromHeight(48),
+                  textStyle: const TextStyle(fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 17),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 3, crossAxisSpacing: 10, mainAxisSpacing: 10,
+            childAspectRatio: 1.05,
+            children: [
+              _tile(Icons.menu_book_outlined, 'فهرس السور', _index),
+              _tile(Icons.layers_rounded, 'الأجزاء', _juz),
+              _tile(Icons.article_outlined, 'الصفحات', _pages),
+              _tile(Icons.bookmark_outline, 'علاماتي', _openBookmark),
+              _tile(Icons.history, 'آخر قراءة', () => _read(lastPage)),
+              _tile(Icons.auto_stories_rounded, 'المصحف', () => _read(lastPage)),
+            ],
+          ),
+          const SizedBox(height: 17),
+          Material(color: Colors.transparent, child: InkWell(
+            onTap: () => _read(lastPage),
+            borderRadius: BorderRadius.circular(20),
+            child: Ink(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [
+                  Color(0xFF135747), Color(0xFF08352C)]),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: gold, width: 1)),
+              child: Row(children: [
+                Container(
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle, color: gold),
+                  padding: const EdgeInsets.all(11),
+                  child: const Icon(Icons.play_arrow_rounded,
+                    color: Color(0xFF06352C), size: 29)),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment:
+                  CrossAxisAlignment.start, children: [
+                  const Text('متابعة القراءة', style: TextStyle(
+                    color: gold, fontSize: 21, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 5),
+                  Text('الصفحة $lastPage من 604',
+                    style: const TextStyle(color: cream, fontSize: 17)),
+                  const SizedBox(height: 10),
+                  LinearProgressIndicator(
+                    value: lastPage / 604,
+                    color: gold,
+                    minHeight: 4,
+                    borderRadius: BorderRadius.circular(4),
+                    backgroundColor: Colors.white24),
+                ])),
+              ]),
+            ),
+          )),
+        ]),
+    ))),
   );
-
-  Widget _shortcut(IconData icon, String title, VoidCallback action) =>
-    InkWell(onTap: action, borderRadius: BorderRadius.circular(19),
-      child: Container(decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFFFFFDF2), Color(0xFFF5E9CA)]),
-        borderRadius: BorderRadius.circular(19),
-        border: Border.all(color: const Color(0xFFD8BE79))),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, color: const Color(0xFF896B21), size: 38),
-          const SizedBox(height: 11),
-          FittedBox(fit: BoxFit.scaleDown, child: Text(title,
-            style: const TextStyle(fontSize: 17, color: darkInk, fontWeight: FontWeight.w800))),
-        ])));
 }
 
 class QuranJuzScreen extends StatelessWidget {
