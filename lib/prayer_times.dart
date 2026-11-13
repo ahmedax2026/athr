@@ -178,27 +178,31 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   }
 
   Future<void> _searchCity() async {
-    final text = TextEditingController();
+    // Keep the entered text in the dialog state. Disposing a controller
+    // while the closing route still owns its TextField triggers Flutter's
+    // _dependents.isEmpty assertion on some Android builds.
+    var searchText = '';
     final query = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('اختر مدينة من أي دولة'),
         content: TextField(
-          controller: text,
           autofocus: true,
           textDirection: TextDirection.rtl,
+          onChanged: (value) => searchText = value,
+          onSubmitted: (value) => Navigator.pop(ctx, value.trim()),
           decoration: const InputDecoration(
             hintText: 'مثال: أسيوط، مصر أو London, UK',
             border: OutlineInputBorder()),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, text.text.trim()),
+          FilledButton(onPressed: () => Navigator.pop(ctx, searchText.trim()),
               child: const Text('بحث')),
         ],
       ),
     );
-    text.dispose();
+    if (!mounted) return;
     if (query == null || query.isEmpty) return;
     setState(() { busy = true; error = null; });
     try {
