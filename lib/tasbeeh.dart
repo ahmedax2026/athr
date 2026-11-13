@@ -1,0 +1,205 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+const _green = Color(0xFF073E35);
+const _gold = Color(0xFFD6B56C);
+const _ibrahim = 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا صَلَّيْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ.\n\nاللَّهُمَّ بَارِكْ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا بَارَكْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ.';
+const _defaults = <String>[
+  'سُبْحَانَ اللَّهِ', 'الْحَمْدُ لِلَّهِ', 'اللَّهُ أَكْبَرُ',
+  'لَا إِلَهَ إِلَّا اللَّهُ', 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ',
+  'سُبْحَانَ اللَّهِ الْعَظِيمِ', 'أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ',
+  'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ',
+  'اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ', _ibrahim,
+];
+
+class TasbeehScreen extends StatefulWidget {
+  const TasbeehScreen({super.key});
+  @override
+  State<TasbeehScreen> createState() => _TasbeehScreenState();
+}
+
+class _TasbeehScreenState extends State<TasbeehScreen> {
+  List<String> _custom = [];
+  Map<String, int> _counts = {};
+  String _selected = _defaults.first;
+  int _goal = 33;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      final custom = (jsonDecode(prefs.getString('tasbeeh_custom') ?? '[]') as List).cast<String>();
+      final raw = (jsonDecode(prefs.getString('tasbeeh_counts') ?? '{}') as Map).cast<String, dynamic>();
+      if (!mounted) return;
+      setState(() {
+        _custom = custom;
+        _counts = raw.map((key, value) => MapEntry(key, (value as num).toInt()));
+        final saved = prefs.getString('tasbeeh_selected');
+        if (saved != null && [..._defaults, ...custom].contains(saved)) _selected = saved;
+        _goal = prefs.getInt('tasbeeh_goal') ?? 33;
+        _loaded = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loaded = true);
+    }
+  }
+
+  Future<void> _save() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('tasbeeh_custom', jsonEncode(_custom));
+    await prefs.setString('tasbeeh_counts', jsonEncode(_counts));
+    await prefs.setString('tasbeeh_selected', _selected);
+    await prefs.setInt('tasbeeh_goal', _goal);
+  }
+
+  void _increment() {
+    setState(() => _counts[_selected] = (_counts[_selected] ?? 0) + 1);
+    _save();
+  }
+
+  Future<void> _addCustom() async {
+    final controller = TextEditingController();
+    final value = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('إضافة ذكر خاص'),
+        content: TextField(controller: controller, maxLines: 4, maxLength: 500,
+          decoration: const InputDecoration(labelText: 'اكتب الذكر أو الدعاء كاملًا', border: OutlineInputBorder())),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('إضافة')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value == null || value.isEmpty || [..._defaults, ..._custom].contains(value)) return;
+    setState(() { _custom.add(value); _selected = value; });
+    _save();
+  }
+
+  Future<void> _deleteCustom() async {
+    if (!_custom.contains(_selected)) return;
+    final old = _selected;
+    setState(() { _custom.remove(old); _counts.remove(old); _selected = _defaults.first; });
+    _save();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final count = _counts[_selected] ?? 0;
+    final isLong = _selected.length > 95;
+    final isMedium = _selected.length > 28;
+    final fontSize = isLong ? 19.0 : isMedium ? 25.0 : 34.0;
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('السبحة الإلكترونية')),
+      body: !_loaded ? const Center(child: CircularProgressIndicator()) : SafeArea(
+        child: ListView(padding: const EdgeInsets.all(18), children: [
+          Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(children: [
+            const Text('اختر الذكر', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              key: ValueKey(_selected),
+              initialValue: _selected,
+              isExpanded: true,
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+              items: [..._defaults, ..._custom].map((v) => DropdownMenuItem(
+                value: v, child: Text(v == _ibrahim ? 'الصلاة الإبراهيمية كاملة' : v,
+                  maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
+              onChanged: (v) { if (v != null) { setState(() => _selected = v); _save(); } },
+            ),
+            const SizedBox(height: 8),
+            Wrap(alignment: WrapAlignment.center, spacing: 8, children: [
+              TextButton.icon(onPressed: _addCustom, icon: const Icon(Icons.add), label: const Text('إضافة تسبيحة')),
+              if (_custom.contains(_selected)) TextButton.icon(
+                onPressed: _deleteCustom, icon: const Icon(Icons.delete_outline), label: const Text('حذف الذكر الخاص')),
+            ]),
+          ]))),
+          const SizedBox(height: 14),
+          Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [_green, Color(0xFF125E4C)]),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: _gold, width: 1.5),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 22),
+            child: Column(children: [
+              const Text('اذْكُرِ اللَّهَ', style: TextStyle(color: _gold, fontSize: 16)),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: _increment,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: double.infinity,
+                  constraints: BoxConstraints(minHeight: isLong ? 350 : 245),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 26),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0A493D),
+                    border: Border.all(color: _gold, width: 2),
+                    borderRadius: BorderRadius.circular(isLong ? 35 : 120),
+                  ),
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Text(_selected, textAlign: TextAlign.center,
+                      softWrap: true,
+                      style: TextStyle(color: const Color(0xFFFFE6AB), fontSize: fontSize,
+                        fontWeight: FontWeight.w700, height: isLong ? 1.9 : 1.6)),
+                    const SizedBox(height: 18),
+                    const Divider(color: _gold, indent: 35, endIndent: 35),
+                    const SizedBox(height: 10),
+                    Text('$count', style: const TextStyle(color: Colors.white,
+                      fontSize: 46, fontWeight: FontWeight.bold)),
+                    Text(_goal == 0 ? 'تسبيح مفتوح' : 'الهدف: $_goal',
+                      style: const TextStyle(color: _gold, fontSize: 15)),
+                    const SizedBox(height: 6),
+                    const Text('اضغط هنا للتسبيح', style: TextStyle(color: Colors.white70)),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: _increment, icon: const Icon(Icons.touch_app_outlined),
+                label: const Text('تسبيح'),
+                style: FilledButton.styleFrom(backgroundColor: _gold,
+                  foregroundColor: _green, minimumSize: const Size.fromHeight(54)),
+              ),
+              const SizedBox(height: 12),
+              Wrap(spacing: 8, alignment: WrapAlignment.center, children: [
+                OutlinedButton.icon(onPressed: count == 0 ? null : () {
+                  setState(() => _counts[_selected] = count - 1); _save();
+                }, icon: const Icon(Icons.undo), label: const Text('تراجع'),
+                  style: OutlinedButton.styleFrom(foregroundColor: _gold)),
+                OutlinedButton.icon(onPressed: count == 0 ? null : () {
+                  setState(() => _counts[_selected] = 0); _save();
+                }, icon: const Icon(Icons.refresh), label: const Text('تصفير'),
+                  style: OutlinedButton.styleFrom(foregroundColor: _gold)),
+              ]),
+            ]),
+          ),
+          const SizedBox(height: 18),
+          Text('العدد المستهدف', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, children: [
+            for (final goal in [33, 100, 1000, 0])
+              ChoiceChip(label: Text(goal == 0 ? 'مفتوح' : '$goal'),
+                selected: _goal == goal,
+                onSelected: (_) { setState(() => _goal = goal); _save(); }),
+          ]),
+          const SizedBox(height: 14),
+          Card(child: ListTile(
+            leading: const Icon(Icons.auto_awesome, color: _gold),
+            title: const Text('إجمالي التسبيحات المحفوظة'),
+            trailing: Text('${_counts.values.fold<int>(0, (sum, v) => sum + v)}',
+              style: theme.textTheme.titleLarge),
+          )),
+        ]),
+      ),
+    );
+  }
+}
