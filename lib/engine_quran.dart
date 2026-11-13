@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:alfurqan/alfurqan.dart';
+import 'package:alfurqan/constant.dart';
+import 'package:alfurqan/data/dart/types.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _green = Color(0xFF073E35);
@@ -17,10 +19,12 @@ class _EngineQuranScreenState extends State<EngineQuranScreen> {
   @override void initState() { super.initState(); _load(); }
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
-    if (mounted) setState(() {
+    if (mounted) {
+      setState(() {
       selected = (p.getInt('alfurqan_last_surah') ?? 1).clamp(1, 114);
       fontSize = p.getDouble('alfurqan_font_size') ?? 28;
-    });
+      });
+    }
   }
   Future<void> _select(int n) async {
     setState(() => selected = n);
