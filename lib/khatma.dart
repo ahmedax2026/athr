@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'react_quran_preview.dart';
 
 const _starts = <int>[1,22,42,62,82,102,121,142,162,182,201,222,242,262,282,302,322,342,362,382,402,422,442,462,482,502,522,542,562,582];
 const _green = Color(0xFF075143);
@@ -513,33 +514,22 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
   );
 }
 
-class KhatmaPartReader extends StatefulWidget {
-  const KhatmaPartReader({super.key,required this.part,required this.initialPage,required this.onPage});
-  final int part,initialPage;
+// The shared Ottoman reader replaces the former image-only khatma reader.
+class KhatmaPartReader extends StatelessWidget {
+  const KhatmaPartReader({
+    super.key,
+    required this.part,
+    required this.initialPage,
+    required this.onPage,
+  });
+  final int part, initialPage;
   final ValueChanged<int> onPage;
-  @override State<KhatmaPartReader> createState()=>_KhatmaPartReaderState();
-}
-class _KhatmaPartReaderState extends State<KhatmaPartReader> {
-  late final PageController controller;
-  late int page;
-  late final int first,last;
-  @override void initState(){
-    super.initState();
-    first=_firstPage(widget.part);
-    last=_lastPage(widget.part);
-    page=widget.initialPage.clamp(first,last);
-    controller=PageController(initialPage:page-first);
-  }
-  @override void dispose(){controller.dispose();super.dispose();}
-  @override Widget build(BuildContext context)=>Scaffold(
-    appBar:AppBar(title:Text('الجزء ${widget.part} • صفحة $page من $last')),
-    body:Column(children:[Padding(padding:const EdgeInsets.all(10),child:Text('الجزء ${widget.part} • ${_range(widget.part)}',style:const TextStyle(fontWeight:FontWeight.bold,color:_green))),Expanded(child:Directionality(textDirection:TextDirection.rtl,
-      child:PageView.builder(controller:controller,itemCount:last-first+1,
-        onPageChanged:(i){setState(()=>page=first+i);widget.onPage(page);},
-        itemBuilder:(context,i)=>InteractiveViewer(minScale:1,maxScale:5,
-          child:Image.asset('assets/mushaf/${(first+i).toString().padLeft(3,'0')}.webp',
-            fit:BoxFit.contain))))),
-      if(page==last) Padding(padding:const EdgeInsets.all(12),child:SizedBox(width:double.infinity,child:FilledButton(onPressed:()=>Navigator.pop(context,true),child:const Text('أتممت قراءة الجزء')))),
-    ]),
+
+  @override
+  Widget build(BuildContext context) => ReactQuranPreview(
+    initialPage: initialPage,
+    firstPage: _firstPage(part),
+    lastPage: _lastPage(part),
+    onPage: onPage,
   );
 }
