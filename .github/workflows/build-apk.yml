@@ -32,10 +32,8 @@ jobs:
       - name: Bundle verified Quran text for offline use
         run: python3 tool/bundle_quran.py
 
-      - name: Bundle printed Madinah mushaf pages for offline reading
-        run: |
-          python3 -m pip install --quiet cairosvg Pillow
-          python3 tool/bundle_mushaf.py
+      - name: Bundle Quran surah-to-page index (no page images)
+        run: python3 tool/bundle_mushaf.py
 
       - name: Set up Node.js for offline React Quran
         uses: actions/setup-node@v4
