@@ -2,8 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'athr_qcf_reader.dart';
-import 'qcf_index_screen.dart';
+import 'athr_mushaf_reader.dart';
 
 const emerald = Color(0xFF003D30);
 const gold = Color(0xFFFFD77A);
@@ -54,7 +53,7 @@ class _QuranScreenState extends State<QuranScreen> {
 
   Future<void> _read(int page) async {
     await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => AthrQcfReader(initialPage: page.clamp(1, 604))));
+      builder: (_) => AthrMushafReader(initialPage: page.clamp(1, 604))));
     if (mounted) await _refresh();
   }
 
@@ -67,13 +66,9 @@ class _QuranScreenState extends State<QuranScreen> {
     }
   }
 
-  Future<void> _index() async {
-    final page = await Navigator.push<int>(context,
-      MaterialPageRoute(builder: (_) => const QuranIndexScreen()));
-    if (page != null && mounted) await _read(page);
-  }
-  void _juz() => Navigator.push(context, MaterialPageRoute<void>(
-    builder: (_) => const QuranJuzScreen()));
+  // The native QuranLibraryScreen provides its own surah/juz index.
+  Future<void> _index() => _read(lastPage);
+  Future<void> _juz() => _read(lastPage);
 
   Future<void> _pages() async {
     var selected = lastPage;
@@ -234,7 +229,7 @@ class QuranJuzScreen extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () => Navigator.push(context, MaterialPageRoute<void>(
-              builder: (_) => AthrQcfReader(
+              builder: (_) => AthrMushafReader(
                 initialPage: page,
                 firstPage: page,
                 lastPage: index == 29 ? 604 : _QuranScreenState.juzStartPages[index + 1] - 1))),
@@ -312,11 +307,6 @@ class _IvoryPanel extends StatelessWidget {
     child: child);
 }
 
-// Compatibility wrapper: all navigation now uses the QCF metadata index.
-class QuranIndexScreen extends QcfIndexScreen {
-  const QuranIndexScreen({super.key});
-}
-
 // Compatibility for existing navigation paths.
 class QuranSurahScreen extends StatelessWidget {
   const QuranSurahScreen({super.key, required this.number, required this.name, this.initialAyah});
@@ -332,7 +322,7 @@ class QuranSurahScreen extends StatelessWidget {
       }
       final entries = jsonDecode(snapshot.data!) as List<dynamic>;
       final entry = entries.firstWhere((item) => item['number'] == number);
-      return AthrQcfReader(initialPage: entry['page'] as int);
+      return AthrMushafReader(initialPage: entry['page'] as int);
     });
 }
 
