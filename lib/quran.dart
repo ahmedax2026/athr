@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'athr_qcf_reader.dart';
+import 'qcf_index_screen.dart';
 
 const emerald = Color(0xFF003D30);
 const gold = Color(0xFFFFD77A);
@@ -67,8 +68,11 @@ class _QuranScreenState extends State<QuranScreen> {
     }
   }
 
-  void _index() => Navigator.push(context, MaterialPageRoute<void>(
-    builder: (_) => const QuranIndexScreen()));
+  Future<void> _index() async {
+    final page = await Navigator.push<int>(context,
+      MaterialPageRoute(builder: (_) => const QuranIndexScreen()));
+    if (page != null && mounted) await _read(page);
+  }
   void _juz() => Navigator.push(context, MaterialPageRoute<void>(
     builder: (_) => const QuranJuzScreen()));
 
@@ -342,86 +346,9 @@ class _IvoryPanel extends StatelessWidget {
     child: child);
 }
 
-class QuranIndexScreen extends StatefulWidget {
+// Compatibility wrapper: all navigation now uses the QCF metadata index.
+class QuranIndexScreen extends QcfIndexScreen {
   const QuranIndexScreen({super.key});
-  @override
-  State<QuranIndexScreen> createState() => _QuranIndexScreenState();
-}
-
-class _QuranIndexScreenState extends State<QuranIndexScreen> {
-  int tab = 0;
-  String search = '';
-  late final Future<List<dynamic>> chapters = QuranService.fetchAll();
-  late final Future<List<dynamic>> pageIndex = rootBundle
-    .loadString('assets/mushaf/surah_pages.json').then((v) => jsonDecode(v) as List<dynamic>);
-  Future<void> _open(int number, List<dynamic> index) async {
-    final entry = index.cast<Map<String, dynamic>>().firstWhere(
-      (item) => item['number'] == number);
-    await Navigator.push(context, MaterialPageRoute<void>(
-      builder: (_) => AthrQcfReader(initialPage: entry['page'] as int)));
-  }
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: emerald,
-    appBar: AppBar(backgroundColor: emerald, foregroundColor: cream,
-      centerTitle: true, title: const Text('فهرس السور',
-        style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold))),
-    body: FutureBuilder<List<dynamic>>(future: chapters, builder: (context, snapshot) {
-      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: gold));
-      return FutureBuilder<List<dynamic>>(future: pageIndex, builder: (context, pages) {
-        if (!pages.hasData) return const Center(child: CircularProgressIndicator(color: gold));
-        final all = snapshot.data!;
-        final filtered = all.where((s) {
-          final number = s['number'] as int;
-          final isMadani = const [2,3,4,5,8,9,13,22,24,33,47,48,49,55,57,58,59,60,61,62,63,64,65,66,76,98,99,110].contains(number);
-          return (tab == 0 || (tab == 2) == isMadani) &&
-            (s['name'].toString().contains(search) || number.toString() == search);
-        }).toList();
-        return Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 540),
-          child: Column(children: [
-            const QuranOrnament(),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(children: [
-                for (final (index, label) in ['الكل','مكية','مدنية'].indexed)
-                  Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: InkWell(onTap: () => setState(() => tab = index),
-                      child: Container(padding: const EdgeInsets.symmetric(vertical: 13),
-                        decoration: BoxDecoration(
-                          color: tab == index ? emerald : cream,
-                          border: Border.all(color: gold, width: 1.5),
-                          borderRadius: BorderRadius.circular(20)),
-                        child: Text(label, textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
-                            color: tab == index ? const Color(0xFFFFFFFF) : darkInk)))))),
-              ])),
-            Padding(padding: const EdgeInsets.all(10),
-              child: TextField(onChanged: (v) => setState(() => search = v.trim()),
-                decoration: InputDecoration(hintText: 'ابحث عن سورة',
-                  prefixIcon: const Icon(Icons.search), filled: true, fillColor: cream,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(18))))),
-            Expanded(child: ListView.builder(padding: const EdgeInsets.symmetric(horizontal: 10),
-              itemCount: filtered.length, itemBuilder: (context, i) {
-                final s = filtered[i], n = s['number'] as int;
-                final isMadani = const [2,3,4,5,8,9,13,22,24,33,47,48,49,55,57,58,59,60,61,62,63,64,65,66,76,98,99,110].contains(n);
-                return Padding(padding: const EdgeInsets.only(bottom: 6),
-                  child: InkWell(onTap: () => _open(n, pages.data!),
-                    child: _IvoryPanel(child: Row(children: [
-                      const Icon(Icons.volume_up_outlined, color: Color(0xFF56400C), size: 28),
-                      const SizedBox(width: 8),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                        Text('سورة ${s['name']}', style: const TextStyle(fontSize: 23,
-                          color: darkInk, fontWeight: FontWeight.w800)),
-                        Text('${(s['ayahs'] as List).length} آية • ${isMadani ? 'مدنية' : 'مكية'}',
-                          style: const TextStyle(fontSize: 16, color: Color(0xFF36352E))),
-                      ])),
-                      const SizedBox(width: 14),
-                      _SurahRosette(number: n),
-                    ]))));
-              })),
-          ])));
-      });
-    }),
-  );
 }
 
 // Compatibility for existing navigation paths.
