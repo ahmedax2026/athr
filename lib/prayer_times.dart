@@ -502,236 +502,276 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     ]),
   );
 
+
+  void _openSettings() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: _cream,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, refresh) => SafeArea(
+          child: FractionallySizedBox(
+            heightFactor: 0.82,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+              children: [
+                const Center(child: Text('إعدادات الأذان والتنبيهات',
+                  style: TextStyle(color: _forest, fontSize: 20,
+                    fontWeight: FontWeight.w900))),
+                const SizedBox(height: 12),
+                SwitchListTile.adaptive(
+                  title: const Text('تفعيل صوت الأذان'),
+                  subtitle: const Text('يتوقف وصول الصوت على صلاحيات وإعدادات Android'),
+                  value: adhanEnabled,
+                  onChanged: (value) async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool('adhan', value);
+                    if (!mounted) return;
+                    setState(() => adhanEnabled = value);
+                    refresh(() {});
+                    await _schedule();
+                  },
+                ),
+                if (adhanEnabled) ...[
+                  _voiceSelector('صوت الأذان للصلوات', adhanVoice, 'adhan_voice'),
+                  _voiceSelector('صوت أذان الفجر', fajrVoice, 'adhan_fajr_voice'),
+                ],
+                const Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Text('أذان الحرم المكي والشيخ ماهر المعيقلي والشيخ مشاري العفاسي يتطلب تسجيلات أصلية مسموحًا بإعادة توزيعها. الأصوات الحالية لم تُنسب إليهم.',
+                    style: TextStyle(fontSize: 12, color: _forest, height: 1.5)),
+                ),
+                const Divider(),
+                ListTile(
+                  title: const Text('تنبيه قبل الصلاة'),
+                  trailing: DropdownButton<int>(
+                    value: reminder,
+                    items: [0, 5, 10, 15, 30].map((v) =>
+                      DropdownMenuItem(value: v,
+                        child: Text(v == 0 ? 'إيقاف' : v.toString() + ' دقيقة'))).toList(),
+                    onChanged: (v) async {
+                      if (v == null) return;
+                      await _setReminder(v);
+                      refresh(() {});
+                    },
+                  ),
+                ),
+                ListTile(
+                  title: const Text('طريقة حساب المواقيت'),
+                  trailing: DropdownButton<String>(
+                    value: methods.containsKey(method) ? method : 'egypt',
+                    items: methods.entries.map((e) => DropdownMenuItem(
+                      value: e.key,
+                      child: Text(e.key == 'egypt' ? 'مصر' : e.key))).toList(),
+                    onChanged: (v) async {
+                      if (v == null) return;
+                      await _setMethod(v);
+                      refresh(() {});
+                    },
+                  ),
+                ),
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Text(
+                    notificationStatus == null ? 'لم يتم فحص الإشعارات'
+                      : notificationStatus!.enabled
+                        ? 'الإشعارات مسموحة • ' + notificationStatus!.pending.toString() + ' تنبيه مجدول'
+                        : 'الإشعارات محظورة',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: _forest, fontWeight: FontWeight.w800)),
+                ),
+                Wrap(spacing: 8, runSpacing: 8,
+                  alignment: WrapAlignment.center, children: [
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      await _checkNotificationStatus();
+                      refresh(() {});
+                    },
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: const Text('فحص التنبيهات')),
+                  FilledButton.tonalIcon(
+                    onPressed: () async {
+                      await _enableNotifications();
+                      refresh(() {});
+                    },
+                    icon: const Icon(Icons.notifications_active_outlined),
+                    label: const Text('سماح الإشعارات')),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      await _enablePreciseReminders();
+                      refresh(() {});
+                    },
+                    icon: const Icon(Icons.alarm_on_outlined),
+                    label: const Text('التوقيت الدقيق')),
+                  OutlinedButton.icon(
+                    onPressed: _testNotification,
+                    icon: const Icon(Icons.send_outlined),
+                    label: const Text('اختبار فوري')),
+                  FilledButton.icon(
+                    onPressed: _testScheduledReminder,
+                    icon: const Icon(Icons.timer_outlined),
+                    label: const Text('اختبار بعد دقيقتين')),
+                ]),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _compactTile(String prayer) {
+    final next = nextTime != null && nextName == prayer;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: next ? const Color(0xFFEAD7A6) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: next ? const Color(0xFFC09A50) : const Color(0xFFE3D9C6),
+          width: next ? 1.5 : 1),
+      ),
+      child: Row(children: [
+        Icon(_prayerIcon(prayer), size: 18, color: _forest),
+        const SizedBox(width: 5),
+        Expanded(child: Text(prayer, maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: _forest, fontSize: 13,
+            fontWeight: FontWeight.w800))),
+        FittedBox(fit: BoxFit.scaleDown,
+          child: Text(_clock(today[prayer]),
+            textDirection: TextDirection.ltr,
+            style: const TextStyle(color: _forest, fontSize: 12,
+              fontWeight: FontWeight.w800))),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final active = nextTime != null;
     return Scaffold(
       backgroundColor: _cream,
       appBar: AppBar(
+        toolbarHeight: 52,
         backgroundColor: _forest,
         foregroundColor: Colors.white,
+        title: const Text('مواقيت الصلاة',
+          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
         centerTitle: true,
-        title: const Text('مواقيت الصلاة', style: TextStyle(
-          fontWeight: FontWeight.w800, fontSize: 22)),
         actions: [
-          IconButton(onPressed: _useGps, icon: const Icon(Icons.my_location_rounded),
-            tooltip: 'تحديد موقعي'),
-          IconButton(onPressed: _searchCity, icon: const Icon(Icons.public_rounded),
-            tooltip: 'اختيار مدينة حول العالم'),
+          IconButton(onPressed: _searchCity,
+            icon: const Icon(Icons.location_city_outlined),
+            tooltip: 'تغيير المدينة'),
+          IconButton(onPressed: _openSettings,
+            icon: const Icon(Icons.tune_rounded),
+            tooltip: 'الأذان والتنبيهات'),
         ],
       ),
-      body: busy ? const Center(child: CircularProgressIndicator(color: _forest))
-          : SafeArea(child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
-        children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(22, 26, 22, 24),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topRight, end: Alignment.bottomLeft,
-                colors: [Color(0xFF126D58), Color(0xFF04352D), Color(0xFF052B25)]),
-              border: Border.all(color: _gold, width: 1.3),
-              borderRadius: BorderRadius.circular(32),
-              boxShadow: const [
-                BoxShadow(color: Color(0x4205322A), blurRadius: 25, offset: Offset(0, 12)),
-              ],
-            ),
-            child: Column(children: [
-              Container(
-                padding: const EdgeInsets.all(13),
-                decoration: BoxDecoration(
-                  color: const Color(0x1CFFFFFF),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: _gold.withValues(alpha: .75)),
+      body: busy
+        ? const Center(child: CircularProgressIndicator(color: _forest))
+        : SafeArea(child: LayoutBuilder(builder: (context, bounds) {
+            final tight = bounds.maxHeight < 510;
+            return Padding(
+              padding: EdgeInsets.fromLTRB(10, tight ? 5 : 12, 10, tight ? 5 : 12),
+              child: Column(children: [
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12, vertical: tight ? 7 : 14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [
+                      Color(0xFF146853), Color(0xFF063D33), Color(0xFF032C27)]),
+                    border: Border.all(color: _gold),
+                    borderRadius: BorderRadius.circular(22)),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      const Icon(Icons.location_on_outlined,
+                        color: _gold, size: 17),
+                      const SizedBox(width: 4),
+                      Flexible(child: Text(city, maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white,
+                          fontSize: 13, fontWeight: FontWeight.w800))),
+                      IconButton(onPressed: _useGps,
+                        icon: const Icon(Icons.my_location_rounded,
+                          color: _gold, size: 18),
+                        tooltip: 'موقعي الحالي',
+                        visualDensity: VisualDensity.compact),
+                    ]),
+                    Text(nextTime == null ? 'حدد المدينة لعرض المواقيت'
+                      : 'الصلاة القادمة: ' + nextName + ' • ' + _clock(nextTime),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: _gold, fontSize: 13,
+                        fontWeight: FontWeight.w800)),
+                    FittedBox(child: Text(_remaining(),
+                      textDirection: TextDirection.ltr,
+                      style: TextStyle(color: Colors.white,
+                        fontSize: tight ? 29 : 38,
+                        fontWeight: FontWeight.w900, letterSpacing: 2))),
+                  ]),
                 ),
-                child: const Icon(Icons.mosque_rounded, color: _gold, size: 38),
-              ),
-              const SizedBox(height: 13),
-              const Text('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-                style: TextStyle(color: Color(0xFFEBD9B5), fontSize: 16)),
-              const SizedBox(height: 10),
-              Text(city, textAlign: TextAlign.center, style: const TextStyle(
-                color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 23),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 19, horizontal: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0x18000000),
-                  borderRadius: BorderRadius.circular(23),
-                  border: Border.all(color: const Color(0x55D9BC7D)),
+                if (error != null)
+                  Padding(padding: const EdgeInsets.only(top: 3),
+                    child: Text(error!, maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.red, fontSize: 10))),
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: tight ? 6 : 10),
+                  child: const Row(children: [
+                    Icon(Icons.calendar_month_outlined,
+                      color: _forest, size: 18),
+                    SizedBox(width: 6),
+                    Text('مواقيت اليوم',
+                      style: TextStyle(color: _forest, fontSize: 16,
+                        fontWeight: FontWeight.w900)),
+                  ]),
                 ),
-                child: Column(children: [
-                  Text(active ? 'الصلاة القادمة • $nextName' : 'حدد مدينتك لعرض المواقيت',
-                    textAlign: TextAlign.center, style: const TextStyle(
-                      color: _gold, fontSize: 18, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 9),
-                  FittedBox(child: Text(_remaining(),
-                    textDirection: TextDirection.ltr,
-                    style: const TextStyle(color: Colors.white,
-                      fontSize: 47, letterSpacing: 2, fontWeight: FontWeight.w900))),
-                  const SizedBox(height: 9),
-                  Text(active ? 'موعد الأذان: ${_clock(nextTime)}'
-                      : 'مواقيت دقيقة حسب الإحداثيات وطريقة الحساب',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Color(0xFFE6DCCB), fontSize: 14)),
-                ]),
-              ),
-              const SizedBox(height: 16),
-              Row(children: [
-                Expanded(child: OutlinedButton.icon(
-                  onPressed: _searchCity,
-                  icon: const Icon(Icons.travel_explore_rounded),
-                  label: const Text('تغيير المدينة'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFFE1A4),
-                    side: const BorderSide(color: _gold),
-                    padding: const EdgeInsets.symmetric(vertical: 13)),
-                )),
-                const SizedBox(width: 10),
-                Expanded(child: OutlinedButton.icon(
-                  onPressed: _useGps,
-                  icon: const Icon(Icons.gps_fixed),
-                  label: const Text('موقعي الحالي'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFFE1A4),
-                    side: const BorderSide(color: _gold),
-                    padding: const EdgeInsets.symmetric(vertical: 13)),
-                )),
+                Expanded(child: LayoutBuilder(builder: (context, gridBounds) {
+                  return GridView.builder(
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisExtent: (gridBounds.maxHeight - 14) / 3,
+                      mainAxisSpacing: 7, crossAxisSpacing: 7),
+                    itemCount: names.length,
+                    itemBuilder: (context, index) => _compactTile(names[index]),
+                  );
+                })),
+                const SizedBox(height: 7),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(9, 6, 9, 6),
+                  decoration: BoxDecoration(color: Colors.white,
+                    border: Border.all(color: const Color(0xFFE3D9C6)),
+                    borderRadius: BorderRadius.circular(16)),
+                  child: Row(children: [
+                    Icon(notificationStatus?.enabled == true
+                        ? Icons.notifications_active_rounded
+                        : Icons.notifications_off_outlined,
+                      color: _forest, size: 22),
+                    const SizedBox(width: 7),
+                    Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(adhanEnabled ? 'صوت الأذان مفعل' : 'صوت الأذان متوقف',
+                          style: const TextStyle(color: _forest,
+                            fontSize: 12, fontWeight: FontWeight.w800)),
+                        Text(reminder == 0 ? 'بدون تنبيه مسبق'
+                            : 'قبل الصلاة بـ ' + reminder.toString() + ' دقيقة',
+                          style: const TextStyle(color: Color(0xFF776A55),
+                            fontSize: 11)),
+                      ])),
+                    FilledButton.tonalIcon(onPressed: _openSettings,
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact),
+                      icon: const Icon(Icons.settings_outlined, size: 16),
+                      label: const Text('التحكم')),
+                  ]),
+                ),
               ]),
-            ]),
-          ),
-          if (error != null)
-            Padding(padding: const EdgeInsets.only(top: 14),
-              child: Text(error!, style: const TextStyle(color: Colors.red))),
-          const SizedBox(height: 22),
-          _sectionHeader('مواقيت اليوم', Icons.calendar_month_outlined),
-          for (final prayer in names) _prayerTile(prayer),
-          const SizedBox(height: 14),
-          _sectionHeader('الأذان والتنبيهات', Icons.notifications_active_outlined),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(25),
-              border: Border.all(color: const Color(0xFFE7D6B7)),
-            ),
-            child: Column(children: [
-              const ListTile(
-                leading: Icon(Icons.notifications_active_rounded, color: _forest),
-                title: Text('إشعار دخول وقت الصلاة', style: TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text('أساسي لجميع الصلوات الخمس، بعد السماح بالإشعارات'),
-              ),
-              const Divider(height: 1, indent: 16, endIndent: 16),
-              SwitchListTile.adaptive(
-                secondary: const Icon(Icons.volume_up_rounded, color: _forest),
-                title: const Text('صوت الأذان', style: TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: const Text('اختياري • الصوت التلقائي قيد التطوير'),
-                value: adhanEnabled,
-                onChanged: (value) async {
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setBool('adhan', value);
-                  if (mounted) setState(() => adhanEnabled = value);
-                  await _schedule();
-                },
-              ),
-              if (adhanEnabled) ...[
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                _voiceSelector('صوت الأذان للصلوات', adhanVoice, 'adhan_voice'),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                _voiceSelector('صوت أذان الفجر', fajrVoice, 'adhan_fajr_voice'),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(14, 2, 14, 12),
-                  child: Text(
-                    'تجربة التشغيل تعمل داخل التطبيق. تشغيل التسجيل كاملًا '
-                    'عند وصول الإشعار في الخلفية يخضع لقيود Android ويحتاج اختبارًا على الجهاز.',
-                    style: TextStyle(color: Color(0xFF877454), fontSize: 12, height: 1.6),
-                  ),
-                ),
-              ],
-              const Divider(height: 1, indent: 16, endIndent: 16),
-              ListTile(
-                leading: const Icon(Icons.alarm_rounded, color: _forest),
-                title: const Text('تنبيه قبل الصلاة', style: TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text(reminder == 0 ? 'بدون تنبيه مسبق'
-                    : 'قبل الصلاة بـ $reminder دقيقة'),
-                trailing: DropdownButton<int>(
-                  value: reminder, underline: const SizedBox.shrink(),
-                  items: [0,5,10,15,30].map((m) => DropdownMenuItem(
-                    value: m, child: Text('$m د'))).toList(),
-                  onChanged: (value) { if (value != null) _setReminder(value); },
-                ),
-              ),
-              const Divider(height: 1, indent: 16, endIndent: 16),
-              ListTile(
-                leading: const Icon(Icons.tune_rounded, color: _forest),
-                title: const Text('طريقة حساب المواقيت', style: TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text(methods[method] ?? methods['egypt']!),
-                trailing: DropdownButton<String>(
-                  value: method, underline: const SizedBox.shrink(),
-                  items: methods.entries.map((e) => DropdownMenuItem(
-                    value: e.key,
-                    child: Text(e.key == 'egypt' ? 'مصر' : e.key))).toList(),
-                  onChanged: (value) { if (value != null) _setMethod(value); },
-                ),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 13),
-          Container(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1E9D7),
-              borderRadius: BorderRadius.circular(21),
-              border: Border.all(color: const Color(0xFFD9BC7D)),
-            ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              const Text('فحص وصول التنبيهات', style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w900, color: _forest)),
-              const SizedBox(height: 7),
-              Text(notificationStatus == null
-                ? 'اضغط فحص الإشعارات للتأكد من صلاحيات الهاتف.'
-                : notificationStatus!.enabled
-                  ? 'الإشعارات مسموحة • ${notificationStatus!.pending} تنبيه صلاة مجدول'
-                  : 'الإشعارات محظورة من الهاتف، ولن تصل تنبيهات الصلاة.',
-                style: const TextStyle(color: _forest, height: 1.5)),
-              if (notificationStatus != null && !notificationStatus!.exact)
-                const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: Text('التوقيت الدقيق غير مفعّل؛ قد تتأخر التنبيهات بسبب نظام الهاتف.',
-                    style: TextStyle(color: Color(0xFF94702F)))),
-              const SizedBox(height: 12),
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                OutlinedButton.icon(
-                  onPressed: checkingNotifications ? null : _checkNotificationStatus,
-                  icon: const Icon(Icons.fact_check_outlined),
-                  label: const Text('فحص التنبيهات')),
-                FilledButton.icon(
-                  onPressed: _enableNotifications,
-                  icon: const Icon(Icons.notifications_active_outlined),
-                  label: const Text('السماح بالإشعارات')),
-                OutlinedButton.icon(
-                  onPressed: _enablePreciseReminders,
-                  icon: const Icon(Icons.alarm_on_outlined),
-                  label: const Text('تفعيل التوقيت الدقيق')),
-                OutlinedButton.icon(
-                  onPressed: _testNotification,
-                  icon: const Icon(Icons.send_outlined),
-                  label: const Text('اختبار إشعار الآن')),
-                FilledButton.icon(
-                  onPressed: _testScheduledReminder,
-                  icon: const Icon(Icons.timer_outlined),
-                  label: const Text('اختبار تنبيه بعد دقيقتين')),
-              ]),
-            ]),
-          ),
-          const SizedBox(height: 15),
-          const Text(
-            'تُحسب المواقيت حسب موقع المدينة والطريقة المختارة. وقد تختلف دقائق عن تقويم المسجد المحلي. '
-            'الإشعارات المجدولة تحتاج موافقة النظام وقد تتأخر بسبب توفير البطارية.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF65796B), height: 1.6, fontSize: 12)),
-        ],
-      )),
+            );
+          })),
     );
   }
 }
