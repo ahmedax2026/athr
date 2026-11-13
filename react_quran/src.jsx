@@ -96,7 +96,7 @@ function App() {
       <div className="page-surface" style={{zoom:zoom}}>
         <ReadingView page={page} readingViewStyles={{
           width:'100%',maxWidth:'100%',backgroundColor:'#fff9ec'}}
-          surahTitleStyles={{color:'#173c32'}} fixedAspectRatio={true}/>
+          surahTitleStyles={{color:'#173c32'}} fixedAspectRatio={false}/>
       </div>
     </section>
     {bounds.last<604 && page===bounds.last &&
