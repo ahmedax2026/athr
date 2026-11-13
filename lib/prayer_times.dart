@@ -118,10 +118,18 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     method = prefs.getString('prayer_method') ?? 'egypt';
     reminder = prefs.getInt('prayer_reminder') ?? 10;
     adhanEnabled = prefs.getBool('adhan') ?? false;
-    if (latitude != null && longitude != null) {
-      _resolveZone();
-      _compute();
-      await _schedule();
+    // Ask for notification permission when the prayer timetable opens.
+    // The Android exact-alarm special access remains a separate user action.
+    try {
+      final allowed = await PrayerNotifications.requestNotificationPermission();
+      notificationStatus = await PrayerNotifications.status();
+      if (latitude != null && longitude != null) {
+        _resolveZone();
+        _compute();
+        if (allowed) await _schedule();
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = 'تعذر تهيئة تنبيهات الصلاة: $e');
     }
     if (mounted) setState(() => busy = false);
   }
@@ -288,6 +296,27 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('تعذر إرسال الاختبار: $e')));
+      }
+    }
+  }
+
+  Future<void> _testScheduledReminder() async {
+    if (zone == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('حدد مدينتك أو موقعك قبل تجربة التنبيه المجدول')));
+      return;
+    }
+    try {
+      await PrayerNotifications.scheduleTest(zone: zone!);
+      await _checkNotificationStatus();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('تم ضبط تنبيه تجريبي بعد دقيقتين. اقفل الشاشة وجرب وصوله.'),
+        duration: Duration(seconds: 6)));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('لم يتم ضبط تنبيه التجربة: $e')));
       }
     }
   }
@@ -593,6 +622,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                   onPressed: _testNotification,
                   icon: const Icon(Icons.send_outlined),
                   label: const Text('اختبار إشعار الآن')),
+                FilledButton.icon(
+                  onPressed: _testScheduledReminder,
+                  icon: const Icon(Icons.timer_outlined),
+                  label: const Text('اختبار تنبيه بعد دقيقتين')),
               ]),
             ]),
           ),
