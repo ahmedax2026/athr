@@ -126,6 +126,12 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
       verseNumberColor: _dark ? _gold : const Color(0xFF765C35),
       basmalaColor: foreground,
       headerTextColor: foreground,
+      // The package defaults to 2.2x line height, which forces its QCF
+      // lines to rewrap into isolated words on narrow phone screens.
+      verseHeight: 1.72,
+      verseNumberHeight: 1.12,
+      letterSpacing: 0,
+      wordSpacing: 0,
     );
 
     return Directionality(
@@ -168,23 +174,43 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
           : Column(
               children: [
                 Expanded(
-                  child: widget.firstPage == 1 && widget.lastPage == 604
-                    ? PageviewQuran(
-                        controller: _controller,
-                        initialPageNumber: _page,
-                        theme: theme,
-                        onPageChanged: _onPage,
-                      )
-                    : PageView.builder(
-                        controller: _controller,
-                        itemCount: widget.lastPage - widget.firstPage + 1,
-                        onPageChanged: (index) =>
-                            _onPage(widget.firstPage + index),
-                        itemBuilder: (context, index) => QcfPage(
-                          pageNumber: widget.firstPage + index,
-                          theme: theme,
-                        ),
-                      ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // QcfPage normally measures the whole phone, including
+                      // the top and bottom bars, then wraps long glyph lines.
+                      // Give it the real page viewport to keep a single page
+                      // readable without oversized isolated words.
+                      final viewport = MediaQuery.of(context).copyWith(
+                        size: Size(constraints.maxWidth, constraints.maxHeight),
+                      );
+                      return MediaQuery(
+                        data: viewport,
+                        child: widget.firstPage == 1 &&
+                                widget.lastPage == 604
+                            ? PageviewQuran(
+                                controller: _controller,
+                                initialPageNumber: _page,
+                                sp: 0.78,
+                                h: 0.76,
+                                theme: theme,
+                                onPageChanged: _onPage,
+                              )
+                            : PageView.builder(
+                                controller: _controller,
+                                itemCount:
+                                    widget.lastPage - widget.firstPage + 1,
+                                onPageChanged: (index) =>
+                                    _onPage(widget.firstPage + index),
+                                itemBuilder: (context, index) => QcfPage(
+                                  pageNumber: widget.firstPage + index,
+                                  sp: 0.78,
+                                  h: 0.76,
+                                  theme: theme,
+                                ),
+                              ),
+                      );
+                    },
+                  ),
                 ),
                 SafeArea(
                   top: false,
