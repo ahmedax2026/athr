@@ -22,6 +22,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   List<dynamic> surahs = [];
   int? bookmarkedPage;
   bool zoomed = false;
+  bool enlargedMode = false;
+  bool fullScreen = false;
   final TransformationController zoomController = TransformationController();
 
   @override
@@ -31,11 +33,32 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     controller = PageController(initialPage: page - 1);
     _loadIndex();
     _restoreBookmark();
+    _restoreMode();
   }
 
   Future<void> _restoreBookmark() async {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) setState(() => bookmarkedPage = prefs.getInt('mushaf_bookmark_page'));
+  }
+
+  Future<void> _restoreMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) setState(() => enlargedMode = prefs.getBool('mushaf_large_mode') ?? false);
+  }
+
+  Future<void> _setMode(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('mushaf_large_mode', value);
+    if (!mounted) return;
+    zoomController.value = Matrix4.identity();
+    setState(() { enlargedMode = value; zoomed = false; });
+  }
+
+  Future<void> _toggleFullScreen() async {
+    final next = !fullScreen;
+    await SystemChrome.setEnabledSystemUIMode(
+      next ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge);
+    if (mounted) setState(() { fullScreen = next; controls = !next; });
   }
 
   Future<void> _bookmark() async {
@@ -144,6 +167,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
 
   @override
   void dispose() {
+    if (fullScreen) SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     controller.dispose();
     zoomController.dispose();
     super.dispose();
@@ -155,11 +179,6 @@ class _MushafPageReaderState extends State<MushafPageReader> {
         Icon(icon, color: Colors.white, size: 27),
         Text(label, style: const TextStyle(color: Colors.white, fontSize: 13)),
       ])));
-
-  Widget _zoomButton(IconData icon, String tooltip, VoidCallback onPressed) =>
-    Material(color: const Color(0xD9000000), borderRadius: BorderRadius.circular(12),
-      child: IconButton(tooltip: tooltip, icon: Icon(icon, color: Colors.white),
-        onPressed: onPressed));
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -192,7 +211,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                 child: SizedBox.expand(child: ColoredBox(color: _paper,
                   child: Padding(padding: const EdgeInsets.all(2),
                     child: Image.asset('assets/mushaf/${(index + 1).toString().padLeft(3, '0')}.webp',
-                      fit: BoxFit.contain, filterQuality: FilterQuality.high,
+                      fit: enlargedMode ? BoxFit.fitWidth : BoxFit.contain, filterQuality: FilterQuality.high,
                       errorBuilder: (context, error, stack) =>
                         const Center(child: Text('تعذر فتح صفحة المصحف')))))),
               ),
@@ -200,14 +219,26 @@ class _MushafPageReaderState extends State<MushafPageReader> {
             return child;
           },
         ))),
-        Positioned(right: 10, bottom: controls ? 192 : 26,
-          child: SafeArea(top: false, child: Column(children: [
-            _zoomButton(Icons.add, 'تكبير', () => _changeZoom(1.35)),
-            const SizedBox(height: 8),
-            _zoomButton(Icons.remove, 'تصغير', () => _changeZoom(1 / 1.35)),
-            const SizedBox(height: 8),
-            _zoomButton(Icons.fullscreen, 'ملء الصفحة', _resetZoom),
-          ]))),
+        if (controls) Positioned(top: 74, left: 12, right: 12,
+          child: SafeArea(bottom: false, child: Material(
+            color: const Color(0xEC063F32),
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                IconButton(tooltip: 'تكبير', onPressed: () => _changeZoom(1.35),
+                  icon: const Icon(Icons.zoom_in, color: Colors.white)),
+                IconButton(tooltip: 'تصغير', onPressed: () => _changeZoom(1 / 1.35),
+                  icon: const Icon(Icons.zoom_out, color: Colors.white)),
+                IconButton(tooltip: 'إعادة ضبط', onPressed: _resetZoom,
+                  icon: const Icon(Icons.center_focus_strong, color: Colors.white)),
+                IconButton(tooltip: fullScreen ? 'إلغاء ملء الشاشة' : 'ملء الشاشة',
+                  onPressed: _toggleFullScreen,
+                  icon: Icon(fullScreen ? Icons.fullscreen_exit : Icons.fullscreen, color: Colors.white)),
+                IconButton(tooltip: 'تغيير وضع القراءة',
+                  onPressed: () => _setMode(!enlargedMode),
+                  icon: Icon(enlargedMode ? Icons.menu_book : Icons.text_fields, color: _gold)),
+              ])),
+          ))),
         if (controls) Positioned(top: 0, left: 0, right: 0,
           child: SafeArea(bottom: false, child: Container(color: const Color(0xD9000000), padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
             child: Row(children: [
