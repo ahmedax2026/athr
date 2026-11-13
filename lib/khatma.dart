@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'react_quran_preview.dart';
+import 'quran_reader_choice.dart';
 
 const _starts = <int>[1,22,42,62,82,102,121,142,162,182,201,222,242,262,282,302,322,342,362,382,402,422,442,462,482,502,522,542,562,582];
 const _green = Color(0xFF075143);
@@ -526,7 +526,7 @@ class KhatmaPartReader extends StatelessWidget {
   final ValueChanged<int> onPage;
 
   @override
-  Widget build(BuildContext context) => ReactQuranPreview(
+  Widget build(BuildContext context) => QuranReaderChoice(
     initialPage: initialPage,
     firstPage: _firstPage(part),
     lastPage: _lastPage(part),
