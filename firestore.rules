@@ -22,8 +22,10 @@ service cloud.firestore {
     match /khatmas/{khatmaId} {
       function mp(uid) { return /databases/$(database)/documents/khatmas/$(khatmaId)/members/$(uid); }
       function member() { return signedIn() && request.auth.uid in resource.data.memberIds; }
+      function active() { return resource.data.get('closed', false) == false; }
       function join() {
         return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds','memberCount'])
+          && active()
           && resource.data.started == false
           && !(request.auth.uid in resource.data.memberIds)
           && request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1
@@ -53,6 +55,7 @@ service cloud.firestore {
         let before = get(mp(request.auth.uid)).data.completed;
         let after = getAfter(mp(request.auth.uid)).data.completed;
         return member()
+          && active()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completedParts'])
           && exists(mp(request.auth.uid))
           && old.size() <= 30 && next.size() <= 30
@@ -82,21 +85,29 @@ service cloud.firestore {
         && getAfter(mp(request.auth.uid)).data.slot == 0;
       allow update: if signedIn() && (join() || leave() || progress()
         || (request.auth.uid == resource.data.creatorId
+          && active()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['started'])
           && resource.data.started == false && request.resource.data.started == true)
         || (request.auth.uid == resource.data.creatorId
+          && active()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deadline'])
           && request.resource.data.deadline is timestamp
-          && request.resource.data.deadline > resource.data.deadline));
+          && request.resource.data.deadline > resource.data.deadline)
+        || (request.auth.uid == resource.data.creatorId
+          && active()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closed','closedAt'])
+          && request.resource.data.closed == true
+          && request.resource.data.closedAt == request.time));
       allow delete: if false;
       match /members/{memberId} {
         function pp() { return /databases/$(database)/documents/khatmas/$(khatmaId); }
         function parent() { return get(pp()).data; }
         function owner() { return signedIn() && request.auth.uid == memberId; }
         function host() { return signedIn() && parent().creatorId == request.auth.uid; }
+        function activeParent() { return parent().get('closed', false) == false; }
         allow get, list: if signedIn() && (parent().privacy == 'public'
           || request.auth.uid in parent().memberIds);
-        allow create: if owner()
+        allow create: if activeParent() && owner()
           && request.resource.data.name is string
           && request.resource.data.name.size() >= 2
           && request.resource.data.name.size() <= 60
@@ -106,7 +117,7 @@ service cloud.firestore {
           && request.resource.data.slot >= 0
           && request.resource.data.slot < getAfter(pp()).data.capacity
           && memberId in getAfter(pp()).data.memberIds;
-        allow update: if (owner()
+        allow update: if activeParent() && ((owner()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completed'])
           && request.resource.data.completed is list
           && request.resource.data.completed.hasOnly(resource.data.parts)
@@ -117,8 +128,8 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['parts'])
           && request.resource.data.parts is list
           && request.resource.data.parts.hasAll(resource.data.completed)
-          && request.resource.data.parts.hasOnly([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]));
-        allow delete: if owner() && parent().creatorId != memberId
+          && request.resource.data.parts.hasOnly([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30])));
+        allow delete: if activeParent() && owner() && parent().creatorId != memberId
           && resource.data.completed == []
           && !(memberId in getAfter(pp()).data.memberIds);
       }
