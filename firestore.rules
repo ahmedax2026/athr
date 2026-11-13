@@ -24,6 +24,7 @@ service cloud.firestore {
       function member() { return signedIn() && request.auth.uid in resource.data.memberIds; }
       function join() {
         return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds','memberCount'])
+          && resource.data.started == false
           && !(request.auth.uid in resource.data.memberIds)
           && request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1
           && request.resource.data.memberIds.hasAll(resource.data.memberIds)
