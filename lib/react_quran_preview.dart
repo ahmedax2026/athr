@@ -28,8 +28,8 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
     final prefs = await SharedPreferences.getInstance();
     page = (widget.initialPage ?? prefs.getInt('react_quran_last_page') ?? 1).clamp(1, 604);
     final web = WebViewController();
-    await web.setJavaScriptMode(JavaScriptMode.unrestricted)
-    await web.setBackgroundColor(const Color(0xFFFFF8E9))
+    await web.setJavaScriptMode(JavaScriptMode.unrestricted);
+    await web.setBackgroundColor(const Color(0xFFFFF8E9));
     await web.addJavaScriptChannel('ReactQuranBridge', onMessageReceived: (message) async {
         try {
           final data = jsonDecode(message.message) as Map<String, dynamic>;
@@ -39,7 +39,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
             await prefs.setInt('react_quran_last_page', next);
           }
         } catch (_) { /* Ignore malformed page events. */ }
-      })
+      });
     await web.setNavigationDelegate(NavigationDelegate(
         onPageFinished: (_) async {
           try {
