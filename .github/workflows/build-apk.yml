@@ -50,6 +50,9 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Verify and restore Quran Library offline data assets
+        run: python3 tool/verify_quran_library_assets.py
+
       - name: Install Android NDK with retries
         run: |
           set -euo pipefail
@@ -82,6 +85,30 @@ jobs:
 
       - name: Build installable debug APK
         run: flutter build apk --debug
+
+      - name: Verify Quran data are actually inside the built APK
+        run: |
+          python3 - <<'PY'
+          import zipfile
+          apk = "build/app/outputs/flutter-apk/app-debug.apk"
+          required = [
+            "quranV4.json.gz",
+            "qpc-v4.json.gz",
+            "qpc-hafs-word-by-word.json.gz",
+            "qpc_v4_ayah_info.json.gz",
+            "surahs_name.json.gz",
+          ]
+          prefix = "assets/flutter_assets/packages/quran_library/assets/jsons/"
+          with zipfile.ZipFile(apk) as z:
+              contents = set(z.namelist())
+              for name in required:
+                  key = prefix + name
+                  if key not in contents:
+                      raise SystemExit(f"Missing Quran Library asset in APK: {key}")
+                  if z.getinfo(key).file_size == 0:
+                      raise SystemExit(f"Empty Quran Library asset in APK: {key}")
+                  print(f"APK includes {key}")
+          PY
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
