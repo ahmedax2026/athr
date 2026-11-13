@@ -39,6 +39,10 @@ dependencies:
   firebase_auth: ^6.1.2
   cloud_firestore: ^6.1.0
   url_launcher: ^6.3.2
+  quran_engine:
+    git:
+      url: https://github.com/TheAbubakrAbu/Quran-Tajweed-Engine.git
+      path: packages/quran-engine-dart
 
 dev_dependencies:
   flutter_test:
@@ -65,6 +69,7 @@ flutter:
   assets:
     - assets/images/
     - assets/quran/quran.json
+    - assets/tajweed/
     - assets/mushaf/
 
   # An image asset can refer to one or more resolution-specific "variants", see
