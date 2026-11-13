@@ -50,6 +50,11 @@ jobs:
           grep -q 'quran-font_react-quran' ../assets/react_quran/index.html
           grep -q 'data:font' ../assets/react_quran/index.html
 
+      - name: Generate styled offline adhkar images
+        run: |
+          python3 -m pip install --quiet Pillow
+          python3 tool/bundle_azkar_cards.py
+
       - name: Get dependencies
         run: flutter pub get
 
