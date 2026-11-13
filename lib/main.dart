@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'admin_and_cases.dart';
 import 'quran.dart';
-import 'react_quran_preview.dart';
 import 'khatma.dart';
 import 'tasbeeh.dart';
 import 'azkar.dart';
