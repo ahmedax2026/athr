@@ -3,8 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'mushaf_reader.dart';
-import 'quran_reader_choice.dart';
+import 'react_quran_preview.dart';
 
 const emerald = Color(0xFF003D30);
 const gold = Color(0xFFFFD77A);
@@ -55,7 +54,7 @@ class _QuranScreenState extends State<QuranScreen> {
 
   Future<void> _read(int page) async {
     await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => QuranReaderChoice(initialPage: page.clamp(1, 604))));
+      builder: (_) => ReactQuranPreview(initialPage: page.clamp(1, 604))));
     if (mounted) await _refresh();
   }
 
@@ -232,7 +231,7 @@ class QuranJuzScreen extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () => Navigator.push(context, MaterialPageRoute<void>(
-              builder: (_) => QuranReaderChoice(
+              builder: (_) => ReactQuranPreview(
                 initialPage: page,
                 firstPage: page,
                 lastPage: index == 29 ? 604 : _QuranScreenState.juzStartPages[index + 1] - 1))),
@@ -359,7 +358,7 @@ class _QuranIndexScreenState extends State<QuranIndexScreen> {
     final entry = index.cast<Map<String, dynamic>>().firstWhere(
       (item) => item['number'] == number);
     await Navigator.push(context, MaterialPageRoute<void>(
-      builder: (_) => QuranReaderChoice(initialPage: entry['page'] as int)));
+      builder: (_) => ReactQuranPreview(initialPage: entry['page'] as int)));
   }
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -440,7 +439,7 @@ class QuranSurahScreen extends StatelessWidget {
       }
       final entries = jsonDecode(snapshot.data!) as List<dynamic>;
       final entry = entries.firstWhere((item) => item['number'] == number);
-      return MushafPageReader(initialPage: entry['page'] as int);
+      return ReactQuranPreview(initialPage: entry['page'] as int);
     });
 }
 
