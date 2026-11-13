@@ -132,14 +132,7 @@ class _KhatmaCreateScreenState extends State<KhatmaCreateScreen> {
     try {
       // Six-digit numeric room IDs; existing rooms retain their original IDs.
       final collection=FirebaseFirestore.instance.collection('khatmas');
-      DocumentReference<Map<String,dynamic>>? available;
-      final random=Random.secure();
-      for(var attempt=0;attempt<12;attempt++){
-        final candidate=collection.doc((100000+random.nextInt(900000)).toString());
-        if(!(await candidate.get()).exists){available=candidate;break;}
-      }
-      if(available==null)throw StateError('تعذر توليد كود فريد، حاول مرة أخرى');
-      final doc=available;
+      final doc=collection.doc((100000+Random.secure().nextInt(900000)).toString());
       final code=doc.id;
       final batch=FirebaseFirestore.instance.batch();
       batch.set(doc,{
