@@ -199,7 +199,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
         final count=(data['memberCount'] as num).toInt();
         final capacity=(data['capacity'] as num).toInt();
         if(count>=capacity)throw StateError('full');
-        if(data['started']==true)throw StateError('started');
+        if(data['started']==true || data['closed']==true)throw StateError('started');
         final parts=<int>[];
         tx.set(memberRef,{'name':name.text.trim(),'slot':count,'parts':parts,
           'completed':<int>[],'joinedAt':FieldValue.serverTimestamp()});
@@ -229,7 +229,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
     finally{if(mounted)setState(()=>busy=false);}
   }
   Future<void> startKhatma(Map<String,dynamic> d) async {
-    if(d['creatorId']!=widget.uid||d['started']==true)return;
+    if(d['creatorId']!=widget.uid||d['started']==true||d['closed']==true)return;
     setState(()=>busy=true);
     try {
       final members=await ref.collection('members').get();
@@ -247,22 +247,64 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
     finally{if(mounted)setState(()=>busy=false);}
   }
   Future<void> extendDeadline() async {
-    final input=TextEditingController(text:'7');
-    final days=await showDialog<int>(context:context,builder:(ctx)=>AlertDialog(
-      title:const Text('تمديد الختمة'),content:TextField(controller:input,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'أيام إضافية')),
-      actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('إلغاء')),FilledButton(onPressed:()=>Navigator.pop(ctx,int.tryParse(input.text)),child:const Text('تمديد'))]));
-    input.dispose();
-    if(days==null||days<1||days>365)return;
-    try{
+    String input = '7';
+    final days = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تمديد الختمة'),
+        content: TextFormField(
+          initialValue: '7',
+          keyboardType: TextInputType.number,
+          onChanged: (value) => input = value,
+          decoration: const InputDecoration(labelText: 'أيام إضافية'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, int.tryParse(input)),
+            child: const Text('تمديد')),
+        ],
+      ),
+    );
+    if (!mounted || days == null || days < 1 || days > 365) return;
+    try {
       await FirebaseFirestore.instance.runTransaction((tx) async {
-        final snap=await tx.get(ref);
-        if(snap.data()?['creatorId']!=widget.uid)throw StateError('host');
-        final old=(snap.data()?['deadline'] as Timestamp).toDate();
-        tx.update(ref,{'deadline':Timestamp.fromDate(old.add(Duration(days:days)))});
+        final snap = await tx.get(ref);
+        if (snap.data()?['creatorId'] != widget.uid ||
+            snap.data()?['closed'] == true) throw StateError('not allowed');
+        final old = (snap.data()?['deadline'] as Timestamp).toDate();
+        tx.update(ref, {'deadline': Timestamp.fromDate(old.add(Duration(days: days)))});
       });
-      message('تم التمديد');
-    }catch(e){message('تعذر التمديد: $e');}
+      message('تم تمديد الختمة بنجاح');
+    } catch (e) { message('تعذر التمديد: $e'); }
   }
+
+  Future<void> closeKhatma() async {
+    final confirmed = await showDialog<bool>(context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('إغلاق الختمة'),
+        content: const Text('سيتم إيقاف الانضمام وتسجيل الإنجاز، مع الاحتفاظ بالختمة وسجل المشاركين. هل تريد الإغلاق؟'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('تأكيد الإغلاق')),
+        ],
+      ));
+    if (confirmed != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final snap = await tx.get(ref);
+        if (snap.data()?['creatorId'] != widget.uid ||
+            snap.data()?['closed'] == true) throw StateError('not allowed');
+        tx.update(ref, {'closed': true, 'closedAt': FieldValue.serverTimestamp()});
+      });
+      message('تم إغلاق الختمة');
+    } catch (e) { message('تعذر الإغلاق: $e'); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
   Future<void> shareInvite() async {
     final msg='انضم إلى ختمتنا في أثر لا ينقطع. كود الدعوة: ${widget.id}';
     final url=Uri.parse('https://wa.me/?text=${Uri.encodeComponent(msg)}');
@@ -353,6 +395,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
         final capacity=(d['capacity'] as num?)?.toInt()??10;
         final completed=List<int>.from(d['completedParts']??[]);
         final started=d['started']==true;
+        final closed=d['closed']==true;
         return StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
           stream:ref.collection('members').doc(widget.uid).snapshots(),
           builder:(context,m){
@@ -371,7 +414,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
                       style:const TextStyle(color:Colors.white,fontSize:23,fontWeight:FontWeight.w900))),
                   ]),
                   const SizedBox(height:8),
-                  Text(started?'ختمة جارية':'في انتظار بدء الختمة',
+                  Text(closed?'ختمة مغلقة':started?'ختمة جارية':'في انتظار بدء الختمة',
                     style:const TextStyle(color:Color(0xFFE9C77C),fontWeight:FontWeight.bold)),
                   const SizedBox(height:18),
                   Row(children:[
@@ -398,9 +441,12 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
                 ]),
               ),
               const SizedBox(height:16),
-              if(creator&&!started) FilledButton(onPressed:busy?null:()=>startKhatma(d),child:const Text('بدء الختمة وتوزيع الأجزاء')),
+              if(creator&&!started&&!closed) FilledButton(onPressed:busy?null:()=>startKhatma(d),child:const Text('بدء الختمة وتوزيع الأجزاء')),
               if(!started) const Text('في انتظار بدء الختمة'),
-              if(creator) TextButton(onPressed:extendDeadline,child:const Text('تمديد موعد الختمة')),
+              if(creator&&!closed) TextButton(onPressed:extendDeadline,child:const Text('تمديد موعد الختمة')),
+              if(creator&&!closed) OutlinedButton.icon(onPressed:busy?null:closeKhatma,
+                icon:const Icon(Icons.lock_outline),label:const Text('إغلاق الختمة')),
+              if(closed) const Card(child:ListTile(leading:Icon(Icons.lock_outline),title:Text('هذه الختمة مغلقة'),subtitle:Text('يمكن عرض سجل القراءة، لكن لا يمكن تسجيل إنجاز جديد'))),
               if(completed.length==30) const Card(child:ListTile(title:Text('مبارك اكتمال الختمة'),subtitle:Text('اللهم تقبل منا وأهد ثوابها لمن نُويت له'))),
               const SizedBox(height:12),
               Card(child:ListTile(title:Text('كود الانضمام: ${d['code']}'),
@@ -411,8 +457,8 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
               if(mine==null) ...[
                 TextField(controller:name,decoration:const InputDecoration(labelText:'اسمك عند الانضمام')),
                 const SizedBox(height:10),
-                FilledButton(onPressed:busy||count>=capacity||started?null:()=>join(d),
-                  child:Text(started?'بدأت الختمة':count>=capacity?'الختمة مكتملة العدد':'انضم للختمة')),
+                FilledButton(onPressed:busy||count>=capacity||started||closed?null:()=>join(d),
+                  child:Text(closed?'الختمة مغلقة':started?'بدأت الختمة':count>=capacity?'الختمة مكتملة العدد':'انضم للختمة')),
               ] else ...[
                 const SizedBox(height:12),
                 const Row(children:[Icon(Icons.menu_book,color:_green),SizedBox(width:8),Text('أجزائي',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900))]),
