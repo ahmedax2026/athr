@@ -129,14 +129,13 @@ class PrayerNotifications {
     final preferences = await SharedPreferences.getInstance();
     final useAdhan = preferences.getBool('adhan') ?? false;
     final normalVoice = preferences.getString('adhan_voice') ?? 'adhan_voice_1';
-    final fajrVoice = preferences.getString('adhan_fajr_voice') ?? 'adhan_fajr';
-    const choices = {'adhan_makkah', 'adhan_afasy', 'adhan_fajr'};
+    const choices = {'adhan_makkah', 'adhan_afasy'};
     NotificationDetails detailsFor(String name) {
       if (!useAdhan) return _details;
-      final requested = name == 'الفجر' ? fajrVoice : normalVoice;
+      final requested = normalVoice;
       final voice = choices.contains(requested) ? requested : 'adhan_makkah';
       return NotificationDetails(android: AndroidNotificationDetails(
-        'athr_adhan_${voice}_v2', 'أذان ${voice == 'adhan_fajr' ? 'الفجر' : 'الصلاة'}',
+        'athr_adhan_${voice}_v2', 'أذان الصلاة',
         channelDescription: 'صوت أذان اختياري عند دخول وقت الصلاة',
         importance: Importance.high,
         priority: Priority.high,
