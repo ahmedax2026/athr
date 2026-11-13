@@ -306,6 +306,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
       if(doc.id!=uid) occupied.addAll(List<int>.from(doc.data()['parts']??[]));
     }
     final selected=existing.toSet();
+    if (!mounted) return;
     final result=await showDialog<Set<int>>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,update)=>AlertDialog(
       title:const Text('توزيع الأجزاء'),
       content:SizedBox(width:350,height:380,child:ListView(children:[
