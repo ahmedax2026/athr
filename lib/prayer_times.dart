@@ -473,17 +473,29 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, refresh) => SafeArea(
           child: FractionallySizedBox(
-            heightFactor: 0.82,
+            heightFactor: 0.94,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
               children: [
+                const Icon(Icons.mosque_rounded, color: _gold, size: 38),
+                const SizedBox(height: 8),
                 const Center(child: Text('إعدادات الأذان والتنبيهات',
-                  style: TextStyle(color: _forest, fontSize: 20,
+                  style: TextStyle(color: _forest, fontSize: 25,
                     fontWeight: FontWeight.w900))),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
+                const Center(child: Text(
+                  'تحكم في الأذان والتذكير بالصلاة من مكان واحد',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: _forest, fontSize: 14))),
+                const SizedBox(height: 22),
                 SwitchListTile.adaptive(
-                  title: const Text('تفعيل صوت الأذان'),
-                  subtitle: const Text('يتوقف وصول الصوت على صلاحيات وإعدادات Android'),
+                  activeTrackColor: _forest,
+                  activeThumbColor: _gold,
+                  title: const Text('تفعيل صوت الأذان',
+                    style: TextStyle(color: _forest, fontSize: 18,
+                      fontWeight: FontWeight.w800)),
+                  subtitle: const Text('التشغيل يعتمد على أذونات الهاتف وإعدادات Android',
+                    style: TextStyle(color: Color(0xFF5F5848), fontSize: 13)),
                   value: adhanEnabled,
                   onChanged: (value) async {
                     final prefs = await SharedPreferences.getInstance();
@@ -502,12 +514,18 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                   child: Text('تقدر تسمع الصوت قبل اختياره. صوت المعيقلي لم يُضف بعد. أذان الفجر يستخدم نفس الصوت المختار للصلوات حاليًا.',
                     style: TextStyle(fontSize: 12, color: _forest, height: 1.5)),
                 ),
-                const Divider(),
+                const Divider(color: _gold, height: 28),
+                const Text('مواعيد التنبيهات',
+                  style: TextStyle(color: _forest, fontSize: 18,
+                    fontWeight: FontWeight.w900)),
+                const SizedBox(height: 8),
                 ListTile(
-                  title: const Text('تنبيه قبل الصلاة'),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  title: const Text('تنبيه قبل الصلاة',
+                    style: TextStyle(color: _forest, fontWeight: FontWeight.w800)),
                   trailing: DropdownButton<int>(
                     value: reminder,
-                    items: [0, 5, 10, 15, 30].map((v) =>
+                    items: [0, 5, 10, 15, 20, 30, 45, 60].map((v) =>
                       DropdownMenuItem(value: v,
                         child: Text(v == 0 ? 'إيقاف' : '$v دقيقة'))).toList(),
                     onChanged: (v) async {
@@ -518,7 +536,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                   ),
                 ),
                 ListTile(
-                  title: const Text('طريقة حساب المواقيت'),
+                  title: const Text('طريقة حساب المواقيت',
+                    style: TextStyle(color: _forest, fontWeight: FontWeight.w800)),
                   trailing: DropdownButton<String>(
                     value: methods.containsKey(method) ? method : 'egypt',
                     items: methods.entries.map((e) => DropdownMenuItem(
@@ -531,9 +550,13 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                     },
                   ),
                 ),
-                const Divider(),
+                const Divider(color: _gold, height: 30),
+                const Text('حالة الإشعارات والاختبار',
+                  style: TextStyle(color: _forest, fontSize: 18,
+                    fontWeight: FontWeight.w900)),
+                const SizedBox(height: 8),
                 Padding(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(12),
                   child: Text(
                     notificationStatus == null ? 'لم يتم فحص الإشعارات'
                       : !notificationStatus!.enabled ? 'الإشعارات محظورة'
@@ -541,9 +564,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                       : notificationStatus!.pending == 0 ? 'لا توجد تنبيهات مجدولة'
                       : 'تمت جدولة ${notificationStatus!.pending} إشعار؛ اختبر وصولها على هاتفك',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: _forest, fontWeight: FontWeight.w800)),
+                    style: const TextStyle(color: _forest, fontSize: 15, fontWeight: FontWeight.w800)),
                 ),
-                Wrap(spacing: 8, runSpacing: 8,
+                Wrap(spacing: 10, runSpacing: 12,
                   alignment: WrapAlignment.center, children: [
                   OutlinedButton.icon(
                     onPressed: () async {
