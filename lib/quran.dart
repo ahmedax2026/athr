@@ -35,15 +35,14 @@ class _QuranScreenState extends State<QuranScreen> {
   void initState() { super.initState(); _refresh(); }
   Future<void> _refresh() async {
     final prefs = await SharedPreferences.getInstance();
-    if (mounted) setState(() => lastPage = prefs.getInt('mushaf_last_page') ?? 1);
+    if (mounted) setState(() => lastPage = prefs.getInt('react_quran_last_page') ?? 1);
   }
   Future<void> _read(int page) async {
     await Navigator.push(context, MaterialPageRoute<void>(
-      builder: (_) => MushafPageReader(initialPage: page)));
+      builder: (_) => ReactQuranPreview(initialPage: page)));
     _refresh();
   }
-  void _tajweed() => Navigator.push(context, MaterialPageRoute<void>(
-    builder: (_) => const ReactQuranPreview()));
+  void _tajweed() => _index();
   void _index() => Navigator.push(context, MaterialPageRoute<void>(
     builder: (_) => const QuranIndexScreen()));
   // Starting pages of the 30 juz in the 604-page Madinah Mushaf.
@@ -91,7 +90,7 @@ class _QuranScreenState extends State<QuranScreen> {
                 child: OutlinedButton.icon(
                   onPressed: () => Navigator.push(context,
                     MaterialPageRoute<void>(
-                      builder: (_) => const ReactQuranPreview())),
+                      builder: (_) => const QuranIndexScreen())),
                   icon: const Icon(Icons.science_outlined),
                   label: const Text('المصحف العثماني الجديد'),
                   style: OutlinedButton.styleFrom(
@@ -188,7 +187,7 @@ class QuranJuzScreen extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () => Navigator.push(context, MaterialPageRoute<void>(
-              builder: (_) => MushafPageReader(initialPage: page))),
+              builder: (_) => ReactQuranPreview(initialPage: page))),
             child: _IvoryPanel(child: Row(children: [
               CircleAvatar(backgroundColor: emerald,
                 child: Text('${index + 1}', style: const TextStyle(
@@ -312,7 +311,7 @@ class _QuranIndexScreenState extends State<QuranIndexScreen> {
     final entry = index.cast<Map<String, dynamic>>().firstWhere(
       (item) => item['number'] == number);
     await Navigator.push(context, MaterialPageRoute<void>(
-      builder: (_) => MushafPageReader(initialPage: entry['page'] as int)));
+      builder: (_) => ReactQuranPreview(initialPage: entry['page'] as int)));
   }
   @override
   Widget build(BuildContext context) => Scaffold(
