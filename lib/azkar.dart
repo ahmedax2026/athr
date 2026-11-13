@@ -362,26 +362,9 @@ class _AzkarReaderState extends State<AzkarReader> {
                             fontSize: 20, fontWeight: FontWeight.w900)),
                       const SizedBox(height: 8),
                     ],
-                    // Keep Quran artwork, but never use incomplete pre-rendered
+                    // Quranic and adhkar cards use the same generated, offline asset.\n                    // Keep Quran artwork, but never use incomplete pre-rendered
                     // images for ordinary adhkar. Their full text is the source of truth.
                     if (surah != null) ...[
-                      if (item.source == 'سورة البقرة: 255') ...[
-                        const Text('آية الكرسي',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: _green, fontSize: 23,
-                            fontWeight: FontWeight.w900)),
-                        const SizedBox(height: 12),
-                      ],
-                      if (item.source == 'سورة البقرة: 255')
-                        Text(
-                          item.text.split(': ').skip(1).join(': '),
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: _green, fontSize: 24, height: 1.85,
-                            fontWeight: FontWeight.w500),
-                        )
-                      else
                         Image.asset(
                           'assets/azkar/${imageManifest.length > _groups.keys.toList().indexOf(widget.title) && imageManifest[_groups.keys.toList().indexOf(widget.title)].length > index ? imageManifest[_groups.keys.toList().indexOf(widget.title)][index] : 'missing.webp'}',
                           fit: BoxFit.contain,
