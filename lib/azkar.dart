@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'athr_qcf_reader.dart';
+import 'athr_mushaf_reader.dart';
 
 const _green = Color(0xFF073E35);
 const _gold = Color(0xFFD6B56C);
@@ -307,7 +307,7 @@ class _AzkarReaderState extends State<AzkarReader> {
     if (surah == null) return;
     final page = _pageForDhikr(item);
     Navigator.push(context, MaterialPageRoute<void>(
-      builder: (_) => AthrQcfReader(initialPage: page)));
+      builder: (_) => AthrMushafReader(initialPage: page)));
   }
 
   @override
