@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'quran.dart';
@@ -25,7 +26,23 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   int? bookmark;
   String? error;
   int page = 1;
-  bool darkReading = true;
+  bool darkReading = false;
+  String surahName = 'المصحف الشريف';
+  int juzNumber = 1;
+  static const _juzStarts = <int>[1,22,42,62,82,102,121,142,162,182,201,222,242,262,282,302,322,342,362,382,402,422,442,462,482,502,522,542,562,582];
+  List<Map<String,dynamic>> _surahIndex = const [];
+  void _updatePageCaption(int p) {
+    String label = 'المصحف الشريف';
+    for (final surah in _surahIndex) {
+      final first = (surah['page'] as num?)?.toInt() ?? 1;
+      if (first <= p) { label = surah['name']?.toString() ?? label; } else { break; }
+    }
+    surahName = label.startsWith('سورة') ? label : 'سورة $label';
+    juzNumber = 1;
+    for (var i=0; i<_juzStarts.length; i++) {
+      if (p >= _juzStarts[i]) juzNumber = i+1;
+    }
+  }
   bool eyeComfort = false;
 
   @override
@@ -36,11 +53,16 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
 
   Future<void> _start() async {
     final prefs = await SharedPreferences.getInstance();
-    darkReading = prefs.getBool('ottoman_mushaf_dark') ?? true;
+    darkReading = prefs.getBool('ottoman_mushaf_dark') ?? false;
+    try {
+      final decoded = jsonDecode(await rootBundle.loadString('assets/mushaf/surah_pages.json')) as List<dynamic>;
+      _surahIndex = decoded.cast<Map<String, dynamic>>();
+    } catch (_) { /* The Quran remains readable without index metadata. */ }
     eyeComfort = prefs.getBool('quran_eye_comfort') ?? false;
     page = (widget.initialPage ?? prefs.getInt('react_quran_last_page') ?? widget.firstPage).clamp(widget.firstPage, widget.lastPage);
     zoom = (prefs.getDouble('react_quran_zoom') ?? 1.0).clamp(0.8, 1.8);
     bookmark = prefs.getInt('react_quran_bookmark');
+    _updatePageCaption(page);
     final web = WebViewController();
     await web.setJavaScriptMode(JavaScriptMode.unrestricted);
     await web.setBackgroundColor(darkReading ? const Color(0xFF193B30) : const Color(0xFFFFF8E9));
@@ -77,7 +99,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
             if (reported != next) {
               await web.runJavaScript('window.setQuranPage && window.setQuranPage($next)');
             }
-            if (mounted) setState(() => page = next);
+            if (mounted) setState(() { page = next; _updatePageCaption(next); });
             widget.onPage?.call(next);
             // Juz and khatma progress is tracked separately. Only normal
             // reading updates the main Quran resume position.
@@ -128,10 +150,12 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   Future<void> _applyReadingTheme() async {
     final web = controller;
     if (web == null) return;
-    final background = eyeComfort ? '#F1E4C6' : (darkReading ? '#193B30' : '#FFF8E9');
-    final foreground = eyeComfort ? '#332E25' : (darkReading ? '#F7EBD3' : '#17372E');
-    await web.setBackgroundColor(eyeComfort ? const Color(0xFFF1E4C6) : (darkReading
-        ? const Color(0xFF193B30) : const Color(0xFFFFF8E9)));
+    // The page is always light paper with dark Quran text. A previous
+    // dark-theme override made the original cream page nearly illegible.
+    final background = eyeComfort ? '#F1E4C6' : '#FFF9EC';
+    final foreground = eyeComfort ? '#332E25' : '#172820';
+    await web.setBackgroundColor(eyeComfort
+        ? const Color(0xFFF1E4C6) : const Color(0xFFFFF9EC));
     try {
       await web.runJavaScript("""
         (() => {
@@ -141,11 +165,11 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
             style.id = 'athr-ottoman-theme';
             document.head.appendChild(style);
           }
-          style.textContent = 'html, body, #root, .reader, .reader > div {' +
+          style.textContent = 'html, body, #root, main, .reader, .page-surface {' +
             'background-color: $background !important; color: $foreground !important;}' +
-            '.reader, .reader *:not(button):not(input) {' +
-            'color: $foreground !important;}' +
-            '.reader svg text, .reader svg tspan { fill: $foreground !important; }';
+            '.reader, .reader * { color: $foreground !important; }' +
+            '.reader svg text, .reader svg tspan, .reader svg path {' +
+            'fill: $foreground !important; }';
         })();
       """);
     } catch (_) { /* Keep the reader usable if styling injection fails. */ }
@@ -193,12 +217,16 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: eyeComfort ? const Color(0xFFF1E4C6) : (darkReading ? const Color(0xFF193B30) : const Color(0xFFFFF8E9)),
+    backgroundColor: eyeComfort ? const Color(0xFFF1E4C6) : const Color(0xFFFFF9EC),
     appBar: AppBar(
       backgroundColor: const Color(0xFF073E35),
       foregroundColor: Colors.white,
-      title: Text(widget.firstPage == 1 && widget.lastPage == 604
-          ? '$page / 604' : '$page / ${widget.lastPage}'),
+      title: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Text(surahName, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        Text('الجزء $juzNumber • صفحة $page',
+          style: const TextStyle(fontSize: 11, color: Color(0xFFE6D8B6))),
+      ]),
       actions: [
         IconButton(
           tooltip: eyeComfort ? 'إيقاف راحة العين' : 'راحة العين',
