@@ -105,11 +105,13 @@ class AzkarScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
           decoration: BoxDecoration(
-            color: _green,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: _gold)),
+            gradient: const LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft,
+              colors: [Color(0xFF0D5A4A), Color(0xFF032B25)]),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: _gold, width: 1.5),
+            boxShadow: [BoxShadow(color: _green.withValues(alpha: .25), blurRadius: 22, offset: const Offset(0, 9))]),
           child: const Column(children: [
-            Icon(Icons.auto_stories_outlined, color: _gold, size: 28),
+            Icon(Icons.auto_awesome_rounded, color: _gold, size: 33),
             SizedBox(height: 10),
             Text('ألا بذكر الله تطمئن القلوب',
               textAlign: TextAlign.center,
@@ -123,10 +125,12 @@ class AzkarScreen extends StatelessWidget {
         const SizedBox(height: 14),
         for (final entry in _groups.entries)
           Padding(
-            padding: const EdgeInsets.only(bottom: 9),
+            padding: const EdgeInsets.only(bottom: 13),
             child: Material(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(24),
+              elevation: 3,
+              shadowColor: _green.withValues(alpha: .15),
               child: InkWell(
                 borderRadius: BorderRadius.circular(18),
                 onTap: () => Navigator.push(context,
@@ -137,20 +141,20 @@ class AzkarScreen extends StatelessWidget {
                     horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     border: Border.all(color: _gold.withValues(alpha: .65)),
-                    borderRadius: BorderRadius.circular(18)),
+                    borderRadius: BorderRadius.circular(24)),
                   child: Row(children: [
                     Container(
-                      width: 46, height: 46,
+                      width: 52, height: 52,
                       decoration: const BoxDecoration(
                         color: _green, shape: BoxShape.circle),
-                      child: Icon(_icon(entry.key), color: _gold, size: 23)),
+                      child: Icon(_icon(entry.key), color: _gold, size: 27)),
                     const SizedBox(width: 12),
                     Expanded(child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(entry.key, style: const TextStyle(
-                          color: _green, fontSize: 18,
-                          fontWeight: FontWeight.bold)),
+                          color: _green, fontSize: 19,
+                          fontWeight: FontWeight.w900)),
                         const SizedBox(height: 2),
                         Text('${entry.value.length} أذكار',
                           style: const TextStyle(color: Color(0xFF837C6D),
@@ -209,6 +213,23 @@ class _AzkarReaderState extends State<AzkarReader> {
     _save();
   }
 
+  void _showCompletion() {
+    showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+      backgroundColor: _green,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26), side: const BorderSide(color: _gold, width: 1.5)),
+      title: const Column(children: [
+        Icon(Icons.auto_awesome, color: _gold, size: 54),
+        SizedBox(height: 10),
+        Text('ما شاء الله، أتممت الأذكار', textAlign: TextAlign.center,
+          style: TextStyle(color: _gold, fontWeight: FontWeight.w800)),
+      ]),
+      content: const Text('تقبّل الله منك، وجعل ذكره نورًا لقلبك وأجرًا لك.', textAlign: TextAlign.center,
+        style: TextStyle(color: Colors.white, fontSize: 18, height: 1.65)),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('الحمد لله'))],
+    ));
+  }
+
   void _tap() {
     final currentIndex = index;
     final item = widget.items[currentIndex];
@@ -216,6 +237,12 @@ class _AzkarReaderState extends State<AzkarReader> {
     if (current >= item.target) return;
     setState(() => counts['$currentIndex'] = current + 1);
     _save();
+    if (current + 1 == item.target && currentIndex == widget.items.length - 1 &&
+        widget.items.asMap().entries.every((entry) => (counts['${entry.key}'] ?? 0) >= entry.value.target)) {
+      Future<void>.delayed(const Duration(milliseconds: 450), () {
+        if (mounted) _showCompletion();
+      });
+    }
     if (current + 1 == item.target &&
         currentIndex < widget.items.length - 1) {
       Future<void>.delayed(const Duration(milliseconds: 550), () {
@@ -272,9 +299,17 @@ class _AzkarReaderState extends State<AzkarReader> {
                     horizontal: 20, vertical: 24),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border.all(color: _gold),
-                    borderRadius: BorderRadius.circular(22)),
+                    border: Border.all(color: _gold, width: 1.5),
+                    borderRadius: BorderRadius.circular(26),
+                    boxShadow: [BoxShadow(color: _green.withValues(alpha: .12), blurRadius: 18, offset: const Offset(0, 8))]),
                   child: Column(children: [
+                    if (surah != null) ...[
+                      const Icon(Icons.menu_book_rounded, color: _gold, size: 36),
+                      const SizedBox(height: 10),
+                      const Text('آيات من المصحف العثماني', style: TextStyle(color: _green,
+                          fontSize: 20, fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 8),
+                    ],
                     Text(_displayDhikr(item),
                       textDirection: TextDirection.rtl,
                       textAlign: TextAlign.center,
@@ -288,7 +323,7 @@ class _AzkarReaderState extends State<AzkarReader> {
                       TextButton.icon(
                         onPressed: () => _openMushaf(item),
                         icon: const Icon(Icons.menu_book_outlined),
-                        label: const Text('اقرأ من المصحف'),
+                        label: const Text('عرض الآيات في المصحف العثماني'),
                         style: TextButton.styleFrom(
                           foregroundColor: _green)),
                     ],
@@ -301,9 +336,11 @@ class _AzkarReaderState extends State<AzkarReader> {
                   child: Container(
                     width: 150, height: 150,
                     decoration: BoxDecoration(
-                      color: _green,
+                      gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+                        colors: [Color(0xFF126452), Color(0xFF032E27)]),
                       shape: BoxShape.circle,
-                      border: Border.all(color: _gold, width: 2)),
+                      border: Border.all(color: _gold, width: 3),
+                      boxShadow: [BoxShadow(color: _green.withValues(alpha: .24), blurRadius: 18, offset: const Offset(0, 8))]),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
