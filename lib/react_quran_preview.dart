@@ -51,6 +51,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
             await _applyZoom();
             await _applyReadingTheme();
             await _installSwipeNavigation();
+            try { await web.runJavaScript('window.__athrCurrentPage = $page'); } catch (_) {}
             if (mounted) setState(() { loading = false; error = null; });
           }
           if (data['type'] == 'page' && data['page'] is num) {
@@ -60,6 +61,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
               await web.runJavaScript('window.setQuranPage && window.setQuranPage($next)');
             }
             if (mounted) setState(() => page = next);
+            try { await web.runJavaScript('window.__athrCurrentPage = $next'); } catch (_) {}
             widget.onPage?.call(next);
             await prefs.setInt('react_quran_last_page', next);
           }
