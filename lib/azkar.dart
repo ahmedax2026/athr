@@ -341,10 +341,10 @@ class _AzkarReaderState extends State<AzkarReader> {
                     color: _green, fontWeight: FontWeight.w700)),
               ]),
             ),
-            Expanded(child: ListView(
+            Expanded(child: Center(child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(
                 horizontal: 18, vertical: 10),
-              children: [
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20, vertical: 24),
@@ -361,16 +361,43 @@ class _AzkarReaderState extends State<AzkarReader> {
                           fontSize: 20, fontWeight: FontWeight.w900)),
                       const SizedBox(height: 8),
                     ],
-                    Image.asset(
-                      'assets/azkar/${imageManifest.length > _groups.keys.toList().indexOf(widget.title) && imageManifest[_groups.keys.toList().indexOf(widget.title)].length > index ? imageManifest[_groups.keys.toList().indexOf(widget.title)][index] : 'missing.webp'}',
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => Text(
-                        _displayDhikr(item),
-                        textDirection: TextDirection.rtl,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 25, height: 1.65, color: _green),
+                    // Keep Quran artwork, but never use incomplete pre-rendered
+                    // images for ordinary adhkar. Their full text is the source of truth.
+                    if (surah != null) ...[
+                      if (item.source == 'سورة البقرة: 255') ...[
+                        const Text('آية الكرسي',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: _green, fontSize: 23,
+                            fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 12),
+                      ],
+                      Image.asset(
+                        'assets/azkar/${imageManifest.length > _groups.keys.toList().indexOf(widget.title) && imageManifest[_groups.keys.toList().indexOf(widget.title)].length > index ? imageManifest[_groups.keys.toList().indexOf(widget.title)][index] : 'missing.webp'}',
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Text(
+                          _displayDhikr(item),
+                          textDirection: TextDirection.rtl,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 24, height: 1.7, color: _green),
+                        ),
                       ),
-                    ),
+                    ] else
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4E5C9),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Text(
+                          _displayDhikr(item),
+                          textDirection: TextDirection.rtl,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 25, height: 1.9, color: _green,
+                            fontWeight: FontWeight.w600),
+                        ),
+                      ),
                     const SizedBox(height: 16),
                     Text(item.source, style: const TextStyle(
                       color: Color(0xFF97723E), fontSize: 14)),
@@ -412,8 +439,8 @@ class _AzkarReaderState extends State<AzkarReader> {
                       ]),
                   ),
                 )),
-              ],
-            )),
+              ]),
+            ))),
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
               child: Row(children: [
