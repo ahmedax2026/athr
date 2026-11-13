@@ -15,6 +15,7 @@ class ReactQuranPreview extends StatefulWidget {
 class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   WebViewController? controller;
   bool loading = true;
+  bool readerReady = false;
   String? error;
   int page = 1;
 
@@ -33,6 +34,13 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
     await web.addJavaScriptChannel('ReactQuranBridge', onMessageReceived: (message) async {
         try {
           final data = jsonDecode(message.message) as Map<String, dynamic>;
+          if (data['type'] == 'error') {
+            if (mounted) setState(() { loading = false; error = data['message']?.toString() ?? 'مشكلة في تشغيل المصحف'; });
+          }
+          if (data['type'] == 'ready') {
+            readerReady = true;
+            if (mounted) setState(() { loading = false; error = null; });
+          }
           if (data['type'] == 'page' && data['page'] is num) {
             final next = ((data['page'] as num).toInt()).clamp(1, 604);
             page = next;
@@ -45,7 +53,11 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
           try {
             await web.runJavaScript('window.setQuranPage && window.setQuranPage($page)');
           } catch (_) { /* Show bundled page even if JS bridge is unavailable. */ }
-          if (mounted) setState(() => loading = false);
+          // Do not mistake a loaded HTML shell for a successfully rendered Quran.
+          await Future<void>.delayed(const Duration(seconds: 3));
+          if (mounted && !readerReady && error == null) {
+            setState(() { loading = false; error = 'ملفات الصفحة اتفتحت، لكن نص المصحف لم يظهر. جرّب إعادة التحميل.'; });
+          }
         },
         onWebResourceError: (failure) {
           if (failure.isForMainFrame == true && mounted) {

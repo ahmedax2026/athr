@@ -45,7 +45,9 @@ if re.search(r'(?m)^\s*(?:import|export)\s', js):
     raise RuntimeError("Unbundled JavaScript ES module detected")
 
 html = re.sub(css_re, lambda _: "<style>" + css + "</style>", html, count=1)
-html = re.sub(js_re, lambda _: '<script type="module">' + js.replace("</script>", "<\\/script>") + "</script>", html, count=1)
+html = re.sub(js_re, "", html, count=1)
+# Inline classic JS at end of body; module scripts can fail on local WebView URLs.
+html = html.replace("</body>", "<script>" + js.replace("</script>", "<\\/script>") + "</script></body>", 1)
 if re.search(r'<(?:link|script)[^>]+(?:src|href)="[^"]+assets/', html):
     raise RuntimeError("External script or stylesheet remains")
 if "data:font/" not in html:
