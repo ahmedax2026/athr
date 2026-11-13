@@ -26,6 +26,7 @@ class _AthrQcfReaderState extends State<AthrQcfReader> {
   static const _gold = Color(0xFFD6B56C);
   static const _beige = Color(0xFFF0E6D1);
   static const _paper = Color(0xFFFFFCF5);
+  static const _ink = Color(0xFF29231E);
 
   PageController? _controller;
   int _page = 1;
@@ -110,6 +111,7 @@ class _AthrQcfReaderState extends State<AthrQcfReader> {
         ? const Color(0xFF242B27)
         : (_comfortable ? _beige : _paper);
     final foreground = _dark ? const Color(0xFFF6EBD6) : _green;
+    final verseInk = _dark ? const Color(0xFFF7EDD9) : _ink;
     return Scaffold(
       backgroundColor: background,
       appBar: AppBar(
@@ -157,6 +159,10 @@ class _AthrQcfReaderState extends State<AthrQcfReader> {
                     pagePadding: const EdgeInsets.symmetric(
                         horizontal: 4, vertical: 3),
                     pageBackgroundColor: background,
+                    // Explicit contrast: library defaults can inherit the app's
+                    // light verse color even when the Quran page is beige.
+                    // Set ONLY the color to preserve QCF font/layout.
+                    ayahStyle: TextStyle(color: verseInk),
                     isDarkMode: _dark,
                     onPageChanged: _changed,
                     topBarBuilder: (context, pageNumber) => Padding(
