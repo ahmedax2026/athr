@@ -13,7 +13,7 @@ class ReactQuranPreview extends StatefulWidget {
 }
 
 class _ReactQuranPreviewState extends State<ReactQuranPreview> {
-  late final WebViewController controller;
+  WebViewController? controller;
   bool loading = true;
   String? error;
   int page = 1;
@@ -27,7 +27,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   Future<void> _start() async {
     final prefs = await SharedPreferences.getInstance();
     page = (widget.initialPage ?? prefs.getInt('react_quran_last_page') ?? 1).clamp(1, 604);
-    controller = WebViewController()
+    final web = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFFFFF8E9))
       ..addJavaScriptChannel('ReactQuranBridge', onMessageReceived: (message) async {
@@ -43,7 +43,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
       ..setNavigationDelegate(NavigationDelegate(
         onPageFinished: (_) async {
           try {
-            await controller.runJavaScript('window.setQuranPage && window.setQuranPage($page)');
+            await web.runJavaScript('window.setQuranPage && window.setQuranPage($page)');
           } catch (_) { /* Show bundled page even if JS bridge is unavailable. */ }
           if (mounted) setState(() => loading = false);
         },
@@ -54,9 +54,9 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
         },
       ));
     if (!mounted) return;
-    setState(() {});
+    setState(() => controller = web);
     try {
-      await controller.loadFlutterAsset('assets/react_quran/index.html');
+      await web.loadFlutterAsset('assets/react_quran/index.html');
     } catch (failure) {
       if (mounted) setState(() { loading = false; error = '$failure'; });
     }
@@ -72,12 +72,12 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
       actions: [
         IconButton(
           tooltip: 'إعادة التحميل',
-          onPressed: () => controller.reload(),
+          onPressed: controller == null ? null : () => controller!.reload(),
           icon: const Icon(Icons.refresh)),
       ],
     ),
     body: Stack(children: [
-      if (!loading || error == null) WebViewWidget(controller: controller),
+      if (controller != null && error == null) WebViewWidget(controller: controller!),
       if (loading) const Center(child: CircularProgressIndicator()),
       if (error != null)
         Center(child: Padding(
