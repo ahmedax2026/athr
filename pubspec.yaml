@@ -68,6 +68,7 @@ flutter:
     - assets/quran/quran.json
     - assets/mushaf/surah_pages.json
     - assets/react_quran/
+    - assets/azkar/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
