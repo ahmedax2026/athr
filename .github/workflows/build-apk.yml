@@ -58,11 +58,10 @@ jobs:
           SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           for attempt in 1 2 3; do
             echo "Installing NDK $NDK_VERSION (attempt $attempt/3)"
-            if yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "ndk;$NDK_VERSION"; then
-              if test -f "$SDK_ROOT/ndk/$NDK_VERSION/source.properties"; then
-                echo "Android NDK installed and verified"
-                exit 0
-              fi
+            yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "ndk;$NDK_VERSION" || true
+            if test -f "$SDK_ROOT/ndk/$NDK_VERSION/source.properties"; then
+              echo "Android NDK installed and verified"
+              exit 0
             fi
             rm -rf "$SDK_ROOT/ndk/$NDK_VERSION"
             sleep 3
