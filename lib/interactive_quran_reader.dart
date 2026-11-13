@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'quran.dart';
-import 'react_quran_preview.dart';
+import 'athr_qcf_reader.dart';
 
 class InteractiveQuranReader extends StatefulWidget {
   const InteractiveQuranReader({super.key, required this.surahNumber});
@@ -111,7 +111,7 @@ class _InteractiveQuranReaderState extends State<InteractiveQuranReader> {
                 final page = index.firstWhere((s) => s['number'] == surahNumber)['page'] as int;
                 if (!context.mounted) return;
                 Navigator.push(context, MaterialPageRoute<void>(
-                  builder: (_) => ReactQuranPreview(initialPage: page)));
+                  builder: (_) => AthrQcfReader(initialPage: page)));
               }
             }, itemBuilder: (_) => const [
               PopupMenuItem(value: 'paper', child: Text('المصحف الورقي (الصفحات الأصلية)')),
