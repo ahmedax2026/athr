@@ -349,7 +349,7 @@ class _AzkarReaderState extends State<AzkarReader> {
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20, vertical: 24),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: _paper,
                     border: Border.all(color: _gold, width: 1.5),
                     borderRadius: BorderRadius.circular(26),
                     boxShadow: [BoxShadow(color: _green.withValues(alpha: .12), blurRadius: 18, offset: const Offset(0, 8))]),
@@ -357,8 +357,9 @@ class _AzkarReaderState extends State<AzkarReader> {
                     if (surah != null) ...[
                       const Icon(Icons.menu_book_rounded, color: _gold, size: 36),
                       const SizedBox(height: 10),
-                      const Text('آيات من المصحف العثماني', style: TextStyle(color: _green,
-                          fontSize: 20, fontWeight: FontWeight.w900)),
+                      if (item.source != 'سورة البقرة: 255')
+                        const Text('آيات من المصحف العثماني', style: TextStyle(color: _green,
+                            fontSize: 20, fontWeight: FontWeight.w900)),
                       const SizedBox(height: 8),
                     ],
                     // Keep Quran artwork, but never use incomplete pre-rendered
@@ -371,16 +372,26 @@ class _AzkarReaderState extends State<AzkarReader> {
                             fontWeight: FontWeight.w900)),
                         const SizedBox(height: 12),
                       ],
-                      Image.asset(
-                        'assets/azkar/${imageManifest.length > _groups.keys.toList().indexOf(widget.title) && imageManifest[_groups.keys.toList().indexOf(widget.title)].length > index ? imageManifest[_groups.keys.toList().indexOf(widget.title)][index] : 'missing.webp'}',
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => Text(
-                          _displayDhikr(item),
+                      if (item.source == 'سورة البقرة: 255')
+                        Text(
+                          item.text.split(': ').skip(1).join(': '),
                           textDirection: TextDirection.rtl,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 24, height: 1.7, color: _green),
+                          style: const TextStyle(
+                            color: _green, fontSize: 24, height: 1.85,
+                            fontWeight: FontWeight.w500),
+                        )
+                      else
+                        Image.asset(
+                          'assets/azkar/${imageManifest.length > _groups.keys.toList().indexOf(widget.title) && imageManifest[_groups.keys.toList().indexOf(widget.title)].length > index ? imageManifest[_groups.keys.toList().indexOf(widget.title)][index] : 'missing.webp'}',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => Text(
+                            _displayDhikr(item),
+                            textDirection: TextDirection.rtl,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 24, height: 1.7, color: _green),
+                          ),
                         ),
-                      ),
                     ] else
                       Container(
                         width: double.infinity,
