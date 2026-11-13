@@ -58,7 +58,7 @@ flutter {
 // so scheduled notifications can use the same sounds as in-app previews.
 tasks.register<Copy>("syncAdhanSounds") {
     from(rootProject.file("../assets/adhan")) {
-        include("adhan_makkah.mp3", "adhan_afasy.mp3", "adhan_fajr.mp3")
+        include("adhan_makkah.mp3", "adhan_afasy.mp3")
     }
     into(layout.projectDirectory.dir("src/main/res/raw"))
 }
