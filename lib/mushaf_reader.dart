@@ -8,8 +8,9 @@ const _gold = Color(0xFFC5A052);
 const _paper = Color(0xFFFFF8E7);
 
 class MushafPageReader extends StatefulWidget {
-  const MushafPageReader({super.key, required this.initialPage});
-  final int initialPage;
+  const MushafPageReader({super.key, required this.initialPage, this.firstPage = 1, this.lastPage = 604, this.onPage});
+  final int initialPage, firstPage, lastPage;
+  final ValueChanged<int>? onPage;
   @override
   State<MushafPageReader> createState() => _MushafPageReaderState();
 }
@@ -29,8 +30,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   @override
   void initState() {
     super.initState();
-    page = widget.initialPage.clamp(1, 604);
-    controller = PageController(initialPage: page - 1);
+    page = widget.initialPage.clamp(widget.firstPage, widget.lastPage);
+    controller = PageController(initialPage: page - widget.firstPage);
     _loadIndex();
     _restoreBookmark();
     _restoreMode();
@@ -86,7 +87,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   }
 
   void _jump(int value) {
-    controller.animateToPage(value.clamp(1, 604) - 1,
+    controller.animateToPage(value.clamp(widget.firstPage, widget.lastPage) - widget.firstPage,
       duration: const Duration(milliseconds: 250), curve: Curves.easeInOut);
   }
 
@@ -189,27 +190,28 @@ class _MushafPageReaderState extends State<MushafPageReader> {
           controller: controller,
           reverse: false,
           physics: zoomed ? const NeverScrollableScrollPhysics() : const PageScrollPhysics(),
-          itemCount: 604,
+          itemCount: widget.lastPage - widget.firstPage + 1,
           onPageChanged: (index) {
             zoomController.value = Matrix4.identity();
             if (zoomed) setState(() => zoomed = false);
-            _savePage(index + 1);
+            _savePage(widget.firstPage + index);
+            widget.onPage?.call(widget.firstPage + index);
           },
           itemBuilder: (context, index) {
             final child = GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => setState(() => controls = !controls),
               child: InteractiveViewer(
-                transformationController: index + 1 == page ? zoomController : null,
+                transformationController: index + widget.firstPage == page ? zoomController : null,
                 minScale: 1, maxScale: 5,
                 panEnabled: zoomed,
                 onInteractionEnd: (_) {
-                  if (index + 1 != page) return;
+                  if (index + widget.firstPage != page) return;
                   final active = zoomController.value.getMaxScaleOnAxis() > 1.01;
                   if (mounted && zoomed != active) setState(() => zoomed = active);
                 },
                 child: SizedBox.expand(child: ColoredBox(color: _paper,
-                  child: Image.asset('assets/mushaf/${(index + 1).toString().padLeft(3, '0')}.webp',
+                  child: Image.asset('assets/mushaf/${(index + widget.firstPage).toString().padLeft(3, '0')}.webp',
                     width: double.infinity,
                     height: double.infinity,
                     fit: BoxFit.fill,
@@ -247,7 +249,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
               Expanded(child: Column(children: [
                 Text(surahName, style: const TextStyle(color: Colors.white, fontSize: 20)),
-                Text('الصفحة $page من 604', style: const TextStyle(color: _gold)),
+                Text('الصفحة $page من ${widget.lastPage}', style: const TextStyle(color: _gold)),
               ])),
               IconButton(icon: const Icon(Icons.brightness_6, color: Colors.white),
                 onPressed: () => setState(() => night = !night)),
