@@ -380,7 +380,7 @@ class HomeScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(22),
                         onTap: () {
                           if (s.$1 == 'القرآن الكريم') {
-                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ReactQuranPreview()));
+                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const QuranScreen()));
                           } else if (s.$1 == 'الختمات الجماعية') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const KhatmaScreen()));
                           } else if (s.$1 == 'الأذكار') {
