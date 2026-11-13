@@ -31,11 +31,12 @@ object AdhanScheduler {
             val at = (entry["at"] as? Number)?.toLong() ?: continue
             if (at <= System.currentTimeMillis()) continue
             val voice = entry["voice"] as? String ?: "adhan_makkah"
-            if (voice != "adhan_makkah" && voice != "adhan_afasy") continue
+            if (voice != "adhan_makkah" && voice != "adhan_afasy" && voice != "reminder") continue
             val id = index
-            val json = JSONObject().put("id", id).put("at", at).put("voice", voice)
+            val prayer = entry["prayer"] as? String ?: ""
+            val json = JSONObject().put("id", id).put("at", at).put("voice", voice).put("prayer", prayer)
             stored.put(json)
-            set(context, id, at, voice)
+            set(context, id, at, voice, prayer)
         }
         prefs.edit().putString(KEY, stored.toString()).apply()
     }
@@ -47,15 +48,16 @@ object AdhanScheduler {
             val e = entries.optJSONObject(i) ?: continue
             val at = e.optLong("at")
             if (at > System.currentTimeMillis()) {
-                set(context, e.optInt("id"), at, e.optString("voice", "adhan_makkah"))
+                set(context, e.optInt("id"), at, e.optString("voice", "adhan_makkah"), e.optString("prayer", ""))
             }
         }
     }
 
-    private fun set(context: Context, id: Int, at: Long, voice: String) {
+    private fun set(context: Context, id: Int, at: Long, voice: String, prayer: String) {
         val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, AdhanAlarmReceiver::class.java)
             .putExtra("voice", voice)
+            .putExtra("prayer", prayer)
         val request = PendingIntent.getBroadcast(context, BASE + id, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         if (Build.VERSION.SDK_INT >= 31 && !alarm.canScheduleExactAlarms()) {
