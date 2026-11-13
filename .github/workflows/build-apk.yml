@@ -47,7 +47,10 @@ jobs:
           cd react_quran
           npm install --legacy-peer-deps --no-audit --no-fund
           npm run build
+          python3 ../tool/inline_react_quran.py
           test -s ../assets/react_quran/index.html
+          grep -q 'quran-font_react-quran' ../assets/react_quran/index.html
+          grep -q 'data:font' ../assets/react_quran/index.html
 
       - name: Get dependencies
         run: flutter pub get
