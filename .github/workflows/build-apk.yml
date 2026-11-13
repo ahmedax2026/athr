@@ -58,6 +58,9 @@ jobs:
       - name: Bundle attributed adhan audio samples
         run: python3 tool/bundle_adhan_audio.py
 
+      - name: Install complete adhan recordings for native background playback
+        run: python3 tool/install_adhan_android.py
+
       - name: Get dependencies
         run: flutter pub get
 
