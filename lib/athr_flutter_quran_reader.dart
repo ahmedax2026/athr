@@ -63,8 +63,10 @@ class _AthrFlutterQuranReaderState extends State<AthrFlutterQuranReader> {
         : (pageIndex + 1).clamp(1, 604).toInt();
     if (page < widget.firstPage || page > widget.lastPage) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) FlutterQuran().navigateToPage(
-            page < widget.firstPage ? widget.firstPage : widget.lastPage);
+        if (mounted) {
+          FlutterQuran().navigateToPage(
+              page < widget.firstPage ? widget.firstPage : widget.lastPage);
+        }
       });
       return;
     }
