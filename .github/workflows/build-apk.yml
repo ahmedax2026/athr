@@ -35,21 +35,6 @@ jobs:
       - name: Bundle Quran surah-to-page index (no page images)
         run: python3 tool/bundle_mushaf.py
 
-      - name: Set up Node.js for offline React Quran
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Bundle React Quran for offline use
-        run: |
-          cd react_quran
-          npm install --legacy-peer-deps --no-audit --no-fund
-          npm run build
-          python3 ../tool/inline_react_quran.py
-          test -s ../assets/react_quran/index.html
-          grep -q 'quran-font_react-quran' ../assets/react_quran/index.html
-          grep -q 'data:font' ../assets/react_quran/index.html
-
       - name: Generate styled offline adhkar images
         run: |
           python3 -m pip install --quiet Pillow
