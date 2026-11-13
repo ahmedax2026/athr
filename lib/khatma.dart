@@ -358,13 +358,46 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
           builder:(context,m){
             final mine=m.hasError ? null : m.data?.data();
             return ListView(padding:const EdgeInsets.all(16),children:[
-              Text((d['title']??'ختمة جماعية').toString(),
-                style:const TextStyle(fontSize:24,fontWeight:FontWeight.w900)),
-              const SizedBox(height:12),
-              Text('المشاركون: $count / $capacity • المكتمل: ${completed.length} من 30',
-                style:const TextStyle(fontWeight:FontWeight.w800)),
-              const SizedBox(height:8),
-              LinearProgressIndicator(value:completed.length/30,minHeight:10),
+              Container(
+                padding:const EdgeInsets.all(20),
+                decoration:BoxDecoration(
+                  gradient:const LinearGradient(colors:[Color(0xFF075143),Color(0xFF032E29)]),
+                  borderRadius:BorderRadius.circular(24)),
+                child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  Row(children:[
+                    const Icon(Icons.auto_stories,color:Color(0xFFE9C77C)),
+                    const SizedBox(width:8),
+                    Expanded(child:Text((d['title']??'ختمة جماعية').toString(),
+                      style:const TextStyle(color:Colors.white,fontSize:23,fontWeight:FontWeight.w900))),
+                  ]),
+                  const SizedBox(height:8),
+                  Text(started?'ختمة جارية':'في انتظار بدء الختمة',
+                    style:const TextStyle(color:Color(0xFFE9C77C),fontWeight:FontWeight.bold)),
+                  const SizedBox(height:18),
+                  Row(children:[
+                    SizedBox(width:90,height:90,child:Stack(alignment:Alignment.center,children:[
+                      SizedBox.expand(child:CircularProgressIndicator(
+                        value:completed.length/30,strokeWidth:9,
+                        backgroundColor:Colors.white24,
+                        color:const Color(0xFFE9C77C))),
+                      Text('${(completed.length*100/30).round()}%',
+                        style:const TextStyle(color:Colors.white,fontSize:23,fontWeight:FontWeight.w900)),
+                    ])),
+                    const SizedBox(width:18),
+                    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      Text('المكتمل: ${completed.length} من 30 جزء',
+                        style:const TextStyle(color:Colors.white,fontWeight:FontWeight.bold)),
+                      const SizedBox(height:8),
+                      Text('المتبقي: ${30-completed.length} جزء',
+                        style:const TextStyle(color:Colors.white70)),
+                      const SizedBox(height:8),
+                      Text('المشاركون: $count من $capacity',
+                        style:const TextStyle(color:Colors.white70)),
+                    ])),
+                  ]),
+                ]),
+              ),
+              const SizedBox(height:16),
               if(creator&&!started) FilledButton(onPressed:busy?null:()=>startKhatma(d),child:const Text('بدء الختمة وتوزيع الأجزاء')),
               if(!started) const Text('في انتظار بدء الختمة'),
               if(creator) TextButton(onPressed:extendDeadline,child:const Text('تمديد موعد الختمة')),
@@ -382,7 +415,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
                   child:Text(started?'بدأت الختمة':count>=capacity?'الختمة مكتملة العدد':'انضم للختمة')),
               ] else ...[
                 const SizedBox(height:12),
-                const Text('أجزائي',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900)),
+                const Row(children:[Icon(Icons.menu_book,color:_green),SizedBox(width:8),Text('أجزائي',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900))]),
                 for(final p in List<int>.from(mine['parts']??[])..sort())
                   Card(child:Column(children:[
                     ListTile(title:Text('الجزء $p',style:const TextStyle(fontWeight:FontWeight.w800)),
@@ -406,7 +439,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
                     color:completed.contains(p)?Colors.green:Colors.grey,size:18)),
               ]),
               const SizedBox(height:16),
-              const Text('المشاركون',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
+              const Row(children:[Icon(Icons.people_alt_outlined,color:_green),SizedBox(width:8),Text('المشاركون',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900))]),
               StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
                 stream:ref.collection('members').snapshots(),builder:(context,ms){
                   if(ms.hasError)return const Text('المشاركون يظهرون بعد الانضمام');
