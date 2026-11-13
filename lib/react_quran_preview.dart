@@ -24,6 +24,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   String? error;
   int page = 1;
   bool darkReading = true;
+  bool eyeComfort = false;
 
   @override
   void initState() {
@@ -34,6 +35,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   Future<void> _start() async {
     final prefs = await SharedPreferences.getInstance();
     darkReading = prefs.getBool('ottoman_mushaf_dark') ?? true;
+    eyeComfort = prefs.getBool('quran_eye_comfort') ?? false;
     page = (widget.initialPage ?? prefs.getInt('react_quran_last_page') ?? widget.firstPage).clamp(widget.firstPage, widget.lastPage);
     zoom = (prefs.getDouble('react_quran_zoom') ?? 1.0).clamp(0.8, 1.8);
     bookmark = prefs.getInt('react_quran_bookmark');
@@ -136,10 +138,10 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   Future<void> _applyReadingTheme() async {
     final web = controller;
     if (web == null) return;
-    final background = darkReading ? '#193B30' : '#FFF8E9';
-    final foreground = darkReading ? '#F7EBD3' : '#17372E';
-    await web.setBackgroundColor(darkReading
-        ? const Color(0xFF193B30) : const Color(0xFFFFF8E9));
+    final background = eyeComfort ? '#F1E4C6' : (darkReading ? '#193B30' : '#FFF8E9');
+    final foreground = eyeComfort ? '#332E25' : (darkReading ? '#F7EBD3' : '#17372E');
+    await web.setBackgroundColor(eyeComfort ? const Color(0xFFF1E4C6) : (darkReading
+        ? const Color(0xFF193B30) : const Color(0xFFFFF8E9)));
     try {
       await web.runJavaScript("""
         (() => {
@@ -157,6 +159,13 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
         })();
       """);
     } catch (_) { /* Keep the reader usable if styling injection fails. */ }
+  }
+
+  Future<void> _toggleEyeComfort() async {
+    setState(() => eyeComfort = !eyeComfort);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('quran_eye_comfort', eyeComfort);
+    await _applyReadingTheme();
   }
 
   Future<void> _toggleReadingTheme() async {
@@ -194,13 +203,17 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: darkReading ? const Color(0xFF193B30) : const Color(0xFFFFF8E9),
+    backgroundColor: eyeComfort ? const Color(0xFFF1E4C6) : (darkReading ? const Color(0xFF193B30) : const Color(0xFFFFF8E9)),
     appBar: AppBar(
       backgroundColor: const Color(0xFF073E35),
       foregroundColor: Colors.white,
       title: Text(widget.firstPage == 1 && widget.lastPage == 604
           ? '$page / 604' : '$page / ${widget.lastPage}'),
       actions: [
+        IconButton(
+          tooltip: eyeComfort ? 'إيقاف راحة العين' : 'راحة العين',
+          onPressed: _toggleEyeComfort,
+          icon: Icon(eyeComfort ? Icons.visibility : Icons.visibility_outlined)),
         IconButton(
           tooltip: darkReading ? 'الوضع الفاتح' : 'الوضع الأخضر الداكن',
           onPressed: _toggleReadingTheme,
