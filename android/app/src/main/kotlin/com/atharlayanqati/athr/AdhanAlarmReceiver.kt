@@ -15,6 +15,7 @@ class AdhanAlarmReceiver : BroadcastReceiver() {
         val voice = intent.getStringExtra("voice") ?: "adhan_makkah"
         val service = Intent(context, AdhanPlaybackService::class.java)
             .putExtra("voice", voice)
+            .putExtra("prayer", intent.getStringExtra("prayer") ?: "")
         try {
             if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(service)
             else context.startService(service)
