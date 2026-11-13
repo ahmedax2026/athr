@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'quran_reader_choice.dart';
+import 'react_quran_preview.dart';
 
 const _green = Color(0xFF073E35);
 const _gold = Color(0xFFD6B56C);
@@ -256,7 +256,7 @@ class _AzkarReaderState extends State<AzkarReader> {
     if (surah == null) return;
     final page = _pageForDhikr(item);
     Navigator.push(context, MaterialPageRoute<void>(
-      builder: (_) => QuranReaderChoice(initialPage: page)));
+      builder: (_) => ReactQuranPreview(initialPage: page)));
   }
 
   @override
