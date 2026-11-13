@@ -65,30 +65,59 @@ class _EngineQuranScreenState extends State<EngineQuranScreen> {
       }));
     if (choice != null) _select(choice);
   }
-  // Tajweed markup is rendered as spans only when the source provides tagged
-  // segments; never insert invented rules or color arbitrary Quran letters.
+  // Alfurqan encodes tajweed tags as HTML entities. Decode markup before
+  // interpreting it, so escaped tags are never displayed as Quranic text.
+  String _decodeMarkup(String value) {
+    var decoded = value;
+    for (var i = 0; i < 2; i++) {
+      decoded = decoded
+          .replaceAll('&amp;', '&')
+          .replaceAll('&lt;', '<')
+          .replaceAll('&gt;', '>')
+          .replaceAll('&quot;', '"')
+          .replaceAll('&#39;', "'");
+    }
+    return decoded;
+  }
+
+  Color _ruleColor(String tag) {
+    final rule = tag.toLowerCase();
+    if (rule.contains('ghunnah') || rule.contains('idgham') ||
+        rule.contains('ikhfa') || rule.contains('iqlab')) {
+      return const Color(0xFF2778B5);
+    }
+    if (rule.contains('madd')) return const Color(0xFFC54E49);
+    if (rule.contains('qalqalah')) return const Color(0xFF35845D);
+    return _green;
+  }
+
   List<InlineSpan> _spans(String input) {
-    final tags = RegExp(r'<[^>]+>');
+    final decoded = _decodeMarkup(input);
+    final tags = RegExp(r'<[^>]*>');
     final spans = <InlineSpan>[];
-    int pos = 0;
-    Color current = _green;
-    for (final match in tags.allMatches(input)) {
-      if (match.start > pos) spans.add(TextSpan(text: input.substring(pos, match.start), style: TextStyle(color: current)));
-      final tag = match.group(0)!.toLowerCase();
+    final colors = <Color>[_green];
+    var pos = 0;
+    for (final match in tags.allMatches(decoded)) {
+      if (match.start > pos) {
+        spans.add(TextSpan(
+          text: decoded.substring(pos, match.start),
+          style: TextStyle(color: colors.last),
+        ));
+      }
+      final tag = match.group(0)!;
       if (tag.startsWith('</')) {
-        current = _green;
-      } else if (tag.contains('ghunnah') || tag.contains('idgham')) {
-        current = const Color(0xFF2778B5);
-      } else if (tag.contains('madd')) {
-        current = const Color(0xFFC54E49);
-      } else if (tag.contains('qalqalah')) {
-        current = const Color(0xFF35845D);
-      } else {
-        current = _green;
+        if (colors.length > 1) colors.removeLast();
+      } else if (!tag.endsWith('/>')) {
+        colors.add(_ruleColor(tag));
       }
       pos = match.end;
     }
-    if (pos < input.length) spans.add(TextSpan(text: input.substring(pos), style: TextStyle(color: current)));
+    if (pos < decoded.length) {
+      spans.add(TextSpan(
+        text: decoded.substring(pos),
+        style: TextStyle(color: colors.last),
+      ));
+    }
     return spans;
   }
   @override Widget build(BuildContext context) {
