@@ -40,7 +40,7 @@ class _AthrMushafReaderState extends State<AthrMushafReader> {
     final page = (widget.initialPage ??
             prefs.getInt('react_quran_last_page') ??
             1)
-        .clamp(widget.firstPage, widget.lastPage);
+        .clamp(widget.firstPage, widget.lastPage).toInt();
     // The library remembers its own reading position; jump explicitly
     // when entering from Athr's page, surah, bookmark or juz menus.
     QuranLibrary().jumpToPage(page);
