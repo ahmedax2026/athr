@@ -40,7 +40,7 @@ dependencies:
   cloud_firestore: ^6.1.0
   url_launcher: ^6.3.2
   webview_flutter: ^4.13.0
-  quran_library: ^5.1.0
+  quran_library: ^5.0.1
   adhan_dart: ^2.0.1
   geolocator: ^14.1.2
   geocoding: ^5.0.1
