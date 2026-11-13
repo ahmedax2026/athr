@@ -53,3 +53,15 @@ flutter {
  dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
  }
+
+// Copy the bundled, user-supplied MP3 adhan files into Android raw resources
+// so scheduled notifications can use the same sounds as in-app previews.
+tasks.register<Copy>("syncAdhanSounds") {
+    from(rootProject.file("../assets/adhan")) {
+        include("adhan_makkah.mp3", "adhan_afasy.mp3", "adhan_fajr.mp3")
+    }
+    into(layout.projectDirectory.dir("src/main/res/raw"))
+}
+tasks.named("preBuild") {
+    dependsOn("syncAdhanSounds")
+}
