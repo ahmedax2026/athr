@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -97,8 +98,8 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
     final input=TextEditingController();
     final code=await showDialog<String>(context:context,builder:(ctx)=>AlertDialog(
       title:const Text('كود الانضمام'),
-      content:TextField(controller:input,textCapitalization:TextCapitalization.characters,
-        decoration:const InputDecoration(hintText:'الصق كود الدعوة هنا')),
+      content:TextField(controller:input,keyboardType:TextInputType.number,
+        decoration:const InputDecoration(hintText:'أدخل كود الختمة المكون من 6 أرقام')),
       actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('إلغاء')),
         FilledButton(onPressed:()=>Navigator.pop(ctx,input.text.trim()),child:const Text('بحث'))]));
     input.dispose();
@@ -129,7 +130,16 @@ class _KhatmaCreateScreenState extends State<KhatmaCreateScreen> {
     if(title.text.trim().isEmpty||name.text.trim().length<2||days<1||days>365||capacity<2||capacity>30){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('المدة من 1 إلى 365 يومًا والمشاركون من 2 إلى 30')));return;}
     setState(()=>busy=true);
     try {
-      final doc=FirebaseFirestore.instance.collection('khatmas').doc();
+      // Six-digit numeric room IDs; existing rooms retain their original IDs.
+      final collection=FirebaseFirestore.instance.collection('khatmas');
+      DocumentReference<Map<String,dynamic>>? available;
+      final random=Random.secure();
+      for(var attempt=0;attempt<12;attempt++){
+        final candidate=collection.doc((100000+random.nextInt(900000)).toString());
+        if(!(await candidate.get()).exists){available=candidate;break;}
+      }
+      if(available==null)throw StateError('تعذر توليد كود فريد، حاول مرة أخرى');
+      final doc=available;
       final code=doc.id;
       final batch=FirebaseFirestore.instance.batch();
       batch.set(doc,{
