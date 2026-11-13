@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - feature/qcf-lite-from-stable
+      - feature/qcf-quran-005
 
 permissions:
   contents: read
