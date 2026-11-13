@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'mushaf_reader.dart';
-import 'engine_quran.dart';
 import 'react_quran_preview.dart';
 
 const emerald = Color(0xFF003D30);
@@ -44,7 +43,7 @@ class _QuranScreenState extends State<QuranScreen> {
     _refresh();
   }
   void _tajweed() => Navigator.push(context, MaterialPageRoute<void>(
-    builder: (_) => const EngineQuranScreen()));
+    builder: (_) => const ReactQuranPreview()));
   void _index() => Navigator.push(context, MaterialPageRoute<void>(
     builder: (_) => const QuranIndexScreen()));
   // Starting pages of the 30 juz in the 604-page Madinah Mushaf.
@@ -94,7 +93,7 @@ class _QuranScreenState extends State<QuranScreen> {
                     MaterialPageRoute<void>(
                       builder: (_) => const ReactQuranPreview())),
                   icon: const Icon(Icons.science_outlined),
-                  label: const Text('تجربة مصحف React الجديد'),
+                  label: const Text('المصحف العثماني الجديد'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: gold,
                     side: const BorderSide(color: gold),
@@ -128,7 +127,7 @@ class _QuranScreenState extends State<QuranScreen> {
                 crossAxisCount: 3, crossAxisSpacing: 9, mainAxisSpacing: 14,
                 childAspectRatio: .96,
                 children: [
-                  _shortcut(Icons.color_lens_outlined, 'قرآن التجويد', _tajweed),
+                  _shortcut(Icons.color_lens_outlined, 'المصحف العثماني', _tajweed),
                   _shortcut(Icons.menu_book_rounded, 'فهرس السور', _index),
                   _shortcut(Icons.layers_rounded, 'الأجزاء', _juz),
                   _shortcut(Icons.star_border_rounded, 'علاماتي', () => _read(lastPage)),
