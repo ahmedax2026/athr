@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 /// Prayer notification diagnostics. Sound of the full adhan is deliberately
@@ -125,6 +126,24 @@ class PrayerNotifications {
       }
     }
 
+    final preferences = await SharedPreferences.getInstance();
+    final useAdhan = preferences.getBool('adhan') ?? false;
+    final normalVoice = preferences.getString('adhan_voice') ?? 'adhan_voice_1';
+    final fajrVoice = preferences.getString('adhan_fajr_voice') ?? 'adhan_fajr';
+    const choices = {'adhan_voice_1', 'adhan_voice_2', 'adhan_fajr'};
+    NotificationDetails detailsFor(String name) {
+      if (!useAdhan) return _details;
+      final requested = name == 'الفجر' ? fajrVoice : normalVoice;
+      final voice = choices.contains(requested) ? requested : 'adhan_voice_1';
+      return NotificationDetails(android: AndroidNotificationDetails(
+        'athr_adhan_${voice}_v1', 'أذان ${voice == 'adhan_fajr' ? 'الفجر' : 'الصلاة'}',
+        channelDescription: 'صوت أذان اختياري عند دخول وقت الصلاة',
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound(voice),
+      ));
+    }
     final precise = await _android?.canScheduleExactNotifications() ?? false;
     final mode = precise
         ? AndroidScheduleMode.exactAllowWhileIdle
@@ -143,7 +162,7 @@ class PrayerNotifications {
             title: 'حان الآن موعد صلاة $name',
             body: 'حي على الصلاة • أثر لا ينقطع',
             scheduledDate: tz.TZDateTime.from(prayerTime, zone),
-            notificationDetails: _details,
+            notificationDetails: detailsFor(name),
             androidScheduleMode: mode,
           );
           count++;
