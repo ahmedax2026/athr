@@ -170,10 +170,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 const SizedBox(height: 8),
                 const Text('اضغط على القلب 3 مرات للدخول إلى أبواب الخير', textAlign: TextAlign.center, style: TextStyle(color: cream, fontSize: 13, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 7),
-                const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Wrap(alignment: WrapAlignment.center, crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6, runSpacing: 3, children: [
                   Icon(Icons.menu_book_outlined, color: gold, size: 17),
-                  SizedBox(width: 6),
-                  Text('قرآن كريم  •  أذكار  •  ختمات جماعية', style: TextStyle(color: muted, fontSize: 11)),
+                  Text('قرآن كريم  •  أذكار  •  ختمات جماعية',
+                    softWrap: true, textAlign: TextAlign.center,
+                    style: TextStyle(color: muted, fontSize: 11)),
                 ]),
               ]),
               ),
