@@ -268,10 +268,12 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
         days: dates.map(_forDate).toList(),
         zone: zone!, reminderMinutes: reminder);
       final status = await PrayerNotifications.status();
-      if (mounted) setState(() {
-        notificationStatus = status;
-        error = status.pending == 0 ? 'لم يتم تأكيد وجود إشعارات مجدولة؛ افحص الصلاحيات.' : null;
-      });
+      if (mounted) {
+        setState(() {
+          notificationStatus = status;
+          error = status.pending == 0 ? 'لم يتم تأكيد وجود إشعارات مجدولة؛ افحص الصلاحيات.' : null;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => error = 'تعذر جدولة الإشعارات: $e');
     }
