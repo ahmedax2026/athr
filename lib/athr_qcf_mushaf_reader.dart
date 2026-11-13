@@ -126,10 +126,11 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
       verseNumberColor: _dark ? _gold : const Color(0xFF765C35),
       basmalaColor: foreground,
       headerTextColor: foreground,
-      // The package defaults to 2.2x line height, which forces its QCF
-      // lines to rewrap into isolated words on narrow phone screens.
-      verseHeight: 1.72,
-      verseNumberHeight: 1.12,
+      // Preserve the QCF glyph shapes while giving lines enough vertical
+      // room to occupy the page rather than leaving a blank lower half.
+      // Scale is relative to the actual reader viewport below.
+      verseHeight: 1.82,
+      verseNumberHeight: 1.22,
       letterSpacing: 0,
       wordSpacing: 0,
     );
@@ -190,8 +191,8 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
                             ? PageviewQuran(
                                 controller: _controller,
                                 initialPageNumber: _page,
-                                sp: 0.78,
-                                h: 0.76,
+                                sp: 0.82,
+                                h: 1.14,
                                 theme: theme,
                                 onPageChanged: _onPage,
                               )
@@ -203,8 +204,8 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
                                     _onPage(widget.firstPage + index),
                                 itemBuilder: (context, index) => QcfPage(
                                   pageNumber: widget.firstPage + index,
-                                  sp: 0.78,
-                                  h: 0.76,
+                                  sp: 0.82,
+                                  h: 1.14,
                                   theme: theme,
                                 ),
                               ),
