@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qcf_quran_lite/qcf_quran_lite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'qcf_index_screen.dart';
 
 /// Pure Flutter Quran reader; no JavaScript, WebView or network traffic.
 class AthrQcfReader extends StatefulWidget {
@@ -77,6 +78,12 @@ class _AthrQcfReaderState extends State<AthrQcfReader> {
     await prefs.setInt('react_quran_last_page', newPage);
   }
 
+  Future<void> _openIndex() async {
+    final page = await Navigator.push<int>(context,
+      MaterialPageRoute(builder: (_) => const QcfIndexScreen()));
+    if (page != null && mounted) _jump(page);
+  }
+
   Future<void> _toggleComfort() async {
     setState(() => _comfortable = !_comfortable);
     final prefs = await SharedPreferences.getInstance();
@@ -121,6 +128,11 @@ class _AthrQcfReaderState extends State<AthrQcfReader> {
         title: Text('المصحف الشريف • صفحة $_page',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         actions: [
+          IconButton(
+            tooltip: 'فهرس السور والأجزاء',
+            icon: const Icon(Icons.menu_book_outlined),
+            onPressed: _openIndex,
+          ),
           IconButton(
             tooltip: _comfortable ? 'إيقاف راحة العين' : 'راحة العين',
             icon: Icon(_comfortable ? Icons.visibility : Icons.visibility_outlined,
