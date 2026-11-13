@@ -20,6 +20,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   int page = 1;
   bool controls = false;
   bool night = false;
+  bool eyeComfort = false;
   List<dynamic> surahs = [];
   int? bookmarkedPage;
   bool zoomed = false;
@@ -35,6 +36,19 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     _loadIndex();
     _restoreBookmark();
     _restoreMode();
+    _restoreEyeComfort();
+  }
+
+  Future<void> _restoreEyeComfort() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) setState(() => eyeComfort = prefs.getBool('quran_eye_comfort') ?? false);
+  }
+
+  Future<void> _toggleEyeComfort() async {
+    final next = !eyeComfort;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('quran_eye_comfort', next);
+    if (mounted) setState(() => eyeComfort = next);
   }
 
   Future<void> _restoreBookmark() async {
@@ -211,13 +225,17 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                   if (mounted && zoomed != active) setState(() => zoomed = active);
                 },
                 child: SizedBox.expand(child: ColoredBox(color: _paper,
-                  child: Image.asset('assets/mushaf/${(index + widget.firstPage).toString().padLeft(3, '0')}.webp',
+                  child: ColorFiltered(
+                    colorFilter: ColorFilter.mode(
+                      eyeComfort ? const Color(0xFFF2E1C0) : Colors.white,
+                      BlendMode.multiply),
+                    child: Image.asset('assets/mushaf/${(index + widget.firstPage).toString().padLeft(3, '0')}.webp',
                     width: double.infinity,
                     height: double.infinity,
                     fit: BoxFit.fill,
                     filterQuality: FilterQuality.high,
                     errorBuilder: (context, error, stack) =>
-                      const Center(child: Text('تعذر فتح صفحة المصحف'))))),
+                      const Center(child: Text('تعذر فتح صفحة المصحف')))))),
               ),
             );
             return child;
@@ -229,6 +247,9 @@ class _MushafPageReaderState extends State<MushafPageReader> {
             borderRadius: BorderRadius.circular(18),
             child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                IconButton(tooltip: eyeComfort ? 'إيقاف راحة العين' : 'راحة العين',
+                  onPressed: _toggleEyeComfort,
+                  icon: Icon(eyeComfort ? Icons.visibility : Icons.visibility_outlined, color: _gold)),
                 IconButton(tooltip: 'تكبير', onPressed: () => _changeZoom(1.35),
                   icon: const Icon(Icons.zoom_in, color: Colors.white)),
                 IconButton(tooltip: 'تصغير', onPressed: () => _changeZoom(1 / 1.35),
