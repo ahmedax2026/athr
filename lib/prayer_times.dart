@@ -28,12 +28,12 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   int reminder = 10;
   bool adhanEnabled = false;
   final AudioPlayer adhanPreview = AudioPlayer();
-  String adhanVoice = 'adhan_voice_1';
+  String adhanVoice = 'adhan_makkah';
   String fajrVoice = 'adhan_fajr';
   String? previewingVoice;
   static const voiceNames = <String, String>{
-    'adhan_voice_1': 'الأذان الأول',
-    'adhan_voice_2': 'الأذان الثاني',
+    'adhan_makkah': 'أذان الحرم المكي',
+    'adhan_afasy': 'أذان مشاري العفاسي',
     'adhan_fajr': 'أذان الفجر (الصلاة خير من النوم)',
   };
   PrayerNotificationStatus? notificationStatus;
@@ -141,8 +141,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     method = prefs.getString('prayer_method') ?? 'egypt';
     reminder = prefs.getInt('prayer_reminder') ?? 10;
     adhanEnabled = prefs.getBool('adhan') ?? false;
-    adhanVoice = prefs.getString('adhan_voice') ?? 'adhan_voice_1';
+    adhanVoice = prefs.getString('adhan_voice') ?? 'adhan_makkah';
     fajrVoice = prefs.getString('adhan_fajr_voice') ?? 'adhan_fajr';
+    if (!voiceNames.containsKey(adhanVoice)) adhanVoice = 'adhan_makkah';
+    if (!voiceNames.containsKey(fajrVoice)) fajrVoice = 'adhan_fajr';
     // Ask for notification permission when the prayer timetable opens.
     // The Android exact-alarm special access remains a separate user action.
     try {
@@ -356,7 +358,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
         const SizedBox(height: 7),
         Row(children: [
           Expanded(child: DropdownButtonFormField<String>(
-            initialValue: voiceNames.containsKey(value) ? value : 'adhan_voice_1',
+            initialValue: voiceNames.containsKey(value) ? value : 'adhan_makkah',
             isExpanded: true,
             decoration: const InputDecoration(
               isDense: true, border: OutlineInputBorder(),
@@ -554,7 +556,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                 ],
                 const Padding(
                   padding: EdgeInsets.all(10),
-                  child: Text('أذان الحرم المكي والشيخ ماهر المعيقلي والشيخ مشاري العفاسي يتطلب تسجيلات أصلية مسموحًا بإعادة توزيعها. الأصوات الحالية لم تُنسب إليهم.',
+                  child: Text('تقدر تسمع الصوت قبل اختياره. صوت المعيقلي لم يُضف بعد، وأذان الفجر له اختيار مستقل.',
                     style: TextStyle(fontSize: 12, color: _forest, height: 1.5)),
                 ),
                 const Divider(),
