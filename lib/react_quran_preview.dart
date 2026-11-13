@@ -152,10 +152,11 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
     if (web == null) return;
     // The page is always light paper with dark Quran text. A previous
     // dark-theme override made the original cream page nearly illegible.
-    final background = eyeComfort ? '#F1E4C6' : '#FFF9EC';
+    final background = eyeComfort ? '#F1E4C6' : (darkReading ? '#E8D8BA' : '#FFF9EC');
     final foreground = eyeComfort ? '#332E25' : '#172820';
     await web.setBackgroundColor(eyeComfort
-        ? const Color(0xFFF1E4C6) : const Color(0xFFFFF9EC));
+        ? const Color(0xFFF1E4C6) : (darkReading
+          ? const Color(0xFFE8D8BA) : const Color(0xFFFFF9EC)));
     try {
       await web.runJavaScript("""
         (() => {
@@ -168,7 +169,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
           style.textContent = 'html, body, #root, main, .reader, .page-surface {' +
             'background-color: $background !important; color: $foreground !important;}' +
             '.reader, .reader * { color: $foreground !important; }' +
-            '.reader svg text, .reader svg tspan, .reader svg path {' +
+            '.reader svg text, .reader svg tspan {' +
             'fill: $foreground !important; }';
         })();
       """);
@@ -217,7 +218,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: eyeComfort ? const Color(0xFFF1E4C6) : const Color(0xFFFFF9EC),
+    backgroundColor: eyeComfort ? const Color(0xFFF1E4C6) : (darkReading ? const Color(0xFFE8D8BA) : const Color(0xFFFFF9EC)),
     appBar: AppBar(
       backgroundColor: const Color(0xFF073E35),
       foregroundColor: Colors.white,
@@ -233,7 +234,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
           onPressed: _toggleEyeComfort,
           icon: Icon(eyeComfort ? Icons.visibility : Icons.visibility_outlined)),
         IconButton(
-          tooltip: darkReading ? 'الوضع الفاتح' : 'الوضع الأخضر الداكن',
+          tooltip: darkReading ? 'خلفية كريمية' : 'خلفية ورقية داكنة',
           onPressed: _toggleReadingTheme,
           icon: Icon(darkReading ? Icons.light_mode_outlined : Icons.dark_mode_outlined)),
         IconButton(
