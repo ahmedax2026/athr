@@ -52,9 +52,14 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
             readerReady = true;
             await _applyZoom();
             await _applyReadingTheme();
-            await _installSwipeNavigation();
-            try { await web.runJavaScript('window.__athrCurrentPage = $page'); } catch (_) {}
+            await _configureReaderBounds();
             if (mounted) setState(() { loading = false; error = null; });
+          }
+          if (data['type'] == 'partEnd' && mounted) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('انتهى الجزء. اضغط «أتممت قراءة الجزء» أسفل الصفحة.'),
+              duration: Duration(seconds: 3)));
           }
           if (data['type'] == 'page' && data['page'] is num) {
             final reported = (data['page'] as num).toInt();
@@ -63,7 +68,6 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
               await web.runJavaScript('window.setQuranPage && window.setQuranPage($next)');
             }
             if (mounted) setState(() => page = next);
-            try { await web.runJavaScript('window.__athrCurrentPage = $next'); } catch (_) {}
             widget.onPage?.call(next);
             await prefs.setInt('react_quran_last_page', next);
           }
@@ -72,10 +76,10 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
     await web.setNavigationDelegate(NavigationDelegate(
         onPageFinished: (_) async {
           try {
-            await web.runJavaScript('window.setQuranPage && window.setQuranPage($page)');
+            await _configureReaderBounds();
             await _applyZoom();
             await _applyReadingTheme();
-            await _installSwipeNavigation();
+            await _configureReaderBounds();
           } catch (_) { /* Show bundled page even if JS bridge is unavailable. */ }
           // Do not mistake a loaded HTML shell for a successfully rendered Quran.
           await Future<void>.delayed(const Duration(seconds: 3));
@@ -98,41 +102,14 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
     }
   }
 
-  Future<void> _installSwipeNavigation() async {
+  Future<void> _configureReaderBounds() async {
     final web = controller;
     if (web == null) return;
-    // Keep pagination within the selected juz even when the embedded
-    // Ottoman reader attempts to navigate beyond its page boundaries.
     try {
-      await web.runJavaScript("""
-        (() => {
-          if (window.__athrSwipeInstalled) return;
-          window.__athrSwipeInstalled = true;
-          const min = ${widget.firstPage}, max = ${widget.lastPage};
-          let x = null, y = null;
-          document.addEventListener('touchstart', e => {
-            if (e.touches.length !== 1) { x = null; return; }
-            x = e.touches[0].clientX;
-            y = e.touches[0].clientY;
-          }, {passive:true});
-          document.addEventListener('touchend', e => {
-            if (x === null || !e.changedTouches.length) return;
-            const dx = e.changedTouches[0].clientX - x;
-            const dy = e.changedTouches[0].clientY - y;
-            x = null;
-            if (Math.abs(dx) < 65 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-            const current = Number(window.__athrCurrentPage || $page);
-            const target = Math.max(min, Math.min(max, current + (dx < 0 ? 1 : -1)));
-            if (typeof window.setQuranPage === 'function') window.setQuranPage(target);
-          }, {passive:true});
-          // Intercept page bridge notifications so navigation never leaves this part.
-          const original = window.setQuranPage;
-          if (typeof original === 'function') {
-            window.setQuranPage = p => original(Math.max(min, Math.min(max, Number(p))));
-          }
-        })();
-      """);
-    } catch (_) { /* Existing controls remain available. */ }
+      await web.runJavaScript(
+        'window.setQuranBounds && window.setQuranBounds(${widget.firstPage}, ${widget.lastPage})');
+      await web.runJavaScript('window.setQuranPage && window.setQuranPage($page)');
+    } catch (_) { /* Web reader has not initialized yet. */ }
   }
 
   Future<void> _applyReadingTheme() async {
@@ -179,7 +156,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
     if (controller == null) return;
     try {
       await controller!.runJavaScript(
-        "document.querySelector('.reader > div')?.style.setProperty('zoom', '$zoom')");
+        'window.setQuranZoom && window.setQuranZoom($zoom)');
     } catch (_) {}
   }
 
@@ -251,7 +228,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
             Text(error!, textAlign: TextAlign.center),
           ]),
         )),
-      if (widget.lastPage < 604 && page == widget.lastPage && !loading && error == null)
+      if ((widget.firstPage != 1 || widget.lastPage != 604) && page == widget.lastPage && !loading && error == null)
         Positioned(bottom: 18, left: 16, right: 16,
           child: SafeArea(top: false, child: FilledButton.icon(
             onPressed: () => Navigator.pop(context, true),
