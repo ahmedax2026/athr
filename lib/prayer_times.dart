@@ -249,7 +249,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     if (time == null || zone == null) return '--:--';
     final t = tz.TZDateTime.from(time, zone!);
     final hour = t.hour % 12 == 0 ? 12 : t.hour % 12;
-    return '\${hour.toString().padLeft(2, '0')}:\${t.minute.toString().padLeft(2, '0')} \${t.hour < 12 ? 'ص' : 'م'}';
+    return '${hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')} ${t.hour < 12 ? 'ص' : 'م'}';
   }
 
   String _remaining() {
@@ -301,7 +301,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
               style: const TextStyle(fontSize: 39, color: Colors.white,
                   fontWeight: FontWeight.w900, letterSpacing: 2)),
             const SizedBox(height: 8),
-            Text(active ? 'موعد الصلاة: \${_clock(nextTime)}' : 'المواقيت حسب موقع المدينة',
+            Text(active ? 'موعد الصلاة: ${_clock(nextTime)}' : 'المواقيت حسب موقع المدينة',
               style: const TextStyle(color: Colors.white70, fontSize: 15)),
           ]),
         ),
