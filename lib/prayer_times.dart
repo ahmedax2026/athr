@@ -534,8 +534,11 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                     refresh(() {});
                     if (value) {
                       final status = await PrayerNotifications.status();
-                      if (!status.exact) await _enablePreciseReminders();
-                      else await _schedule();
+                      if (!status.exact) {
+                        await _enablePreciseReminders();
+                      } else {
+                        await _schedule();
+                      }
                     } else {
                       await _schedule();
                     }
@@ -620,8 +623,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
               ],
             ),
           ),
-        ),
-      );
+        );
         },
       )),
     ).whenComplete(() { _refreshPermissionSheet = null; });
