@@ -9,6 +9,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone_finder/timezone_finder.dart';
 import 'prayer_notifications.dart';
+import 'adhan_catalog.dart';
 
 const _forest = Color(0xFF063D33);
 const _gold = Color(0xFFD9BC7D);
@@ -78,6 +79,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   String adhanVoice = 'adhan_makkah';
   String fajrVoice = 'adhan_makkah';
   String? previewingVoice;
+  List<Map<String, dynamic>> customVoices = [];
+  bool downloadingVoice = false;
   static const voiceNames = <String, String>{
     'adhan_makkah': 'أذان الحرم المكي',
     'adhan_afasy': 'أذان مشاري العفاسي',
@@ -205,8 +208,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     adhanEnabled = prefs.getBool('adhan') ?? false;
     adhanVoice = prefs.getString('adhan_voice') ?? 'adhan_makkah';
     fajrVoice = prefs.getString('adhan_fajr_voice') ?? 'adhan_makkah';
-    if (!voiceNames.containsKey(adhanVoice)) adhanVoice = 'adhan_makkah';
-    if (!voiceNames.containsKey(fajrVoice)) fajrVoice = 'adhan_makkah';
+    adhanVoice = await AdhanCatalog.availableVoice(adhanVoice);
+    fajrVoice = await AdhanCatalog.availableVoice(fajrVoice);
+    unawaited(_loadCustomVoices());
     // Show saved prayer times immediately. Never block the page on permission
     // prompts, notification scheduling, GPS, or reverse geocoding.
     if (latitude != null && longitude != null) {
@@ -500,6 +504,40 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     }
   }
 
+  Future<void> _loadCustomVoices() async {
+    final items = await AdhanCatalog.load();
+    if (mounted) setState(() => customVoices = items);
+  }
+
+  Future<void> _chooseCustomVoice() async {
+    await _loadCustomVoices();
+    if (!mounted) return;
+    final chosen = await showDialog<Map<String, dynamic>>(context: context, builder: (ctx) => SimpleDialog(
+      title: const Text('أصوات الأذان الإضافية'),
+      children: [
+        if (customVoices.isEmpty) const Padding(padding: EdgeInsets.all(16), child: Text('لا توجد أصوات إضافية منشورة')),
+        for (final item in customVoices)
+          SimpleDialogOption(onPressed: () => Navigator.pop(ctx, item), child: Text(item['name'].toString())),
+      ],
+    ));
+    if (chosen == null || !mounted || downloadingVoice) return;
+    setState(() => downloadingVoice = true);
+    try {
+      final id = chosen['id'].toString();
+      await AdhanCatalog.download(id, chosen['url'].toString());
+      if (!mounted) return;
+      await _setVoice('adhan_voice', id);
+      if (!mounted) return;
+      await _setVoice('adhan_fajr_voice', id);
+      if (!mounted) return;
+      await _previewVoice(id, forcePlay: true);
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر تنزيل الصوت. تحقق من الرابط والاتصال.')));
+    } finally {
+      if (mounted) setState(() => downloadingVoice = false);
+    }
+  }
+
   Future<void> _setVoice(String key, String value) async {
     // Immediate visual selection; audio is played only by the preview button.
     if (!mounted) return;
@@ -525,7 +563,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       await adhanPreview.stop();
       if (!mounted) return;
       setState(() => previewingVoice = null);
-      await adhanPreview.play(AssetSource('adhan/$voice.mp3'));
+      await adhanPreview.play(AdhanCatalog.validId.hasMatch(voice)
+          ? DeviceFileSource(await AdhanCatalog.localPath(voice))
+          : AssetSource('adhan/$voice.mp3'));
       if (mounted) setState(() => previewingVoice = voice);
     } catch (e) {
       if (mounted) {
@@ -886,6 +926,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                                   child: FilledButton(
                                     onPressed: () async {
                                       await _setVoice('adhan_voice', entry.key);
+                                      await _setVoice('adhan_fajr_voice', entry.key);
                                       refresh(() {});
                                     },
                                     style: FilledButton.styleFrom(
@@ -921,6 +962,14 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                               maxLines: 1, style: TextStyle(
                                 fontSize: 10, color: Color(0xFF74664D))),
                           ]),
+                      ),
+                      TextButton.icon(
+                        onPressed: downloadingVoice ? null : () async {
+                          await _chooseCustomVoice();
+                          refresh(() {});
+                        },
+                        icon: const Icon(Icons.library_music_outlined),
+                        label: Text(downloadingVoice ? 'جارٍ تنزيل الصوت...' : 'أصوات إضافية • ${customVoices.where((v) => v['id'] == adhanVoice).map((v) => v['name']).firstOrNull ?? 'اختيار صوت'}'),
                       ),
                       const SizedBox(height: 9),
                       _settingsToggle(
