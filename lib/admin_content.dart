@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'prayer_admin_policy.dart';
 
 class AdminContentEditor extends StatefulWidget {
   const AdminContentEditor({super.key, required this.document, required this.title,
@@ -36,7 +37,7 @@ class _AdminContentEditorState extends State<AdminContentEditor> {
         final value = doc.data()?[field.$1];
         controllers[field.$1]!.text = _isSwitch(field.$1)
             ? (value.toString() != 'false').toString()
-            : (value ?? (field.$1 == 'tapCount' ? '3' : field.$1 == 'adhanLateMinutes' ? '2' : field.$1 == 'testDelaySeconds' ? '10' : '')).toString();
+            : (value ?? (field.$1 == 'tapCount' ? '3' : field.$1 == 'adhanLateMinutes' ? '2' : field.$1 == 'testDelaySeconds' ? '10' : PrayerAdminPolicy.clockDefaults[field.$1] ?? '')).toString();
       }
     } catch (_) {
       error = 'تعذر تحميل البيانات. تأكد من الاتصال والصلاحيات.';
@@ -54,6 +55,12 @@ class _AdminContentEditorState extends State<AdminContentEditor> {
 
   Future<void> save() async {
     if (loading || saving) return;
+    for (final key in PrayerAdminPolicy.clockDefaults.keys) {
+      if (controllers.containsKey(key) && !PrayerAdminPolicy.validClock(controllers[key]!.text)) {
+        setState(() => error = 'اختر وقتًا صحيحًا لكل تذكير.');
+        return;
+      }
+    }
     if (controllers.containsKey('testDelaySeconds')) {
       final seconds = int.tryParse(controllers['testDelaySeconds']!.text.trim());
       if (seconds == null || seconds < 5 || seconds > 120) {
@@ -114,6 +121,21 @@ class _AdminContentEditorState extends State<AdminContentEditor> {
                 title: Text(field.$2.split(':').first),
                 value: controllers[field.$1]!.text != 'false',
                 onChanged: saving ? null : (value) => setState(() => controllers[field.$1]!.text = value.toString()),
+              ))
+            else if (PrayerAdminPolicy.clockDefaults.containsKey(field.$1))
+              Card(child: ListTile(
+                leading: const Icon(Icons.schedule_rounded),
+                title: Text(field.$2),
+                subtitle: Text(controllers[field.$1]!.text, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
+                trailing: const Icon(Icons.edit_calendar_outlined),
+                onTap: saving ? null : () async {
+                  final current = controllers[field.$1]!.text.split(':');
+                  final picked = await showTimePicker(context: context,
+                    initialTime: TimeOfDay(hour: int.tryParse(current.first) ?? 8, minute: int.tryParse(current.last) ?? 0));
+                  if (picked != null && mounted) {
+                    setState(() => controllers[field.$1]!.text = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}');
+                  }
+                },
               ))
             else if (field.$1 == 'tapCount')
               DropdownButtonFormField<String>(

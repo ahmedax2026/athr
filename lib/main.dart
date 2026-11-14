@@ -317,11 +317,12 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Map<String, dynamic> config = {};
   Timer? _scheduleRefresh;
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scheduleRefresh?.cancel();
     super.dispose();
   }
@@ -347,7 +348,15 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) { KhatmaPush.homeReady(); _permission(); _refreshConfig(); });
+  }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_refreshDaily());
+  }
+  Future<void> _refreshDaily() async {
+    try { await refreshDailyRemindersFromCache(); } catch (_) {}
   }
   Future<void> _permission() async {
     try {
@@ -366,6 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _scheduleRefresh = Timer(const Duration(milliseconds: 700), () async {
           try {
             await refreshPrayerScheduleFromCache();
+            await _refreshDaily();
           } catch (_) {
             // Keep the home interface responsive if scheduling is unavailable.
           }
@@ -427,6 +437,7 @@ class _HomeScreenState extends State<HomeScreen> {
               }
               await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AdminSessionScreen()));
               await _refreshConfig();
+              unawaited(_refreshDaily());
             },
             icon: const Icon(Icons.admin_panel_settings_outlined),
           ),

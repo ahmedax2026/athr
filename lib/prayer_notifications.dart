@@ -90,7 +90,15 @@ class PrayerNotifications {
 
   /// Separate notification IDs keep optional daily content independent from
   /// prayer-time notifications (which use IDs 1000–3999).
+  static Future<void> _dailyQueue = Future<void>.value();
   static Future<void> syncDailyReminders({
+    required tz.Location zone, required bool azkar, required bool dailyDua,
+  }) {
+    final operation = _dailyQueue.then((_) => _syncDailyReminders(zone: zone, azkar: azkar, dailyDua: dailyDua));
+    _dailyQueue = operation.catchError((Object _) {});
+    return operation;
+  }
+  static Future<void> _syncDailyReminders({
     required tz.Location zone,
     required bool azkar,
     required bool dailyDua,
@@ -102,6 +110,7 @@ class PrayerNotifications {
       }
     }
     if (!azkar && !dailyDua) return;
+    final policy = await PrayerAdminPolicy.load();
     if (!(await _android?.areNotificationsEnabled() ?? false)) {
       throw StateError('اسمح للتطبيق بإرسال الإشعارات من إعدادات الهاتف');
     }
@@ -114,11 +123,11 @@ class PrayerNotifications {
       final date = tz.TZDateTime(zone, now.year, now.month, now.day + day);
       if (azkar) {
         for (final entry in [
-          (hour: 8, id: 5000 + day * 2, title: 'أذكار الصباح'),
-          (hour: 18, id: 5001 + day * 2, title: 'أذكار المساء'),
+          if (policy.allows('allowMorningAzkar')) (minutes: policy.clockMinutes('morningAzkarTime'), id: 5000 + day * 2, title: 'أذكار الصباح'),
+          if (policy.allows('allowEveningAzkar')) (minutes: policy.clockMinutes('eveningAzkarTime'), id: 5001 + day * 2, title: 'أذكار المساء'),
         ]) {
           final at = tz.TZDateTime(
-            zone, date.year, date.month, date.day, entry.hour);
+            zone, date.year, date.month, date.day, entry.minutes ~/ 60, entry.minutes % 60);
           if (at.isAfter(now)) {
             await _plugin.zonedSchedule(
               id: entry.id,
@@ -131,9 +140,10 @@ class PrayerNotifications {
           }
         }
       }
-      if (dailyDua) {
+      if (dailyDua && policy.allows('allowDailyDua')) {
+        final minutes = policy.clockMinutes('dailyDuaTime');
         final at = tz.TZDateTime(
-          zone, date.year, date.month, date.day, 20, 30);
+          zone, date.year, date.month, date.day, minutes ~/ 60, minutes % 60);
         if (at.isAfter(now)) {
           await _plugin.zonedSchedule(
             id: 6000 + day,
@@ -268,7 +278,9 @@ class PrayerNotifications {
     for (var day = 0; day < days.length; day++) {
       final isha = days[day]['العشاء'];
       if (qiyamEnabled && isha != null) {
-        final at = tz.TZDateTime(zone, isha.year, isha.month, isha.day, 22);
+        final minutes = policy.clockMinutes('qiyamTime');
+        var at = tz.TZDateTime(zone, isha.year, isha.month, isha.day, minutes ~/ 60, minutes % 60);
+        if (minutes < 720) at = tz.TZDateTime(zone, isha.year, isha.month, isha.day + 1, minutes ~/ 60, minutes % 60);
         final afterIsha = isha.add(const Duration(minutes: 45));
         final qiyamAt = afterIsha.isAfter(at) ? afterIsha : at;
         if (qiyamAt.isAfter(now)) {
