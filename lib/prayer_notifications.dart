@@ -67,6 +67,17 @@ class PrayerNotifications {
     return await _android?.canScheduleExactNotifications() ?? false;
   }
 
+  static Future<void> cancelPrayerNotifications() async {
+    await _ensureInitialized();
+    final old = await _plugin.pendingNotificationRequests();
+    for (final item in old) {
+      if (item.id >= 1000 && item.id < 3000) {
+        await _plugin.cancel(id: item.id);
+      }
+    }
+    await _adhanAlarmChannel.invokeMethod<void>('schedule', <Map<String, Object>>[]);
+  }
+
   static Future<void> openNotificationSettings() async {
     await _ensureInitialized();
     await _android?.openAppNotificationSettings();
@@ -117,7 +128,13 @@ class PrayerNotifications {
     required int reminderMinutes,
   }) async {
     await _ensureInitialized();
+    final preferences = await SharedPreferences.getInstance();
+    if (!(preferences.getBool('athr_notifications_opt_in') ?? true)) {
+      await cancelPrayerNotifications();
+      return 0;
+    }
     if (!(await _android?.areNotificationsEnabled() ?? false)) {
+      await cancelPrayerNotifications();
       throw StateError('إشعارات التطبيق مقفولة. افتح إعدادات الإشعارات واسمح بها.');
     }
     // Don't erase unrelated notifications from other parts of the app.
@@ -128,7 +145,6 @@ class PrayerNotifications {
       }
     }
 
-    final preferences = await SharedPreferences.getInstance();
     final useAdhan = preferences.getBool('adhan') ?? false;
     final normalVoice = preferences.getString('adhan_voice') ?? 'adhan_makkah';
     const choices = {'adhan_makkah', 'adhan_afasy'};
