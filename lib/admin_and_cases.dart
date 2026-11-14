@@ -273,24 +273,245 @@ class _CaseEditorScreenState extends State<CaseEditorScreen> {
   );
 }
 
-class PublicCasesScreen extends StatelessWidget {
+class PublicCasesScreen extends StatefulWidget {
   const PublicCasesScreen({super.key});
   @override
+  State<PublicCasesScreen> createState() => _PublicCasesScreenState();
+}
+
+class _PublicCasesScreenState extends State<PublicCasesScreen> {
+  int current = 0;
+  @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('فك كرب')),
-    body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('cases')
-        .where('status', isEqualTo: 'published').snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) return const Center(child: Text('تعذر تحميل الحالات حاليًا'));
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final cases = snapshot.data!.docs;
-        if (cases.isEmpty) return const Center(child: Text('لا توجد حالات منشورة حاليًا'));
-        return ListView(padding: const EdgeInsets.all(16), children: [
-          for (final doc in cases)
-            _PublicCaseCard(data: doc.data()),
-        ]);
-      },
+    backgroundColor: const Color(0xFFF7F1E6),
+    appBar: AppBar(
+      title: const Text('فك كرب', style: TextStyle(fontWeight: FontWeight.w900)),
+      centerTitle: true, backgroundColor: const Color(0xFF032D28),
+      foregroundColor: Colors.white),
+    body: SafeArea(child: LayoutBuilder(builder: (context, bounds) {
+      final compact = bounds.maxHeight < 580;
+      return Padding(
+        padding: EdgeInsets.fromLTRB(14, compact ? 6 : 12, 14, 8),
+        child: Column(children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: compact ? 8 : 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF032D28),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: const Color(0xFFD7B672), width: 1.5)),
+            child: Column(children: [
+              Icon(Icons.volunteer_activism_rounded,
+                color: const Color(0xFFD7B672), size: compact ? 24 : 33),
+              Text('فَإِنَّ مَعَ الْعُسْرِ يُسْرًا',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white,
+                  fontSize: compact ? 19 : 23, fontWeight: FontWeight.w900)),
+              const Text('ساهم في تفريج كرب محتاج، ولو بالقليل',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Color(0xFFFBE9B9), fontSize: 12)),
+            ]),
+          ),
+          const SizedBox(height: 10),
+          const Align(alignment: Alignment.centerRight,
+            child: Text('حالات تحتاج دعمك',
+              style: TextStyle(color: Color(0xFF133C31),
+                fontSize: 19, fontWeight: FontWeight.w900))),
+          const SizedBox(height: 7),
+          Expanded(child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance.collection('cases')
+              .where('status', isEqualTo: 'published').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return const Center(child: Text('تعذر تحميل الحالات. حاول لاحقًا'));
+              }
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final cases = snapshot.data!.docs;
+              if (cases.isEmpty) {
+                return const Center(child: Text(
+                  'لا توجد حالات منشورة حاليًا',
+                  style: TextStyle(color: Color(0xFF073E35),
+                    fontWeight: FontWeight.w800)));
+              }
+              return PageView.builder(
+                itemCount: cases.length,
+                onPageChanged: (i) => setState(() => current = i),
+                itemBuilder: (context, i) => _PremiumCasePreview(
+                  data: cases[i].data()),
+              );
+            },
+          )),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              horizontal: 12, vertical: compact ? 5 : 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF032D28),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFD7B672))),
+            child: Column(children: [
+              const Text('رُكن الدعاء',
+                style: TextStyle(color: Color(0xFFD7B672),
+                  fontSize: 16, fontWeight: FontWeight.w900)),
+              const Text('اللهم فرّج همّ كل مهموم ونفّس كرب كل مكروب',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white, fontSize: 12)),
+              TextButton(
+                onPressed: () => Navigator.push(context,
+                  MaterialPageRoute<void>(builder: (_) =>
+                    const _ReliefDuaScreen())),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFD7B672),
+                  minimumSize: const Size(0, 28),
+                  padding: EdgeInsets.zero),
+                child: const Text('اقرأ أدعية تفريج الكرب')),
+            ]),
+          ),
+        ]),
+      );
+    })),
+  );
+}
+
+class _PremiumCasePreview extends StatelessWidget {
+  const _PremiumCasePreview({required this.data});
+  final Map<String, dynamic> data;
+  @override
+  Widget build(BuildContext context) {
+    final goal = (data['goal'] as num?)?.toDouble() ?? 0;
+    final collected = (data['collected'] as num?)?.toDouble() ?? 0;
+    final progress = goal <= 0 ? 0.0 : (collected / goal).clamp(0.0, 1.0);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white, borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFD7B672), width: 1.5),
+        boxShadow: const [BoxShadow(color: Color(0x18032D28),
+          blurRadius: 13, offset: Offset(0, 5))]),
+      child: Column(children: [
+        Container(width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: const BoxDecoration(color: Color(0xFF073E35),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          child: const Row(children: [
+            Icon(Icons.favorite_rounded, color: Color(0xFFD7B672)),
+            SizedBox(width: 9),
+            Expanded(child: Text('حالة تحتاج مساعدتك',
+              style: TextStyle(color: Colors.white,
+                fontSize: 16, fontWeight: FontWeight.w900))),
+          ])),
+        Expanded(child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              Text((data['title'] ?? 'حالة مساعدة').toString(),
+                maxLines: 2, overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFF133C31),
+                  fontSize: 19, fontWeight: FontWeight.w900)),
+              Text((data['details'] ?? '').toString(),
+                maxLines: 2, overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFF526A61),
+                  fontSize: 12)),
+              Row(children: [
+                Expanded(child: Column(children: [
+                  const Text('تم جمعه', style: TextStyle(fontSize: 12)),
+                  FittedBox(child: Text('${collected.toStringAsFixed(0)} ج.م',
+                    style: const TextStyle(color: Color(0xFF073E35),
+                      fontSize: 19, fontWeight: FontWeight.w900))),
+                ])),
+                Expanded(child: Column(children: [
+                  const Text('الهدف', style: TextStyle(fontSize: 12)),
+                  FittedBox(child: Text('${goal.toStringAsFixed(0)} ج.م',
+                    style: const TextStyle(color: Color(0xFF133C31),
+                      fontSize: 19, fontWeight: FontWeight.w900))),
+                ])),
+              ]),
+              ClipRRect(borderRadius: BorderRadius.circular(9),
+                child: LinearProgressIndicator(
+                  value: progress, minHeight: 10,
+                  color: const Color(0xFF126653),
+                  backgroundColor: const Color(0xFFE8E1D5))),
+              Text('${(progress * 100).toStringAsFixed(0)}٪ مكتمل  •  '
+                'المتبقي ${(goal - collected).clamp(0, double.infinity).toStringAsFixed(0)} ج.م',
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11,
+                  color: Color(0xFF133C31), fontWeight: FontWeight.w800)),
+            ]),
+        )),
+        Padding(padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+          child: SizedBox(width: double.infinity, height: 43,
+            child: FilledButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) =>
+                  _CaseDetailsScreen(data: data))),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF073E35),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12))),
+              icon: const Icon(Icons.favorite_border_rounded),
+              label: const Text('عرض التفاصيل والمساهمة',
+                style: TextStyle(fontWeight: FontWeight.w900))))),
+      ]),
+    );
+  }
+}
+
+class _CaseDetailsScreen extends StatelessWidget {
+  const _CaseDetailsScreen({required this.data});
+  final Map<String, dynamic> data;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFFF7F1E6),
+    appBar: AppBar(title: const Text('تفاصيل الحالة'),
+      backgroundColor: const Color(0xFF032D28), foregroundColor: Colors.white),
+    body: ListView(padding: const EdgeInsets.all(14),
+      children: [_PublicCaseCard(data: data)]),
+  );
+}
+
+class _ReliefDuaScreen extends StatelessWidget {
+  const _ReliefDuaScreen();
+  static const prayers = [
+    ('دعاء الكرب', 'لا إله إلا الله العظيم الحليم، لا إله إلا الله رب العرش العظيم، لا إله إلا الله رب السماوات ورب الأرض ورب العرش الكريم.'),
+    ('دعاء الهم والحزن', 'اللهم إني أعوذ بك من الهم والحزن، والعجز والكسل، والبخل والجبن، وضلع الدين وغلبة الرجال.'),
+    ('دعاء ذي النون', 'لا إله إلا أنت سبحانك إني كنت من الظالمين.'),
+    ('دعاء التيسير', 'اللهم لا سهل إلا ما جعلته سهلاً، وأنت تجعل الحزن إذا شئت سهلاً.'),
+  ];
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFFF7F1E6),
+    appBar: AppBar(title: const Text('أدعية تفريج الكرب'),
+      backgroundColor: const Color(0xFF032D28), foregroundColor: Colors.white),
+    body: PageView.builder(
+      itemCount: prayers.length,
+      itemBuilder: (context, i) => Center(child: Container(
+        margin: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(color: Colors.white,
+          borderRadius: BorderRadius.circular(23),
+          border: Border.all(color: const Color(0xFFD7B672), width: 1.5)),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.auto_awesome_rounded,
+            color: Color(0xFFD7B672), size: 32),
+          const SizedBox(height: 14),
+          Text(prayers[i].$1, textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF073E35),
+              fontSize: 21, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 16),
+          Text(prayers[i].$2, textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF133C31),
+              fontSize: 18, height: 1.8)),
+          const SizedBox(height: 16),
+          const Text('اسحب لقراءة الدعاء التالي',
+            style: TextStyle(color: Color(0xFF526A61), fontSize: 12)),
+        ]),
+      ))),
     ),
   );
 }
