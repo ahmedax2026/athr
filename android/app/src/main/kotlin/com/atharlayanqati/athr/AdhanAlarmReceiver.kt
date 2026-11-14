@@ -12,6 +12,9 @@ class AdhanAlarmReceiver : BroadcastReceiver() {
             AdhanScheduler.restore(context)
             return
         }
+        val scheduledAt = intent.getLongExtra("scheduledAt", 0L)
+        // Never start an old adhan just because Android resumes a delayed alarm.
+        if (scheduledAt <= 0L || System.currentTimeMillis() - scheduledAt > 120000L) return
         val voice = intent.getStringExtra("voice") ?: "adhan_makkah"
         val service = Intent(context, AdhanPlaybackService::class.java)
             .putExtra("voice", voice)
@@ -19,8 +22,8 @@ class AdhanAlarmReceiver : BroadcastReceiver() {
         try {
             if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(service)
             else context.startService(service)
-        } catch (_: Exception) {
-            // Device background restrictions may block playback.
+        } catch (e: Exception) {
+            android.util.Log.e("AthrAdhan", "Background playback could not start", e)
         }
     }
 }
