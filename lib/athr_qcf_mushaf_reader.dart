@@ -224,6 +224,8 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
                               )
                             : NotificationListener<OverscrollNotification>(
                                 onNotification: (notification) {
+                                  // Ignore nested QcfPage vertical scrolling.
+                                  if (notification.depth != 0) return false;
                                   if (_page == widget.firstPage ||
                                       _page == widget.lastPage) {
                                     WidgetsBinding.instance.addPostFrameCallback(
@@ -263,7 +265,9 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
                               ? () => _jump(_page - 1) : null,
                           icon: Icon(Icons.chevron_right, color: foreground),
                         ),
-                        Text('$_page / 604', style: TextStyle(
+                        Text(_isLimitedReading
+                          ? 'صفحة $_page • من ${widget.firstPage} إلى ${widget.lastPage}'
+                          : '$_page / 604', style: TextStyle(
                           color: foreground, fontWeight: FontWeight.w700)),
                         IconButton(
                           tooltip: 'الصفحة التالية',
