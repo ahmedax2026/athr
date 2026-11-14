@@ -47,7 +47,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A -f assets/azkar/
+          git add -A -f assets/azkar_vip/
           if ! git diff --cached --quiet; then
             git commit -m "Save generated offline adhkar cards [skip ci]"
             git push origin HEAD:feature/qcf-quran-005
@@ -59,7 +59,7 @@ jobs:
           import json
           from pathlib import Path
           data = json.loads(Path('tool/azkar_data.json').read_text(encoding='utf-8'))
-          manifest = json.loads(Path('assets/azkar/manifest.json').read_text(encoding='utf-8'))
+          manifest = json.loads(Path('assets/azkar_vip/manifest.json').read_text(encoding='utf-8'))
           assert len(data) == len(manifest), 'Adhkar group count mismatch'
           for group, images in zip(data, manifest):
               assert len(group['items']) == len(images), 'Missing adhkar images'
@@ -72,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: athr-azkar-images
-          path: assets/azkar/
+          path: assets/azkar_vip/
           if-no-files-found: error
           retention-days: 14
 
