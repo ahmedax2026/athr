@@ -31,14 +31,16 @@ class MainActivity : FlutterActivity() {
                         } else {
                             val extractor = android.media.MediaExtractor()
                             try {
-                                extractor.setDataSource(file.absolutePath + ".part")
+                                java.io.FileInputStream(file.absolutePath + ".part").use { input ->
+                                    extractor.setDataSource(input.fd)
+                                }
                                 var valid = false
                                 for (i in 0 until extractor.trackCount) {
                                     val format = extractor.getTrackFormat(i)
                                     val mime = format.getString(android.media.MediaFormat.KEY_MIME)
                                     val duration = if (format.containsKey(android.media.MediaFormat.KEY_DURATION))
                                         format.getLong(android.media.MediaFormat.KEY_DURATION) else 0L
-                                    if (mime == "audio/mpeg" && duration in 1000000L..600000000L) {
+                                    if (mime == "audio/mpeg" && (duration == 0L || duration in 1000000L..600000000L)) {
                                         valid = true
                                         break
                                     }

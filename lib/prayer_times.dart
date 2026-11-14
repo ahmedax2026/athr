@@ -528,30 +528,20 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     if (mounted) setState(() => customVoices = items);
   }
 
-  Future<void> _chooseCustomVoice() async {
-    await _loadCustomVoices();
-    if (!mounted) return;
-    final chosen = await showDialog<Map<String, dynamic>>(context: context, builder: (ctx) => SimpleDialog(
-      title: const Text('أصوات الأذان الإضافية'),
-      children: [
-        if (customVoices.isEmpty) const Padding(padding: EdgeInsets.all(16), child: Text('لا توجد أصوات إضافية منشورة')),
-        for (final item in customVoices)
-          SimpleDialogOption(onPressed: () => Navigator.pop(ctx, item), child: Text(item['name'].toString())),
-      ],
-    ));
-    if (chosen == null || !mounted || downloadingVoice) return;
+  Future<void> _selectCatalogVoice(String id) async {
+    if (!mounted || downloadingVoice) return;
     setState(() => downloadingVoice = true);
     try {
-      final id = chosen['id'].toString();
-      await AdhanCatalog.download(id, chosen['url'].toString());
+      if (AdhanCatalog.validId.hasMatch(id)) {
+        final item = customVoices.firstWhere((v) => v['id'] == id);
+        await AdhanCatalog.download(id, item['url'].toString());
+      }
       if (!mounted) return;
       await _setVoice('adhan_voice', id);
       if (!mounted) return;
       await _setVoice('adhan_fajr_voice', id);
-      if (!mounted) return;
-      await _previewVoice(id, forcePlay: true);
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر تنزيل الصوت. تحقق من الرابط والاتصال.')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تنزيل الصوت: $e')));
     } finally {
       if (mounted) setState(() => downloadingVoice = false);
     }
@@ -954,14 +944,18 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                                 fontSize: 14, fontWeight: FontWeight.w900)),
                             const SizedBox(height: 6),
                             Row(children: [
-                              for (final entry in voiceNames.entries)
-                                Expanded(child: Padding(
+                              Expanded(child: LayoutBuilder(builder: (context, limits) => SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(children: [
+                              for (final entry in <String, String>{...voiceNames, for (final voice in customVoices) voice['id'].toString(): voice['name'].toString()}.entries)
+                                SizedBox(width: limits.maxWidth / 2, child: Padding(
                                   padding: const EdgeInsets.only(left: 6),
                                   child: FilledButton(
-                                    onPressed: () async {
-                                      await _setVoice('adhan_voice', entry.key);
-                                      await _setVoice('adhan_fajr_voice', entry.key);
-                                      refresh(() {});
+                                    onPressed: downloadingVoice ? null : () async {
+                                      final pending = _selectCatalogVoice(entry.key);
+                                      if (ctx.mounted) refresh(() {});
+                                      await pending;
+                                      if (ctx.mounted) refresh(() {});
                                     },
                                     style: FilledButton.styleFrom(
                                       backgroundColor: adhanVoice == entry.key
@@ -975,13 +969,14 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                                     child: FittedBox(fit: BoxFit.scaleDown,
                                       child: Text(
                                         entry.key == 'adhan_makkah'
-                                            ? 'الحرم المكي' : 'العفاسي',
+                                            ? 'الحرم المكي' : entry.key == 'adhan_afasy' ? 'العفاسي' : entry.value,
                                         style: const TextStyle(
                                           fontSize: 13, fontWeight: FontWeight.w800))),
                                   ),
                                 )),
+                                ])))),
                               IconButton(
-                                onPressed: () async {
+                                onPressed: downloadingVoice ? null : () async {
                                   await _previewVoice(adhanVoice);
                                   refresh(() {});
                                 },
@@ -992,18 +987,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                                     : Icons.play_circle_fill_rounded,
                                   color: _forest, size: 28)),
                             ]),
-                            const Text('الصوتان محفوظان في التطبيق ويعملان دون إنترنت',
-                              maxLines: 1, style: TextStyle(
+                            Text(downloadingVoice ? 'جارٍ تنزيل الصوت...' : 'مرّر الأصوات أفقيًا • تعمل دون إنترنت بعد التحميل',
+                              maxLines: 1, style: const TextStyle(
                                 fontSize: 10, color: Color(0xFF74664D))),
                           ]),
-                      ),
-                      TextButton.icon(
-                        onPressed: downloadingVoice ? null : () async {
-                          await _chooseCustomVoice();
-                          refresh(() {});
-                        },
-                        icon: const Icon(Icons.library_music_outlined),
-                        label: Text(downloadingVoice ? 'جارٍ تنزيل الصوت...' : 'أصوات إضافية • ${customVoices.where((v) => v['id'] == adhanVoice).map((v) => v['name']).firstOrNull ?? 'اختيار صوت'}'),
                       ),
                       const SizedBox(height: 9),
                       _settingsToggle(

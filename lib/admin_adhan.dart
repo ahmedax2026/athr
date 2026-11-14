@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -12,8 +13,21 @@ class _AdminAdhanScreenState extends State<AdminAdhanScreen> {
   final player = AudioPlayer();
   final ref = FirebaseFirestore.instance.collection('content').doc('adhan_voices');
   bool busy = false;
+  bool previewLoading = false;
+  String? playingId;
+  StreamSubscription<void>? finished;
+  @override
+  void initState() {
+    super.initState();
+    finished = player.onPlayerComplete.listen((_) { if (mounted) setState(() => playingId = null); });
+  }
+  Future<void> stopPreview() async {
+    await player.stop();
+    if (mounted) setState(() => playingId = null);
+  }
   @override
   void dispose() {
+    finished?.cancel();
     player.dispose();
     super.dispose();
   }
@@ -101,17 +115,31 @@ class _AdminAdhanScreenState extends State<AdminAdhanScreen> {
     }
   }
   Future<void> preview(Map<String, dynamic> item) async {
+    if (previewLoading) return;
+    final id = item['id'].toString(), url = item['url'].toString();
+    if (playingId == id) { await stopPreview(); return; }
+    setState(() { previewLoading = true; playingId = null; });
     try {
-      final path = await AdhanCatalog.download(item['id'].toString(), item['url'].toString());
-      if (!mounted) return;
       await player.stop();
-      await player.play(DeviceFileSource(path));
-    } catch (_) { message('تعذرت معاينة الصوت'); }
+      try {
+        await player.play(UrlSource(url)).timeout(const Duration(seconds: 20));
+      } catch (_) {
+        await player.stop();
+        final path = await AdhanCatalog.download(id, url);
+        if (!mounted) return;
+        await player.play(DeviceFileSource(path));
+      }
+      if (mounted) setState(() => playingId = id);
+    } catch (e) {
+      message('تعذرت معاينة الصوت: $e');
+    } finally {
+      if (mounted) setState(() => previewLoading = false);
+    }
   }
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('إدارة أصوات الأذان'), actions: [
-      IconButton(onPressed: () => player.stop(), icon: const Icon(Icons.stop_circle_outlined), tooltip: 'إيقاف المعاينة'),
+      IconButton(onPressed: previewLoading ? null : stopPreview, icon: const Icon(Icons.stop_circle_outlined), tooltip: 'إيقاف المعاينة'),
     ]),
     body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: ref.snapshots(),
@@ -124,12 +152,12 @@ class _AdminAdhanScreenState extends State<AdminAdhanScreen> {
           const Text('الأصوات الأصلية محفوظة دائمًا. أضف تسجيلات مسموح بتوزيعها بروابط MP3 مباشرة.'),
           const SizedBox(height: 12),
           FilledButton.icon(onPressed: busy ? null : () => editVoice(), icon: const Icon(Icons.add), label: const Text('إضافة صوت')),
-          if (busy) const LinearProgressIndicator(),
+          if (busy || previewLoading) const LinearProgressIndicator(),
           for (final item in items) Card(child: ListTile(
             title: Text(item['name'].toString()),
             subtitle: Text(item['url'].toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              IconButton(onPressed: busy ? null : () => preview(item), icon: const Icon(Icons.play_circle_outline), tooltip: 'معاينة'),
+              IconButton(onPressed: busy || previewLoading ? null : () => preview(item), icon: Icon(playingId == item['id'] ? Icons.stop_circle_outlined : Icons.play_circle_outline), tooltip: playingId == item['id'] ? 'إيقاف' : 'معاينة'),
               IconButton(onPressed: busy ? null : () => editVoice(item), icon: const Icon(Icons.edit_outlined), tooltip: 'تعديل'),
               IconButton(onPressed: busy ? null : () => remove(item), icon: const Icon(Icons.delete_outline), tooltip: 'إزالة'),
             ]),
