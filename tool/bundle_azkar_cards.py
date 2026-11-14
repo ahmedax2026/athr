@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw, ImageFont, features
 assert features.check("raqm"), "Arabic text shaping with libraqm is required"
 root = Path(__file__).resolve().parents[1]
 data = json.loads((root / "tool/azkar_data.json").read_text(encoding="utf-8"))
-out = root / "assets/azkar"
+out = root / "assets/azkar_vip"
 out.mkdir(parents=True, exist_ok=True)
 # Replace previous generated images on every run, preserving user originals.
 for old in out.glob("dhikr_*.webp"):
