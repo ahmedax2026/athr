@@ -18,6 +18,14 @@ class MainActivity : FlutterActivity() {
                     } catch (e: Exception) {
                         result.error("ADHAN_ALARM", e.message, null)
                     }
+                } else if (call.method == "testAdhan") {
+                    try {
+                        val voice = call.argument<String>("voice") ?: "adhan_makkah"
+                        AdhanScheduler.test(this, voice)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("ADHAN_TEST", e.message, null)
+                    }
                 } else result.notImplemented()
             }
     }
