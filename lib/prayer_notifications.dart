@@ -15,6 +15,15 @@ class PrayerNotificationStatus {
   final int pending;
 }
 
+@pragma('vm:entry-point')
+void prayerNotificationAction(NotificationResponse response) async {
+  if (response.actionId != 'prayed' || response.payload == null) return;
+  final key = response.payload!;
+  if (!key.startsWith('prayer_done_')) return;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool(key, true);
+}
+
 class PrayerNotifications {
   static const MethodChannel _adhanAlarmChannel = MethodChannel('athr/adhan_alarms');
   static final FlutterLocalNotificationsPlugin _plugin =
@@ -39,6 +48,8 @@ class PrayerNotifications {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     await _plugin.initialize(
       settings: const InitializationSettings(android: android),
+      onDidReceiveNotificationResponse: prayerNotificationAction,
+      onDidReceiveBackgroundNotificationResponse: prayerNotificationAction,
     );
     _initialized = true;
   }
@@ -233,7 +244,7 @@ class PrayerNotifications {
     const prayerNames = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
     final qiyamEnabled = preferences.getBool('qiyam_reminder_enabled') ?? true;
     final followupEnabled = preferences.getBool('prayer_followup_enabled') ?? true;
-    final followupDelay = preferences.getInt('prayer_followup_delay') ?? 10;
+    final followupDelay = 30;
     final now = DateTime.now();
     var count = 0;
     final fullAdhanAlarms = <Map<String, Object>>[];
@@ -284,10 +295,16 @@ class PrayerNotifications {
           if (!done && followAt.isAfter(now)) {
             await _plugin.zonedSchedule(
               id: 3000 + day * 10 + prayer,
-              title: '🤍 هل صليت $name؟',
-              body: 'لو صليت الحمد لله، افتح متابعة الصلاة وعلّم عليها. ربنا يتقبل منك.',
+              title: '🤍 هل صليت صلاة $name؟',
+              body: 'مر نصف ساعة على موعد الصلاة. ربنا يتقبل منك.',
+              payload: 'prayer_done_${dateKey}_$name',
               scheduledDate: tz.TZDateTime.from(followAt, zone),
-              notificationDetails: _details,
+              notificationDetails: const NotificationDetails(android: AndroidNotificationDetails(
+                'athr_prayer_followup_v1', 'متابعة الصلاة',
+                importance: Importance.high, priority: Priority.high,
+                actions: [AndroidNotificationAction('prayed', 'نعم، صليت'),
+                  AndroidNotificationAction('not_yet', 'ليس بعد')],
+              )),
               androidScheduleMode: mode,
             );
             count++;
