@@ -50,7 +50,7 @@ class PrayerNotifications {
     final pending = await _plugin.pendingNotificationRequests();
     return PrayerNotificationStatus(
       enabled: enabled, exact: exact,
-      pending: pending.where((entry) => entry.id >= 1000 && entry.id < 3000).length,
+      pending: pending.where((entry) => entry.id >= 1000 && entry.id < 4000).length,
     );
   }
 
@@ -111,6 +111,28 @@ class PrayerNotifications {
     return fireAt;
   }
 
+
+  static Future<void> cancelFollowUp({
+    required int dayOffset,
+    required int prayerIndex,
+  }) async {
+    await _ensureInitialized();
+    await _plugin.cancel(id: 3000 + dayOffset * 10 + prayerIndex);
+  }
+
+  static Future<void> showQiyamPreview() async {
+    await _ensureInitialized();
+    if (!(await _android?.areNotificationsEnabled() ?? false)) {
+      throw StateError('اسمح بإشعارات التطبيق أولًا');
+    }
+    await _plugin.show(
+      id: 902,
+      title: '🌙 ركعتان تنيران ليلتك',
+      body: 'لا تنسَ قيام الليل 🤍 حتى لو ركعتين خفيفتين قبل النوم.',
+      notificationDetails: _details,
+    );
+  }
+
   static Future<int> schedule({
     required List<Map<String, DateTime>> days,
     required tz.Location zone,
@@ -123,7 +145,7 @@ class PrayerNotifications {
     // Don't erase unrelated notifications from other parts of the app.
     final old = await _plugin.pendingNotificationRequests();
     for (final item in old) {
-      if (item.id >= 1000 && item.id < 3000) {
+      if (item.id >= 1000 && item.id < 4000) {
         await _plugin.cancel(id: item.id);
       }
     }
@@ -149,10 +171,34 @@ class PrayerNotifications {
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle;
     const prayerNames = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
+    final qiyamEnabled = preferences.getBool('qiyam_reminder_enabled') ?? true;
+    final followupEnabled = preferences.getBool('prayer_followup_enabled') ?? true;
+    final followupDelay = preferences.getInt('prayer_followup_delay') ?? 30;
     final now = DateTime.now();
     var count = 0;
     final fullAdhanAlarms = <Map<String, Object>>[];
     for (var day = 0; day < days.length; day++) {
+      final isha = days[day]['العشاء'];
+      if (qiyamEnabled && isha != null) {
+        final at = tz.TZDateTime(zone, isha.year, isha.month, isha.day, 22);
+        final afterIsha = isha.add(const Duration(minutes: 45));
+        final qiyamAt = afterIsha.isAfter(at) ? afterIsha : at;
+        if (qiyamAt.isAfter(now)) {
+          await _plugin.zonedSchedule(
+            id: 2000 + day,
+            title: '🌙 ركعتان تنيران ليلتك',
+            body: 'لا تنسَ قيام الليل 🤍 حتى لو ركعتين خفيفتين قبل النوم.',
+            scheduledDate: tz.TZDateTime.from(qiyamAt, zone),
+            notificationDetails: _details,
+            androidScheduleMode: mode,
+          );
+          fullAdhanAlarms.add({
+            'at': qiyamAt.millisecondsSinceEpoch,
+            'voice': 'qiyam',
+          });
+          count++;
+        }
+      }
       for (var prayer = 0; prayer < prayerNames.length; prayer++) {
         final name = prayerNames[prayer];
         final prayerTime = days[day][name];
@@ -176,6 +222,24 @@ class PrayerNotifications {
             androidScheduleMode: mode,
           );
           count++;
+        }
+        if (followupEnabled && followupDelay > 0) {
+          final followAt = prayerTime.add(Duration(minutes: followupDelay));
+          final dateKey = '${prayerTime.year.toString().padLeft(4, '0')}-'
+              '${prayerTime.month.toString().padLeft(2, '0')}-'
+              '${prayerTime.day.toString().padLeft(2, '0')}';
+          final done = preferences.getBool('prayer_done_${dateKey}_$name') ?? false;
+          if (!done && followAt.isAfter(now)) {
+            await _plugin.zonedSchedule(
+              id: 3000 + day * 10 + prayer,
+              title: '🤍 هل صليت $name؟',
+              body: 'لو صليت الحمد لله، افتح متابعة الصلاة وعلّم عليها. ربنا يتقبل منك.',
+              scheduledDate: tz.TZDateTime.from(followAt, zone),
+              notificationDetails: _details,
+              androidScheduleMode: mode,
+            );
+            count++;
+          }
         }
         if (reminderMinutes > 0) {
           final before = prayerTime.subtract(Duration(minutes: reminderMinutes));
