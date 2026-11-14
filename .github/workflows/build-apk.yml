@@ -9,7 +9,7 @@ on:
       - feature/qcf-quran-005
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -41,6 +41,17 @@ jobs:
         run: |
           python3 -m pip install --quiet Pillow
           python3 tool/bundle_azkar_cards.py
+
+      - name: Save generated adhkar images in the repository
+        if: github.ref == 'refs/heads/feature/qcf-quran-005'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f assets/azkar/manifest.json assets/azkar/*.webp
+          if ! git diff --cached --quiet; then
+            git commit -m "Save generated offline adhkar cards [skip ci]"
+            git push origin HEAD:feature/qcf-quran-005
+          fi
 
       - name: Verify every adhkar entry has an offline image
         run: |
