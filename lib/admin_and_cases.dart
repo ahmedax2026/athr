@@ -214,6 +214,7 @@ class AdminDashboardScreen extends StatelessWidget {
                     title: 'إدارة التنبيهات والأذان',
                     fields: [
                       ('allowAdhan', 'السماح بتشغيل الأذان'),
+                      ('adhanLateMinutes', 'إلغاء الأذان إذا تأخر (بالدقائق، 1 إلى 10، الافتراضي 2)'),
                       ('allowAdvance', 'السماح بالتنبيه قبل الصلاة'),
                       ('allowFollowup', 'السماح بمتابعة الصلاة'),
                       ('allowQiyam', 'السماح بتنبيه قيام الليل'),

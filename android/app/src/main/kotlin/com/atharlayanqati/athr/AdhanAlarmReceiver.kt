@@ -17,7 +17,8 @@ class AdhanAlarmReceiver : BroadcastReceiver() {
         val voice = intent.getStringExtra("voice") ?: "adhan_makkah"
         val now = System.currentTimeMillis()
         val isAdhan = voice != "reminder" && voice != "qiyam"
-        if (scheduledAt <= 0L || now < scheduledAt || now - scheduledAt > (if (isAdhan) 15000L else 120000L)) return
+        val limitMs = if (isAdhan) intent.getIntExtra("lateLimitSeconds", 120).coerceIn(60, 600) * 1000L else 120000L
+        if (scheduledAt <= 0L || now < scheduledAt || now - scheduledAt >= limitMs) return
         if (isAdhan && Build.VERSION.SDK_INT >= 31 && !(context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager).canScheduleExactAlarms()) return
         val service = Intent(context, AdhanPlaybackService::class.java)
             .putExtra("voice", voice)

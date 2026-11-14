@@ -237,6 +237,7 @@ class PrayerNotifications {
 
     final preferences = await SharedPreferences.getInstance();
     final policy = await PrayerAdminPolicy.load();
+    final lateLimitSeconds = policy.minutes('adhanLateMinutes', 2, 1, 10) * 60;
     final useAdhan = (preferences.getBool('adhan') ?? false) && policy.allows('allowAdhan');
     final normalVoice = preferences.getString('adhan_voice') ?? 'adhan_makkah';
     final normalAvailable = await AdhanCatalog.availableVoice(normalVoice);
@@ -288,6 +289,7 @@ class PrayerNotifications {
             fullAdhanAlarms.add({
               'at': prayerTime.millisecondsSinceEpoch,
               'voice': chosen,
+              'lateLimitSeconds': lateLimitSeconds,
               'prayer': name,
             });
           }

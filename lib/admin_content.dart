@@ -36,7 +36,7 @@ class _AdminContentEditorState extends State<AdminContentEditor> {
         final value = doc.data()?[field.$1];
         controllers[field.$1]!.text = _isSwitch(field.$1)
             ? (value.toString() != 'false').toString()
-            : (value ?? (field.$1 == 'tapCount' ? '3' : '')).toString();
+            : (value ?? (field.$1 == 'tapCount' ? '3' : field.$1 == 'adhanLateMinutes' ? '2' : '')).toString();
       }
     } catch (_) {
       error = 'تعذر تحميل البيانات. تأكد من الاتصال والصلاحيات.';
@@ -54,6 +54,13 @@ class _AdminContentEditorState extends State<AdminContentEditor> {
 
   Future<void> save() async {
     if (loading || saving) return;
+    if (controllers.containsKey('adhanLateMinutes')) {
+      final minutes = int.tryParse(controllers['adhanLateMinutes']!.text.trim());
+      if (minutes == null || minutes < 1 || minutes > 10) {
+        setState(() => error = 'أدخل مهلة تأخير الأذان من دقيقة إلى 10 دقائق.');
+        return;
+      }
+    }
     if (controllers.containsKey('followupMinutes')) {
       final raw = controllers['followupMinutes']!.text.trim();
       final minutes = int.tryParse(raw);
@@ -110,6 +117,7 @@ class _AdminContentEditorState extends State<AdminContentEditor> {
               )
             else TextField(
               controller: controllers[field.$1],
+              keyboardType: field.$1 == 'adhanLateMinutes' ? TextInputType.number : null,
               minLines: field.$1 == 'prayer' ? 3 : 1,
               maxLines: field.$1 == 'prayer' ? 5 : 1,
               decoration: InputDecoration(labelText: field.$2,

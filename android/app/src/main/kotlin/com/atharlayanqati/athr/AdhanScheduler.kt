@@ -34,9 +34,10 @@ object AdhanScheduler {
             if (voice != "adhan_makkah" && voice != "adhan_afasy" && voice != "reminder" && voice != "qiyam" && !Regex("remote_[a-zA-Z0-9_]{1,64}").matches(voice)) continue
             val id = index
             val prayer = entry["prayer"] as? String ?: ""
-            val json = JSONObject().put("id", id).put("at", at).put("voice", voice).put("prayer", prayer)
+            val lateLimitSeconds = ((entry["lateLimitSeconds"] as? Number)?.toInt() ?: 120).coerceIn(60, 600)
+            val json = JSONObject().put("id", id).put("at", at).put("voice", voice).put("prayer", prayer).put("lateLimitSeconds", lateLimitSeconds)
             stored.put(json)
-            set(context, id, at, voice, prayer)
+            set(context, id, at, voice, prayer, lateLimitSeconds)
         }
         prefs.edit().putString(KEY, stored.toString()).apply()
     }
@@ -48,7 +49,7 @@ object AdhanScheduler {
             val e = entries.optJSONObject(i) ?: continue
             val at = e.optLong("at")
             if (at > System.currentTimeMillis()) {
-                set(context, e.optInt("id"), at, e.optString("voice", "adhan_makkah"), e.optString("prayer", ""))
+                set(context, e.optInt("id"), at, e.optString("voice", "adhan_makkah"), e.optString("prayer", ""), e.optInt("lateLimitSeconds", 120))
             }
         }
     }
@@ -59,12 +60,13 @@ object AdhanScheduler {
         set(context, 9999, System.currentTimeMillis() + 120000L, voice, "تجربة الأذان")
     }
 
-    private fun set(context: Context, id: Int, at: Long, voice: String, prayer: String) {
+    private fun set(context: Context, id: Int, at: Long, voice: String, prayer: String, lateLimitSeconds: Int = 120) {
         val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, AdhanAlarmReceiver::class.java)
             .putExtra("voice", voice)
             .putExtra("prayer", prayer)
             .putExtra("scheduledAt", at)
+            .putExtra("lateLimitSeconds", lateLimitSeconds.coerceIn(60, 600))
         val request = PendingIntent.getBroadcast(context, BASE + id, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         if (Build.VERSION.SDK_INT >= 31 && !alarm.canScheduleExactAlarms()) {
