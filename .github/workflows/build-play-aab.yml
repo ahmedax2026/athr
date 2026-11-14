@@ -1,13 +1,16 @@
-name: Build signed Google Play AAB
+name: Build Google Play AAB for local signing
 
 on:
+  push:
+    branches: [release/play-1.0.0]
+    paths: ['.github/workflows/build-play-aab.yml']
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  build-play-aab:
+  build-aab:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -40,6 +43,11 @@ jobs:
           python3 -m pip install --quiet Pillow
           python3 tool/normalize_azkar_images.py
 
+      - name: Optimize build-only assets and validate audio duration
+        run: |
+          command -v ffmpeg >/dev/null || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+          python3 tool/optimize_build_assets.py
+
       - name: Verify every adhkar entry has an offline image
         run: |
           python3 - <<'PY'
@@ -54,14 +62,6 @@ jobs:
                   assert (Path('assets/azkar') / filename).stat().st_size > 1000, filename
           print('Verified every adhkar entry maps to a real offline image')
           PY
-
-      - name: Upload adhkar images for visual review
-        uses: actions/upload-artifact@v4
-        with:
-          name: athr-azkar-images
-          path: assets/azkar/
-          if-no-files-found: error
-          retention-days: 14
 
       - name: Install complete adhan recordings for native background playback
         run: python3 tool/install_adhan_android.py
@@ -99,47 +99,17 @@ jobs:
       - name: Run tests
         run: flutter test
 
-      - name: Verify upload-key GitHub secrets are configured
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ATHR_UPLOAD_KEYSTORE_BASE64 }}
-          STORE_PASSWORD: ${{ secrets.ATHR_UPLOAD_STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ATHR_UPLOAD_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ATHR_UPLOAD_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          test -n "$KEYSTORE_BASE64" || { echo "Missing secret ATHR_UPLOAD_KEYSTORE_BASE64"; exit 1; }
-          test -n "$STORE_PASSWORD" || { echo "Missing secret ATHR_UPLOAD_STORE_PASSWORD"; exit 1; }
-          test -n "$KEY_ALIAS" || { echo "Missing secret ATHR_UPLOAD_KEY_ALIAS"; exit 1; }
-          test -n "$KEY_PASSWORD" || { echo "Missing secret ATHR_UPLOAD_KEY_PASSWORD"; exit 1; }
+      - name: Build Android App Bundle
+        run: flutter build appbundle --release
 
-      - name: Decode upload keystore securely
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ATHR_UPLOAD_KEYSTORE_BASE64 }}
+      - name: Verify bundle structure
         run: |
-          set -euo pipefail
-          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/athr-upload.jks"
-          chmod 600 "$RUNNER_TEMP/athr-upload.jks"
-          test -s "$RUNNER_TEMP/athr-upload.jks"
+          python3 -c 'import zipfile; z=zipfile.ZipFile("build/app/outputs/bundle/release/app-release.aab"); assert z.testzip() is None; assert "BundleConfig.pb" in z.namelist(); assert "base/lib/arm64-v8a/libflutter.so" in z.namelist()'
 
-      - name: Build signed Android App Bundle for Google Play
-        env:
-          ATHR_UPLOAD_KEYSTORE: ${{ runner.temp }}/athr-upload.jks
-          ATHR_UPLOAD_STORE_PASSWORD: ${{ secrets.ATHR_UPLOAD_STORE_PASSWORD }}
-          ATHR_UPLOAD_KEY_ALIAS: ${{ secrets.ATHR_UPLOAD_KEY_ALIAS }}
-          ATHR_UPLOAD_KEY_PASSWORD: ${{ secrets.ATHR_UPLOAD_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          flutter build appbundle --release
-          test -s build/app/outputs/bundle/release/app-release.aab
-
-      - name: Upload Play-ready AAB
+      - name: Upload AAB for local upload-key signing
         uses: actions/upload-artifact@v4
         with:
-          name: athr-google-play-signed-aab
+          name: athr-play-aab-unsigned
           path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
-          retention-days: 7
-
-      - name: Remove upload keystore from runner
-        if: always()
-        run: rm -f "$RUNNER_TEMP/athr-upload.jks"
+          retention-days: 14
