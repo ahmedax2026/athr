@@ -78,13 +78,20 @@ class AdhanPlaybackService : Service() {
         }
         val res = if (voice == "adhan_afasy") R.raw.adhan_afasy else R.raw.adhan_makkah
         try {
-            val descriptor = resources.openRawResourceFd(res)
             val media = MediaPlayer()
+            player = media
             media.setAudioAttributes(AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_ALARM)
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
-            media.setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
-            descriptor.close()
+            val file = if (Regex("remote_[a-zA-Z0-9_]{1,64}").matches(voice))
+                java.io.File(java.io.File(filesDir, "adhan_voices"), "$voice.mp3") else null
+            if (file != null && file.isFile) {
+                media.setDataSource(file.absolutePath)
+            } else {
+                resources.openRawResourceFd(res).use { descriptor ->
+                    media.setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+                }
+            }
             media.setOnCompletionListener { stopSelf() }
             media.setOnErrorListener { _, _, _ -> stopSelf(); true }
             media.prepare()
