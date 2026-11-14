@@ -516,24 +516,38 @@ class _AzkarReaderState extends State<AzkarReader> {
                       fontSize: 12, fontWeight: FontWeight.w800))),
                   SizedBox(height: compact ? 5 : 8),
                   Row(children: [
-                    Expanded(child: OutlinedButton.icon(
+                    Expanded(child: FilledButton.icon(
                       onPressed: index == 0 ? null : () => _move(index - 1),
-                      icon: const Icon(Icons.chevron_right),
-                      label: const Text('السابق'),
-                      style: OutlinedButton.styleFrom(
+                      icon: const Icon(Icons.chevron_right_rounded, size: 24),
+                      label: const Text('السابق',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFD6B56C),
                         foregroundColor: _green,
-                        side: const BorderSide(color: _gold),
-                        minimumSize: const Size.fromHeight(43)))),
+                        disabledBackgroundColor: const Color(0xFFE9DEBF),
+                        disabledForegroundColor: const Color(0xFF817B68),
+                        side: const BorderSide(color: _green, width: 1.2),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                        minimumSize: const Size.fromHeight(51)))),
                     const SizedBox(width: 10),
                     Expanded(child: FilledButton.icon(
                       onPressed: index == widget.items.length - 1
                           ? null : () => _move(index + 1),
-                      icon: const Icon(Icons.chevron_left),
-                      label: const Text('التالي'),
+                      icon: const Icon(Icons.chevron_left_rounded, size: 24),
+                      label: const Text('التالي',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
                       style: FilledButton.styleFrom(
                         backgroundColor: _green,
                         foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(43)))),
+                        disabledBackgroundColor: const Color(0xFFD8E1D6),
+                        disabledForegroundColor: const Color(0xFF627569),
+                        side: const BorderSide(color: _gold, width: 1.6),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                        minimumSize: const Size.fromHeight(51)))),
                   ]),
                 ]),
               );
