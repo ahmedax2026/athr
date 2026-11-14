@@ -1,4 +1,7 @@
 import 'prayer_times.dart';
+import 'prayer_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dynamic_sections.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -231,9 +234,36 @@ class _PrayerHeart extends StatelessWidget {
   ]);
 }
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.onToggleTheme});
   final VoidCallback? onToggleTheme;
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _permission());
+  }
+  Future<void> _permission() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!mounted) return;
+      final status = await PrayerNotifications.status();
+      if (!mounted) return;
+      if (!status.enabled && !(prefs.getBool('notification_intro_seen') ?? false)) {
+        await prefs.setBool('notification_intro_seen', true);
+        await PrayerNotifications.requestNotificationPermission();
+      }
+      if ((await PrayerNotifications.status()).enabled) {
+        await refreshPrayerScheduleFromCache();
+      }
+    } catch (_) {
+      // Notification setup must not prevent access to the home screen.
+    }
+  }
   static const sections = [
     ('القرآن الكريم', 'تلاوة وتدبر وختمات', Icons.menu_book_rounded),
     ('الأذكار', 'ذكر يطمئن القلب', Icons.auto_awesome_rounded),
@@ -291,7 +321,7 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             key: const ValueKey('home-theme-toggle'),
             tooltip: isDark ? 'الوضع الفاتح' : 'الوضع الداكن',
-            onPressed: onToggleTheme,
+            onPressed: widget.onToggleTheme,
             icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
           ),
         ],
@@ -439,6 +469,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                 ]),
+                if (Firebase.apps.isNotEmpty) const DynamicSectionCards(),
                 const SizedBox(height: 9),
                 Row(children: [
                   Expanded(child: OutlinedButton.icon(
