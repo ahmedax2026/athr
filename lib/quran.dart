@@ -66,9 +66,13 @@ class _QuranScreenState extends State<QuranScreen> {
     }
   }
 
-  // The native QuranLibraryScreen provides its own surah/juz index.
+  // Full Mushaf index stays unrestricted; the dedicated Juz cards open\n  // readers with hard first/last page limits.
   Future<void> _index() => _read(lastPage);
-  Future<void> _juz() => _read(lastPage);
+  Future<void> _juz() async {
+    await Navigator.of(context).push<void>(MaterialPageRoute<void>(
+      builder: (_) => const QuranJuzScreen()));
+    if (mounted) await _refresh();
+  }
 
   Future<void> _pages() async {
     var selected = lastPage;
@@ -241,7 +245,7 @@ class QuranJuzScreen extends StatelessWidget {
               Expanded(child: Text('الجزء ${index + 1}',
                 style: const TextStyle(fontSize: 21,
                   color: darkInk, fontWeight: FontWeight.w900))),
-              Text('صفحة $page', style: const TextStyle(
+              Text('صفحة $page – ${index == 29 ? 604 : _QuranScreenState.juzStartPages[index + 1] - 1}', style: const TextStyle(
                 fontSize: 15, color: darkInk, fontWeight: FontWeight.w700)),
               const SizedBox(width: 6),
               const Icon(Icons.chevron_left, color: darkInk),
