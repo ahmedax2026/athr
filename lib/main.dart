@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'prayer_times.dart';
 import 'prayer_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -99,6 +100,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   String _buttonText = 'اللهم ارحمه\nواغفر له';
   String _completion = 'اللهم تقبل';
   bool _leaving = false;
+  Timer? _firebaseRetry;
+  int _firebaseAttempts = 0;
+
+  @override
+  void dispose() {
+    _firebaseRetry?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -109,11 +118,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Future<void> _loadWelcome() async {
     try {
       // Firebase is intentionally initialized after the first frame in the stable app.
-      for (var i = 0; i < 20 && Firebase.apps.isEmpty; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-        if (!mounted) return;
+      if (!mounted || _leaving) return;
+      if (Firebase.apps.isEmpty) {
+        if (_firebaseAttempts++ < 20) {
+          _firebaseRetry = Timer(const Duration(milliseconds: 100), _loadWelcome);
+        }
+        return;
       }
-      if (Firebase.apps.isEmpty || !mounted) return;
       final doc = await FirebaseFirestore.instance.collection('content')
           .doc('welcome').get().timeout(const Duration(seconds: 3));
       final data = doc.data();
