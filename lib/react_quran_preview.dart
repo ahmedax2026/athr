@@ -217,7 +217,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   }
 
   Future<void> _confirmPartFinished() async {
-    if (loading || error != null) return;
+    if (loading || error != null || page != widget.lastPage) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -294,7 +294,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
           ]),
         )),
     ]),
-    bottomNavigationBar: (widget.firstPage != 1 || widget.lastPage != 604)
+    bottomNavigationBar: (widget.firstPage != 1 || widget.lastPage != 604) && page == widget.lastPage && !loading && error == null
         ? SafeArea(top: false, child: Container(
             padding: const EdgeInsets.fromLTRB(16, 11, 16, 13),
             decoration: const BoxDecoration(
@@ -320,8 +320,8 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
                       borderRadius: BorderRadius.circular(16),
                       side: const BorderSide(color: Color(0xFFFFE7A9), width: 1.5))),
                   icon: const Icon(Icons.verified_rounded, size: 27),
-                  label: const Text('أتممت قراءة الجزء',
-                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
+                  label: const Text('لقد أتممت قراءة هذا الجزء',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
                 ),
               ),
             ]),
