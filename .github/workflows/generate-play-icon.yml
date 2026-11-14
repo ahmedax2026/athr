@@ -36,7 +36,7 @@ jobs:
           d.rounded_rectangle((34,384,478,476),radius=22,fill=(3,55,45),outline=gold,width=4)
           fonts=['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf','/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf']
           font=ImageFont.truetype(next(f for f in fonts if os.path.exists(f)),43)
-          title='أثر لا ينتهي'
+          title='أثر لا ينقطع'
           box=d.textbbox((0,0),title,font=font,direction='rtl')
           tw=box[2]-box[0]
           d.text(((S-tw)//2,398),title,font=font,fill=(255,221,145),direction='rtl',stroke_width=0)
