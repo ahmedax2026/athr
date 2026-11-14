@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'admin_content.dart';
+import 'admin_adhan.dart';
 import 'admin_khatmas.dart';
 import 'admin_restore.dart';
 import 'dynamic_sections.dart';
@@ -114,6 +115,13 @@ class AdminDashboardScreen extends StatelessWidget {
                 title: const Text('إدارة الختمات والمشاركين'),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
                   builder: (_) => const AdminKhatmasScreen())),
+              )),
+              Card(child: ListTile(
+                leading: const Icon(Icons.library_music_outlined),
+                title: const Text('إدارة أصوات الأذان'),
+                subtitle: const Text('إضافة وتعديل أصوات MP3'),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const AdminAdhanScreen())),
               )),
               const Text('التحكم في التطبيق', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
