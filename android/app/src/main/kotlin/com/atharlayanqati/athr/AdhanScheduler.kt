@@ -57,15 +57,16 @@ object AdhanScheduler {
     fun test(context: Context, voice: String) {
         val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         check(Build.VERSION.SDK_INT < 31 || alarm.canScheduleExactAlarms()) { "Exact alarm permission required" }
-        set(context, 9999, System.currentTimeMillis() + 5000L, voice, "تجربة الأذان")
+        set(context, 9999, System.currentTimeMillis() + 30000L, voice, "تجربة الأذان", preview = true)
     }
 
-    private fun set(context: Context, id: Int, at: Long, voice: String, prayer: String, lateLimitSeconds: Int = 120) {
+    private fun set(context: Context, id: Int, at: Long, voice: String, prayer: String, lateLimitSeconds: Int = 120, preview: Boolean = false) {
         val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, AdhanAlarmReceiver::class.java)
             .putExtra("voice", voice)
             .putExtra("prayer", prayer)
             .putExtra("scheduledAt", at)
+            .putExtra("preview", preview)
             .putExtra("lateLimitSeconds", lateLimitSeconds.coerceIn(60, 600))
         val request = PendingIntent.getBroadcast(context, BASE + id, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)

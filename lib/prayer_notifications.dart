@@ -163,7 +163,7 @@ class PrayerNotifications {
   }
 
   /// A real device-level alarm test: succeeds even if the app is closed.
-  /// Requires Android exact-alarm access to give a meaningful 5-second check.
+  /// Requires Android exact-alarm access to give a meaningful 30-second check.
   static Future<void> openBatterySettings() async {
     await _adhanAlarmChannel.invokeMethod<void>('batterySettings');
   }
@@ -183,7 +183,7 @@ class PrayerNotifications {
     if (!(await _android?.canScheduleExactNotifications() ?? false)) {
       throw StateError('فعّل التوقيت الدقيق أولًا لاختبار التنبيه المجدول');
     }
-    final fireAt = DateTime.now().add(const Duration(seconds: 5));
+    final fireAt = DateTime.now().add(const Duration(seconds: 30));
     await _plugin.cancel(id: 901);
     await _plugin.zonedSchedule(
       id: 901,

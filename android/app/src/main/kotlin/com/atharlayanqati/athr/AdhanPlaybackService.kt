@@ -15,9 +15,13 @@ import android.os.IBinder
 
 class AdhanPlaybackService : Service() {
     private var player: MediaPlayer? = null
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var previewPlaying = false
+    private val endPreview = Runnable { if (previewPlaying) stopSelf() }
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val preview = intent?.getBooleanExtra("preview", false) == true
         val channel = "athr_full_adhan_player"
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= 26) {
@@ -30,8 +34,8 @@ class AdhanPlaybackService : Service() {
         val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, channel) else Notification.Builder(this)
         val notification = builder
             .setSmallIcon(applicationInfo.icon)
-            .setContentTitle(if (intent?.getStringExtra("voice") == "qiyam") "أثر لا ينقطع • قيام الليل" else "أثر لا ينقطع • حان وقت الصلاة")
-            .setContentText(if (intent?.getStringExtra("voice") == "qiyam") "تذكير خفيف بركعتي قيام الليل" else "الأذان أو التذكير يعمل الآن")
+            .setContentTitle(if (preview) "أثر لا ينقطع • اختبار الأذان" else if (intent?.getStringExtra("voice") == "qiyam") "أثر لا ينقطع • قيام الليل" else "أثر لا ينقطع • حان وقت الصلاة")
+            .setContentText(if (preview) "تجربة لمدة 10 ثوانٍ" else if (intent?.getStringExtra("voice") == "qiyam") "تذكير خفيف بركعتي قيام الليل" else "الأذان أو التذكير يعمل الآن")
             .addAction(Notification.Action.Builder(null, "إيقاف الأذان", stop).build())
             .setOngoing(true)
             .build()
@@ -44,6 +48,9 @@ class AdhanPlaybackService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        if (preview && player != null && !previewPlaying) return START_NOT_STICKY
+        handler.removeCallbacks(endPreview)
+        previewPlaying = preview
         player?.release()
         player = null
         val voice = intent?.getStringExtra("voice") ?: "adhan_makkah"
@@ -99,12 +106,15 @@ class AdhanPlaybackService : Service() {
             media.prepare()
             media.start()
             player = media
+            if (preview) handler.postDelayed(endPreview, 10000L)
         } catch (_: Exception) {
             stopSelf()
         }
         return START_NOT_STICKY
     }
     override fun onDestroy() {
+        handler.removeCallbacks(endPreview)
+        previewPlaying = false
         player?.run { if (isPlaying) stop(); release() }
         player = null
         super.onDestroy()

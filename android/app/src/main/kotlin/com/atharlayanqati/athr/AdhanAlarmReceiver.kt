@@ -22,6 +22,7 @@ class AdhanAlarmReceiver : BroadcastReceiver() {
         if (isAdhan && Build.VERSION.SDK_INT >= 31 && !(context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager).canScheduleExactAlarms()) return
         val service = Intent(context, AdhanPlaybackService::class.java)
             .putExtra("voice", voice)
+            .putExtra("preview", intent.getBooleanExtra("preview", false))
             .putExtra("prayer", intent.getStringExtra("prayer") ?: "")
         try {
             if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(service)

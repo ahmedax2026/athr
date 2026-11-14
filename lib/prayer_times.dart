@@ -623,7 +623,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       await _checkNotificationStatus();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('تم ضبط الاختبار بعد 5 ثوانٍ. اقفل الشاشة وجرب وصوله.'),
+        content: Text('تم ضبط الاختبار بعد 30 ثانية. اقفل الشاشة وجرب وصوله.'),
         duration: Duration(seconds: 6)));
     } catch (e) {
       if (mounted) {
@@ -806,7 +806,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _forest,
                       side: const BorderSide(color: _gold)),
-                    child: Text(adhanEnabled ? 'اختبار الأذان (5 ثوانٍ)' : 'بعد 5 ثوانٍ'))),
+                    child: Text(adhanEnabled ? 'اختبار الأذان (30 ثانية)' : 'بعد 30 ثانية'))),
                 ]),
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
