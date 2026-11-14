@@ -58,6 +58,9 @@ android {
         release {
             if (hasUploadSigning) {
                 signingConfig = signingConfigs.getByName("playRelease")
+            } else if (System.getenv("ATHR_LOCAL_TEST_SIGNING") == "true") {
+                // Sideload testing only; production bundles still require the upload key.
+                signingConfig = signingConfigs.getByName("debug")
             }
         }
     }
