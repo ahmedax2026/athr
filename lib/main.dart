@@ -102,7 +102,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           .doc('welcome').get().timeout(const Duration(seconds: 3));
       final data = doc.data();
       if (!mounted || _count != 0 || _leaving || data == null ||
-          data['published'] != true) return;
+          data['published'] != true) {
+        return;
+      }
       final taps = int.tryParse((data['tapCount'] ?? '3').toString()) ?? 3;
       final photo = (data['photoUrl'] ?? '').toString().trim();
       setState(() {
