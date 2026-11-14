@@ -65,7 +65,7 @@ class PrayerNotifications {
   static Future<bool> requestExactPermission() async {
     await _ensureInitialized();
     if (await _android?.canScheduleExactNotifications() ?? false) return true;
-    await _android?.requestExactAlarmsPermission();
+    await _adhanAlarmChannel.invokeMethod<void>('exactSettings');
     return await _android?.canScheduleExactNotifications() ?? false;
   }
 
@@ -75,7 +75,7 @@ class PrayerNotifications {
 
   static Future<void> openNotificationSettings() async {
     await _ensureInitialized();
-    await _android?.openAppNotificationSettings();
+    await _adhanAlarmChannel.invokeMethod<void>('notificationSettings');
   }
 
   static Future<void> showTest() async {
