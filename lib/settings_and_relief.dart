@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'notification_access.dart';
 
 class AppSettingsScreen extends StatefulWidget {
   const AppSettingsScreen({super.key});
@@ -48,6 +49,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
           const SizedBox(height: 8),
           const Text('اختار اللي يناسبك. إعداداتك بتتحفظ على نفس الجهاز.'),
           const SizedBox(height: 18),
+          const NotificationAccessCard(),
+          const SizedBox(height: 14),
           Card(
             child: Column(children: [
               for (final item in _items)
