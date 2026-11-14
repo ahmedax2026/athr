@@ -9,7 +9,7 @@ on:
       - feature/qcf-quran-005
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-apk:
@@ -37,29 +37,13 @@ jobs:
       - name: Bundle Quran surah-to-page index (no page images)
         run: python3 tool/bundle_mushaf.py
 
-      - name: Generate styled offline adhkar images
-        run: |
-          python3 -m pip install --quiet Pillow
-          python3 tool/bundle_azkar_cards.py
-
-      - name: Save generated adhkar images in the repository
-        if: github.ref == 'refs/heads/feature/qcf-quran-005'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A -f assets/azkar_vip/
-          if ! git diff --cached --quiet; then
-            git commit -m "Save generated offline adhkar cards [skip ci]"
-            git push origin HEAD:feature/qcf-quran-005
-          fi
-
       - name: Verify every adhkar entry has an offline image
         run: |
           python3 - <<'PY'
           import json
           from pathlib import Path
           data = json.loads(Path('tool/azkar_data.json').read_text(encoding='utf-8'))
-          manifest = json.loads(Path('assets/azkar_vip/manifest.json').read_text(encoding='utf-8'))
+          manifest = json.loads(Path('assets/azkar/manifest.json').read_text(encoding='utf-8'))
           assert len(data) == len(manifest), 'Adhkar group count mismatch'
           for group, images in zip(data, manifest):
               assert len(group['items']) == len(images), 'Missing adhkar images'
@@ -72,7 +56,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: athr-azkar-images
-          path: assets/azkar_vip/
+          path: assets/azkar/
           if-no-files-found: error
           retention-days: 14
 
