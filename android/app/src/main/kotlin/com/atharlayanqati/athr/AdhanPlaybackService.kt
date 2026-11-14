@@ -33,8 +33,8 @@ class AdhanPlaybackService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = Notification.Builder(this, channel)
             .setSmallIcon(applicationInfo.icon)
-            .setContentTitle("أثر لا ينقطع • حان وقت الصلاة")
-            .setContentText("الأذان يعمل الآن • اضغط إيقاف لإنهائه")
+            .setContentTitle(if (intent?.getStringExtra("voice") == "qiyam") "أثر لا ينقطع • قيام الليل" else "أثر لا ينقطع • حان وقت الصلاة")
+            .setContentText(if (intent?.getStringExtra("voice") == "qiyam") "تذكير خفيف بركعتي قيام الليل" else "الأذان أو التذكير يعمل الآن")
             .addAction(Notification.Action.Builder(null, "إيقاف الأذان", stop).build())
             .setOngoing(true)
             .build()
@@ -50,7 +50,7 @@ class AdhanPlaybackService : Service() {
         player?.release()
         player = null
         val voice = intent?.getStringExtra("voice") ?: "adhan_makkah"
-        if (voice == "reminder") {
+        if (voice == "reminder" || voice == "qiyam") {
             val prayer = intent?.getStringExtra("prayer") ?: "الصلاة"
             tts?.shutdown()
             tts = TextToSpeech(this) { status ->
@@ -62,7 +62,7 @@ class AdhanPlaybackService : Service() {
                         override fun onDone(utteranceId: String?) { stopSelf() }
                         override fun onError(utteranceId: String?) { stopSelf() }
                     })
-                    engine.speak("اقتربت صلاة $prayer", TextToSpeech.QUEUE_FLUSH, null, "prayer_reminder")
+                    engine.speak(if (voice == "qiyam") "لا تنسَ قيام الليل، ولو ركعتين خفيفتين، ربنا يتقبل منك." else "اقتربت صلاة $prayer", TextToSpeech.QUEUE_FLUSH, null, "prayer_reminder")
                 } else {
                     try {
                         val media = MediaPlayer.create(this, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
