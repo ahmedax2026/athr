@@ -212,11 +212,15 @@ class _AzkarReaderState extends State<AzkarReader> {
   Map<String, int> counts = {};
   bool loaded = false;
   bool completionShown = false;
+  final PageController _pages = PageController();
   List<List<String>> imageManifest = const [];
   String get key => 'azkar_${widget.title}';
 
   @override
   void initState() { super.initState(); _load(); }
+
+  @override
+  void dispose() { _pages.dispose(); super.dispose(); }
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -246,6 +250,9 @@ class _AzkarReaderState extends State<AzkarReader> {
           .clamp(0, widget.items.length - 1);
       loaded = true;
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _pages.hasClients) _pages.jumpToPage(index);
+    });
   }
 
   Future<void> _save() async {
@@ -257,6 +264,10 @@ class _AzkarReaderState extends State<AzkarReader> {
   void _move(int next) {
     if (next < 0 || next >= widget.items.length) return;
     setState(() => index = next);
+    if (_pages.hasClients) {
+      _pages.animateToPage(next, duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic);
+    }
     _save();
   }
 
@@ -337,170 +348,211 @@ class _AzkarReaderState extends State<AzkarReader> {
       builder: (_) => AthrQcfMushafReader(initialPage: page)));
   }
 
+  String? _imageFor(int itemIndex) {
+    final groupIndex = _groups.keys.toList().indexOf(widget.title);
+    if (groupIndex < 0 || groupIndex >= imageManifest.length) return null;
+    final images = imageManifest[groupIndex];
+    if (itemIndex < 0 || itemIndex >= images.length) return null;
+    return 'assets/azkar/${images[itemIndex]}';
+  }
+
+  Widget _dhikrCard(Dhikr item, int itemIndex) {
+    final surah = _quranSurah(item);
+    final isFour = item.source == 'سورة البقرة: 255' ||
+        item.source == 'سورة الإخلاص' ||
+        item.source == 'سورة الفلق' ||
+        item.source == 'سورة الناس';
+    final asset = _imageFor(itemIndex);
+    final title = item.source == 'سورة البقرة: 255'
+        ? 'آية الكرسي' : item.source;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF6E5),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: _gold, width: 1.8),
+        boxShadow: [BoxShadow(
+          color: _green.withValues(alpha: .15),
+          blurRadius: 18, offset: const Offset(0, 6))]),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 9),
+        child: Column(children: [
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            const Icon(Icons.auto_awesome_rounded, color: _gold, size: 18),
+            const SizedBox(width: 8),
+            Flexible(child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(title,
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: _green, fontSize: 18, fontWeight: FontWeight.w900)))),
+            const SizedBox(width: 8),
+            const Icon(Icons.auto_awesome_rounded, color: _gold, size: 18),
+          ]),
+          const Divider(color: _gold, thickness: 1, height: 13),
+          Expanded(child: Center(
+            child: isFour && asset != null
+                ? Image.asset(asset,
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                    height: double.infinity,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (_, error, stack) =>
+                        _fittedDhikrText(item))
+                : _fittedDhikrText(item),
+          )),
+          const SizedBox(height: 5),
+          if (surah != null)
+            SizedBox(height: 28,
+              child: TextButton.icon(
+                onPressed: () => _openMushaf(item),
+                style: TextButton.styleFrom(
+                  foregroundColor: _green,
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact),
+                icon: const Icon(Icons.menu_book_outlined, size: 17),
+                label: const Text('فتح في المصحف',
+                  style: TextStyle(fontSize: 12)),
+              )),
+        ]),
+      ),
+    );
+  }
+
+  Widget _fittedDhikrText(Dhikr item) => LayoutBuilder(
+    builder: (context, size) => FittedBox(
+      fit: BoxFit.scaleDown,
+      child: SizedBox(
+        width: size.maxWidth.isFinite ? size.maxWidth : 300,
+        child: Text(_displayDhikr(item),
+          textDirection: TextDirection.rtl,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: _green, fontSize: 27,
+            height: 1.85, fontWeight: FontWeight.w600)),
+      ),
+    ));
+
   @override
   Widget build(BuildContext context) {
     final item = widget.items[index];
     final count = counts['$index'] ?? 0;
     final done = count >= item.target;
-    final surah = _quranSurah(item);
+    final completed = widget.items.asMap().entries.where((entry) =>
+        (counts['${entry.key}'] ?? 0) >= entry.value.target).length;
     return Scaffold(
       backgroundColor: _paper,
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Text(widget.title,
+          style: const TextStyle(fontWeight: FontWeight.w900)),
+        centerTitle: true,
         backgroundColor: _green,
         foregroundColor: Colors.white),
       body: !loaded
-        ? const Center(child: CircularProgressIndicator())
-        : SafeArea(child: Column(children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
-              child: Column(children: [
-                LinearProgressIndicator(
-                  value: (index + count / item.target) /
-                      widget.items.length,
-                  minHeight: 6,
-                  borderRadius: BorderRadius.circular(12),
-                  backgroundColor: const Color(0xFFE9DEC6),
-                  color: _green),
-                const SizedBox(height: 10),
-                Text('الذكر ${index + 1} من ${widget.items.length}',
-                  style: const TextStyle(
-                    color: _green, fontWeight: FontWeight.w700)),
-              ]),
-            ),
-            Expanded(child: Center(child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 18, vertical: 10),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 24),
-                  decoration: BoxDecoration(
-                    color: _paper,
-                    border: Border.all(color: _gold, width: 1.5),
-                    borderRadius: BorderRadius.circular(26),
-                    boxShadow: [BoxShadow(color: _green.withValues(alpha: .12), blurRadius: 18, offset: const Offset(0, 8))]),
-                  child: Column(children: [
-                    if (surah != null) ...[
-                      const Icon(Icons.menu_book_rounded, color: _gold, size: 36),
-                      const SizedBox(height: 10),
-                      if (item.source != 'سورة البقرة: 255')
-                        const Text('آيات من المصحف العثماني', style: TextStyle(color: _green,
-                            fontSize: 20, fontWeight: FontWeight.w900)),
-                      const SizedBox(height: 8),
-                    ],
-                    // Keep Quran artwork, but never use incomplete pre-rendered
-                    // images for ordinary adhkar. Their full text is the source of truth.
-                    if (surah != null) ...[
-                      if (item.source == 'سورة البقرة: 255') ...[
-                        const Text('آية الكرسي',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: _green, fontSize: 23,
-                            fontWeight: FontWeight.w900)),
-                        const SizedBox(height: 12),
-                      ],
-                      if (item.source == 'سورة البقرة: 255')
-                        Text(
-                          item.text.split(': ').skip(1).join(': '),
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: _green, fontSize: 24, height: 1.85,
-                            fontWeight: FontWeight.w500),
-                        )
-                      else
-                        Image.asset(
-                          'assets/azkar/${imageManifest.length > _groups.keys.toList().indexOf(widget.title) && imageManifest[_groups.keys.toList().indexOf(widget.title)].length > index ? imageManifest[_groups.keys.toList().indexOf(widget.title)][index] : 'missing.webp'}',
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => Text(
-                            _displayDhikr(item),
-                            textDirection: TextDirection.rtl,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 24, height: 1.7, color: _green),
-                          ),
-                        ),
-                    ] else
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF4E5C9),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Text(
-                          _displayDhikr(item),
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 25, height: 1.9, color: _green,
-                            fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-                    Text(item.source, style: const TextStyle(
-                      color: Color(0xFF97723E), fontSize: 14)),
-                    if (surah != null) ...[
-                      const SizedBox(height: 10),
-                      TextButton.icon(
-                        onPressed: () => _openMushaf(item),
-                        icon: const Icon(Icons.menu_book_outlined),
-                        label: const Text('عرض الآيات في المصحف العثماني'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: _green)),
-                    ],
-                  ]),
-                ),
-                const SizedBox(height: 20),
-                Center(child: InkWell(
-                  onTap: _tap,
-                  customBorder: const CircleBorder(),
-                  child: Container(
-                    width: 150, height: 150,
+          ? const Center(child: CircularProgressIndicator(color: _green))
+          : SafeArea(child: LayoutBuilder(builder: (context, area) {
+              final compact = area.maxHeight < 510;
+              return Padding(
+                padding: EdgeInsets.fromLTRB(
+                  compact ? 8 : 12, compact ? 5 : 10,
+                  compact ? 8 : 12, compact ? 6 : 12),
+                child: Column(children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 14, vertical: compact ? 7 : 10),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-                        colors: [Color(0xFF126452), Color(0xFF032E27)]),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: _gold, width: 3),
-                      boxShadow: [BoxShadow(color: _green.withValues(alpha: .24), blurRadius: 18, offset: const Offset(0, 8))]),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('$count من ${item.target}',
-                          textDirection: TextDirection.rtl,
-                          style: const TextStyle(
-                            color: Colors.white, fontSize: 25,
-                            fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 5),
-                        Text(done ? 'اكتمل الذكر' : 'اضغط للعد',
-                          style: const TextStyle(
-                            color: _gold, fontSize: 14)),
-                      ]),
+                      gradient: const LinearGradient(colors: [
+                        Color(0xFF146753), Color(0xFF073E35),
+                        Color(0xFF032B26)]),
+                      borderRadius: BorderRadius.circular(17),
+                      border: Border.all(color: _gold)),
+                    child: Column(children: [
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('الذكر ${index + 1} / ${widget.items.length}',
+                            style: const TextStyle(color: Colors.white,
+                              fontWeight: FontWeight.w800)),
+                          Text('المكتمل $completed / ${widget.items.length}',
+                            style: const TextStyle(color: _gold,
+                              fontWeight: FontWeight.w800)),
+                        ]),
+                      const SizedBox(height: 7),
+                      LinearProgressIndicator(
+                        value: completed / widget.items.length,
+                        minHeight: 5,
+                        borderRadius: BorderRadius.circular(10),
+                        backgroundColor: Colors.white24,
+                        color: _gold),
+                    ]),
                   ),
-                )),
-              ]),
-            ))),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
-              child: Row(children: [
-                Expanded(child: OutlinedButton(
-                  onPressed: index == 0 ? null : () => _move(index - 1),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _green,
-                    side: const BorderSide(color: _gold),
-                    minimumSize: const Size.fromHeight(48)),
-                  child: const Text('السابق'))),
-                const SizedBox(width: 12),
-                Expanded(child: FilledButton(
-                  onPressed: index == widget.items.length - 1
-                      ? null : () => _move(index + 1),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _green,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(48)),
-                  child: const Text('التالي'))),
-              ]),
-            ),
-          ])),
+                  SizedBox(height: compact ? 3 : 7),
+                  Expanded(
+                    child: PageView.builder(
+                      controller: _pages,
+                      itemCount: widget.items.length,
+                      onPageChanged: (page) {
+                        if (page != index) {
+                          setState(() => index = page);
+                          _save();
+                        }
+                      },
+                      itemBuilder: (context, page) =>
+                          _dhikrCard(widget.items[page], page),
+                    ),
+                  ),
+                  SizedBox(height: compact ? 4 : 7),
+                  InkWell(
+                    onTap: _tap,
+                    borderRadius: BorderRadius.circular(25),
+                    child: Container(
+                      width: double.infinity,
+                      height: compact ? 53 : 65,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [
+                          Color(0xFF0F6A53), Color(0xFF04372E)]),
+                        border: Border.all(color: _gold, width: 1.5),
+                        borderRadius: BorderRadius.circular(21)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(done ? Icons.check_circle : Icons.touch_app,
+                            color: _gold, size: 24),
+                          const SizedBox(width: 12),
+                          Text('$count / ${item.target}',
+                            style: const TextStyle(color: Colors.white,
+                              fontSize: 23, fontWeight: FontWeight.w900)),
+                          const SizedBox(width: 12),
+                          Text(done ? 'اكتمل الذكر' : 'اضغط للتسبيح',
+                            style: const TextStyle(
+                              color: _gold, fontWeight: FontWeight.w800)),
+                        ]),
+                    ),
+                  ),
+                  SizedBox(height: compact ? 5 : 8),
+                  Row(children: [
+                    Expanded(child: OutlinedButton.icon(
+                      onPressed: index == 0 ? null : () => _move(index - 1),
+                      icon: const Icon(Icons.chevron_right),
+                      label: const Text('السابق'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _green,
+                        side: const BorderSide(color: _gold),
+                        minimumSize: const Size.fromHeight(43)))),
+                    const SizedBox(width: 10),
+                    Expanded(child: FilledButton.icon(
+                      onPressed: index == widget.items.length - 1
+                          ? null : () => _move(index + 1),
+                      icon: const Icon(Icons.chevron_left),
+                      label: const Text('التالي'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _green,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(43)))),
+                  ]),
+                ]),
+              );
+            })),
     );
   }
 }
