@@ -298,10 +298,30 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  Map<String, dynamic> config = {};
+  static const ids = ['quran', 'azkar', 'khatma', 'prayer', 'tasbeeh', 'relief'];
+  Future<void> _refreshConfig() async {
+    try {
+      if (Firebase.apps.isEmpty) return;
+      final doc = await FirebaseFirestore.instance.collection('content').doc('home').get().timeout(const Duration(seconds: 3));
+      if (!mounted) return;
+      final data = doc.data();
+      setState(() => config = data?['published'] == true ? data! : {});
+    } catch (_) {}
+  }
+  String _text(String key, String fallback) {
+    final value = config[key];
+    return value is String && value.trim().isNotEmpty ? value : fallback;
+  }
+  bool _visible(String key) => config[key].toString() != 'false';
+  List<int> get _ordered {
+    final order = _text('sectionOrder', ids.join(',')).split(',').map((e) => ids.indexOf(e.trim())).where((e) => e >= 0).toSet();
+    return [...order, ...List.generate(ids.length, (i) => i).where((i) => !order.contains(i))].where((i) => _visible('show_${ids[i]}')).toList();
+  }
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _permission());
+    WidgetsBinding.instance.addPostFrameCallback((_) { _permission(); _refreshConfig(); });
   }
   Future<void> _permission() async {
     try {
@@ -361,11 +381,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final accent = isDark ? gold : const Color(0xFF94702F);
     return Scaffold(
       appBar: AppBar(
-        title: Text('أثر لا ينقطع', style: TextStyle(color: accent, fontWeight: FontWeight.w800)),
+        title: Text(_text('appTitle', 'أثر لا ينقطع'), style: TextStyle(color: accent, fontWeight: FontWeight.w800)),
         actions: [
           IconButton(
             tooltip: 'دخول الإدارة',
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AdminLoginScreen())),
+            onPressed: () async {
+              await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AdminLoginScreen()));
+              await _refreshConfig();
+            },
             icon: const Icon(Icons.admin_panel_settings_outlined),
           ),
           IconButton(
@@ -393,7 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Center(child: SizedBox(width: maxWidth, child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
+                if (_visible('showMemorial')) Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
@@ -460,33 +483,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   ]),
                 ),
                 const SizedBox(height: 7),
-                Text('أبواب الخير', style: TextStyle(color: fg, fontSize: 22, fontWeight: FontWeight.w900)),
+                Text(_text('greeting', 'أبواب الخير'), style: TextStyle(color: fg, fontSize: 22, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 5),
                 LiveContentText(document: 'home', field: 'tagline', fallback: 'نورٌ يبقى، ودعاءٌ يصل.', style: TextStyle(color: secondary, fontSize: 14)),
                 const SizedBox(height: 12),
                 Wrap(alignment: WrapAlignment.center,
                   runAlignment: WrapAlignment.center,
                   spacing: 12, runSpacing: 8, children: [
-                  for (final s in sections)
+                  for (final i in _ordered)
                     SizedBox(
                       width: tileWidth,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(22),
                         onTap: () {
-                          if (s.$1 == 'القرآن الكريم') {
+                          if (sections[i].$1 == 'القرآن الكريم') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const QuranScreen()));
-                          } else if (s.$1 == 'الختمات الجماعية') {
+                          } else if (sections[i].$1 == 'الختمات الجماعية') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const KhatmaScreen()));
-                          } else if (s.$1 == 'الأذكار') {
+                          } else if (sections[i].$1 == 'الأذكار') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AzkarScreen()));
-                          } else if (s.$1 == 'مواقيت الصلاة') {
+                          } else if (sections[i].$1 == 'مواقيت الصلاة') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PrayerTimesScreen()));
-                          } else if (s.$1 == 'السبحة') {
+                          } else if (sections[i].$1 == 'السبحة') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TasbeehScreen()));
-                          } else if (s.$1 == 'فك كرب') {
+                          } else if (sections[i].$1 == 'فك كرب') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PublicCasesScreen()));
                           } else {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('قسم ${s.$1} قيد التطوير')));
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('قسم ${sections[i].$1} قيد التطوير')));
                           }
                         },
                         child: Container(
@@ -511,13 +534,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: accent.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(26),
                               ),
-                              child: Icon(s.$3, color: accent, size: 24),
+                              child: Icon(sections[i].$3, color: accent, size: 24),
                             ),
                             const SizedBox(height: 10),
-                            Text(s.$1, textAlign: TextAlign.center,
+                            Text(_text('title_${ids[i]}', sections[i].$1), textAlign: TextAlign.center,
                               style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 13)),
                             const SizedBox(height: 5),
-                            Text(s.$2, textAlign: TextAlign.center,
+                            Text(_text('subtitle_${ids[i]}', sections[i].$2), textAlign: TextAlign.center,
                               style: TextStyle(color: secondary, fontSize: 10, height: 1.3)),
                           ],
                         ),
