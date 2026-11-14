@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'admin_and_cases.dart';
 import 'quran.dart';
 import 'khatma.dart';
+import 'khatma_push.dart';
 import 'tasbeeh.dart';
 import 'azkar.dart';
 import 'settings_and_relief.dart';
@@ -20,6 +21,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   runApp(const AthrApp());
+  KhatmaPush.start();
 }
 
 class AthrApp extends StatefulWidget {
@@ -62,6 +64,7 @@ class _AthrAppState extends State<AthrApp> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
+    navigatorKey: KhatmaPush.navigator,
     title: 'أثر لا ينقطع',
     debugShowCheckedModeBanner: false,
     theme: _theme(Brightness.light),
@@ -93,7 +96,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         backgroundColor: Color(0xFFFFE3A0),
       ));
       Future<void>.delayed(const Duration(milliseconds: 1100), () {
-        if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: (_) => HomeScreen(onToggleTheme: widget.onToggleTheme)));
+        if (mounted) {
+          Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: (_) => HomeScreen(onToggleTheme: widget.onToggleTheme)));
+          WidgetsBinding.instance.addPostFrameCallback((_) => KhatmaPush.homeReady());
+        }
       });
     }
   }
