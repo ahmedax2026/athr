@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,7 +24,8 @@ class TasbeehScreen extends StatefulWidget {
   State<TasbeehScreen> createState() => _TasbeehScreenState();
 }
 
-class _TasbeehScreenState extends State<TasbeehScreen> {
+class _TasbeehScreenState extends State<TasbeehScreen> with WidgetsBindingObserver {
+  Timer? _saveDebounce;
   List<String> _custom = [];
   Map<String, int> _counts = {};
   String _selected = _defaults.first;
@@ -38,7 +40,24 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      _saveDebounce?.cancel();
+      unawaited(_persist());
+    }
+  }
+
+  @override
+  void dispose() {
+    _saveDebounce?.cancel();
+    if (_loaded) unawaited(_persist());
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -69,7 +88,14 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
     }
   }
 
-  Future<void> _save() async {
+  void _save() {
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(const Duration(milliseconds: 180), () {
+      unawaited(_persist());
+    });
+  }
+
+  Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key('custom'), jsonEncode(_custom));
     await prefs.setString(_key('counts'), jsonEncode(_counts));
