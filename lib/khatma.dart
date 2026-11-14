@@ -190,7 +190,9 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
   @override void dispose(){name.dispose();super.dispose();}
   void message(String value){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(value)));}
   Future<void> join(Map<String,dynamic> d) async {
-    if(name.text.trim().isEmpty){message('اكتب اسمك أولًا');return;}
+    if (busy) return;
+    final guest = name.text.trim();
+    if(guest.length < 2 || guest.length > 60){message('اكتب اسمًا من حرفين إلى 60 حرفًا');return;}
     setState(()=>busy=true);
     try {
       await FirebaseFirestore.instance.runTransaction((tx) async {
@@ -205,13 +207,13 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
         if(count>=capacity)throw StateError('full');
         if(data['started']==true || data['closed']==true)throw StateError('started');
         final parts=<int>[];
-        tx.set(memberRef,{'name':name.text.trim(),'slot':count,'parts':parts,
+        tx.set(memberRef,{'name':guest,'slot':count,'parts':parts,
           'completed':<int>[],'joinedAt':FieldValue.serverTimestamp()});
         tx.update(ref,{'memberCount':FieldValue.increment(1),
           'memberIds':FieldValue.arrayUnion([widget.uid])});
       });
       message('تم الانضمام بنجاح');
-    }catch(e){message(e.toString().contains('full')?'اكتمل عدد المشاركين':e.toString().contains('started')?'بدأت الختمة':'تعذر الانضمام؛ راجع الصلاحيات');}
+    }catch(e){message(e is FirebaseException ? (e.code == 'permission-denied' ? 'صلاحيات الانضمام مرفوضة؛ يجب تحديث قواعد Firestore' : 'تعذر الانضمام: ${e.code}') : e.toString().contains('full')?'اكتمل عدد المشاركين':e.toString().contains('started')?'بدأت الختمة أو أُغلقت':'تعذر الانضمام');}
     finally{if(mounted)setState(()=>busy=false);}
   }
   Future<void> leave() async {
@@ -466,6 +468,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
           stream:ref.collection('members').doc(widget.uid).snapshots(),
           builder:(context,m){
             final mine=m.hasError ? null : m.data?.data();
+            final isMember = (d['memberIds'] as List?)?.contains(widget.uid) ?? false;
             return ListView(padding:const EdgeInsets.all(16),children:[
               Container(
                 padding:const EdgeInsets.all(20),
@@ -527,7 +530,9 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
                   await Clipboard.setData(ClipboardData(text:d['code'].toString()));message('تم نسخ الكود');
                 }))),
               OutlinedButton.icon(onPressed:shareInvite,icon:const Icon(Icons.share),label:const Text('مشاركة عبر واتساب')),
-              if(mine==null) ...[
+              if (mine == null && isMember) ...[
+                const Card(child: ListTile(title: Text('أنت منضم بالفعل'), subtitle: Text('جارٍ تحميل بيانات مشاركتك. تحقق من الاتصال والصلاحيات إذا استمرت المشكلة.'))),
+              ] else if(mine==null) ...[
                 TextField(controller:name,decoration:const InputDecoration(labelText:'اسمك عند الانضمام')),
                 const SizedBox(height:10),
                 FilledButton(onPressed:busy||count>=capacity||started||closed?null:()=>join(d),
