@@ -161,24 +161,29 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     fajrVoice = prefs.getString('adhan_fajr_voice') ?? 'adhan_makkah';
     if (!voiceNames.containsKey(adhanVoice)) adhanVoice = 'adhan_makkah';
     if (!voiceNames.containsKey(fajrVoice)) fajrVoice = 'adhan_makkah';
-    // Ask for notification permission when the prayer timetable opens.
-    // The Android exact-alarm special access remains a separate user action.
-    try {
-      final allowed = await PrayerNotifications.requestNotificationPermission();
-      notificationStatus = await PrayerNotifications.status();
-      if (latitude != null && longitude != null) {
-        _resolveZone();
-        _compute();
-        if (allowed) await _schedule();
-      }
-    } catch (e) {
-      if (mounted) setState(() => error = 'تعذر تهيئة تنبيهات الصلاة: $e');
+    // Show saved prayer times immediately. Never block the page on permission
+    // prompts, notification scheduling, GPS, or reverse geocoding.
+    if (latitude != null && longitude != null) {
+      _resolveZone();
+      _compute();
     }
-    if (mounted) {
-      setState(() => busy = false);
-      // Refresh prayer times automatically when the screen opens. Cached
-      // coordinates remain usable if location services are unavailable.
-      unawaited(_useGps(automatic: true));
+    if (!mounted) return;
+    setState(() => busy = false);
+    // Refresh the current location silently; a previously saved position
+    // remains the offline fallback if network or GPS is unavailable.
+    unawaited(_refreshInBackground());
+    unawaited(_useGps(automatic: true));
+  }
+
+  Future<void> _refreshInBackground() async {
+    try {
+      notificationStatus = await PrayerNotifications.status();
+      if (mounted) setState(() {});
+      if (latitude != null && zone != null) {
+        await _schedule();
+      }
+    } catch (_) {
+      // A permission/service issue must not block offline prayer times.
     }
   }
 
@@ -195,6 +200,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   Future<void> _storePosition(double lat, double lon, String label) async {
     latitude = lat; longitude = lon; city = label;
     _resolveZone();
+    _compute();
+    if (mounted) setState(() => busy = false);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('prayer_lat', lat);
     await prefs.setDouble('prayer_lon', lon);
@@ -207,11 +214,21 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   Future<void> _useGps({bool automatic = false}) async {
     if (!mounted) return;
     final hasCachedLocation = latitude != null && longitude != null;
-    // Avoid hiding an already-valid timetable behind a GPS spinner.
-    if (!automatic || !hasCachedLocation) {
+    // Automatic refresh is always silent, including on first use.
+    // Manual location changes may show their own loading indication.
+    if (!automatic) {
       setState(() { busy = true; error = null; });
     }
     try {
+      // If there is no saved coordinate, use Android's last known fix
+      // immediately, even when the phone has no internet connection.
+      if (automatic && !hasCachedLocation) {
+        final last = await Geolocator.getLastKnownPosition();
+        if (!mounted) return;
+        if (last != null) {
+          await _storePosition(last.latitude, last.longitude, 'آخر موقع معروف');
+        }
+      }
       if (!await Geolocator.isLocationServiceEnabled()) {
         throw StateError('فعّل خدمة الموقع في الهاتف أولًا');
       }
@@ -228,8 +245,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
           accuracy: LocationAccuracy.medium,
           timeLimit: Duration(seconds: 12)));
       if (!mounted) return;
-      String label = 'موقعي الحالي';
+      String label = city == 'حدد المدينة' ? 'موقعي الحالي' : city;
       try {
+        if (!automatic || city == 'حدد المدينة') {
         final places = await geocoding.placemarkFromCoordinates(
           position.latitude, position.longitude);
         if (places.isNotEmpty) {
@@ -238,6 +256,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
               .where((value) => value != null && value.trim().isNotEmpty)
               .join('، ');
           if (label.isEmpty) label = 'موقعي الحالي';
+        }
         }
       } catch (_) {
         // Reverse geocoding can fail offline: coordinates still work.
@@ -251,8 +270,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
         busy = false;
         // Preserve cached prayer times instead of showing a location error
         // on every automatic opening, but make first-time setup actionable.
-        if (!automatic || !hasCachedLocation) {
-          error = automatic && hasCachedLocation ? null : e.toString();
+        if (!automatic) {
+          error = e.toString();
+        } else if (latitude == null || longitude == null) {
+          error = 'حدد موقعك مرة واحدة لعرض المواقيت دون إنترنت بعد ذلك.';
         }
       });
     }
