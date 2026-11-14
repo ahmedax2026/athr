@@ -70,8 +70,27 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
     await prefs.setInt('react_quran_last_page', page);
   }
 
+  bool get _isLimitedReading =>
+      widget.firstPage > 1 || widget.lastPage < 604;
+
+  void _showPartBoundary() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
+        content: Text(
+          'انتهت صفحات الجزء الحالي. ارجع إلى قائمة الأجزاء واختر الجزء التالي.',
+          textDirection: TextDirection.rtl,
+        ),
+        duration: Duration(seconds: 3),
+      ));
+  }
+
   void _jump(int page) {
-    if (page < widget.firstPage || page > widget.lastPage) return;
+    if (page < widget.firstPage || page > widget.lastPage) {
+      if (_isLimitedReading) _showPartBoundary();
+      return;
+    }
     if (_controller?.hasClients ?? false) {
       _controller!.jumpToPage(page - widget.firstPage);
     }
@@ -222,7 +241,7 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
                       children: [
                         IconButton(
                           tooltip: 'الصفحة السابقة',
-                          onPressed: _page > widget.firstPage
+                          onPressed: _page > widget.firstPage || _isLimitedReading
                               ? () => _jump(_page - 1) : null,
                           icon: Icon(Icons.chevron_right, color: foreground),
                         ),
@@ -230,7 +249,7 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
                           color: foreground, fontWeight: FontWeight.w700)),
                         IconButton(
                           tooltip: 'الصفحة التالية',
-                          onPressed: _page < widget.lastPage
+                          onPressed: _page < widget.lastPage || _isLimitedReading
                               ? () => _jump(_page + 1) : null,
                           icon: Icon(Icons.chevron_left, color: foreground),
                         ),
