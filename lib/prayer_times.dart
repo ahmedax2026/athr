@@ -1425,8 +1425,10 @@ class _AdhanVoicePickerState extends State<_AdhanVoicePicker> {
       }
       if (mounted) setState(() => _playing = id);
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذرت المعاينة. تحقق من الاتصال والرابط.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذرت المعاينة. تحقق من الاتصال والرابط.')));
+      }
     } finally {
       if (mounted) setState(() => _startingPreview = false);
     }
