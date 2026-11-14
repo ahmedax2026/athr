@@ -118,7 +118,7 @@ class AdminDashboardScreen extends StatelessWidget {
               Card(child: ListTile(
                 leading: const Icon(Icons.favorite_outline),
                 title: const Text('شاشة الترحيب'),
-                subtitle: const Text('عنوان التطبيق والاسم والدعاء'),
+                subtitle: const Text('الصورة والدعاء وعدد الضغطات وإظهار الشاشة'),
                 trailing: const Icon(Icons.chevron_left),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
                   builder: (_) => const AdminContentEditor(
@@ -129,6 +129,12 @@ class AdminDashboardScreen extends StatelessWidget {
                       ('subtitle', 'الوصف القصير'),
                       ('name', 'اسم صاحب الصدقة الجارية'),
                       ('prayer', 'الدعاء'),
+                      ('tapCount', 'عدد الضغطات من 1 إلى 10 (الافتراضي 3)'),
+                      ('enabled', 'إظهار الشاشة: true أو false'),
+                      ('showPhoto', 'إظهار الصورة: true أو false'),
+                      ('photoUrl', 'رابط HTTPS للصورة (فارغ للصورة الأصلية)'),
+                      ('buttonText', 'النص داخل القلب'),
+                      ('completion', 'رسالة إتمام الدعاء'),
                     ],
                   ))),
               )),
