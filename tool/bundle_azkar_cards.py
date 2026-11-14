@@ -50,6 +50,17 @@ for group_index, group in enumerate(data):
         if content in seen:
             paths.append(seen[content])
             continue
+        # Use the user's original mushaf images verbatim when present.
+        original_surahs = {
+            "سورة الإخلاص": "surah_ikhlas_original.webp",
+            "سورة الفلق": "surah_falaq_original.webp",
+            "سورة الناس": "surah_nas_original.webp",
+        }
+        original = original_surahs.get(item["source"])
+        if original and (out / original).is_file():
+            seen[content] = original
+            paths.append(original)
+            continue
         filename = f"dhikr_{len(seen):02d}.webp"
         seen[content] = filename
         paths.append(filename)
