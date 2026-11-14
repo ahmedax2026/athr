@@ -173,7 +173,7 @@ class PrayerNotifications {
     const prayerNames = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
     final qiyamEnabled = preferences.getBool('qiyam_reminder_enabled') ?? true;
     final followupEnabled = preferences.getBool('prayer_followup_enabled') ?? true;
-    final followupDelay = preferences.getInt('prayer_followup_delay') ?? 30;
+    final followupDelay = preferences.getInt('prayer_followup_delay') ?? 10;
     final now = DateTime.now();
     var count = 0;
     final fullAdhanAlarms = <Map<String, Object>>[];
