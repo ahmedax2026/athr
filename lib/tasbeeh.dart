@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -107,6 +108,15 @@ class _TasbeehScreenState extends State<TasbeehScreen> with WidgetsBindingObserv
     if (_goal != 0 && (_counts[_selected] ?? 0) >= _goal) return;
     setState(() => _counts[_selected] = (_counts[_selected] ?? 0) + 1);
     _save();
+    // Haptic feedback is optional and must not block rapid counting.
+    unawaited(_vibrateIfEnabled());
+  }
+
+  Future<void> _vibrateIfEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('vibration') ?? false) {
+      await HapticFeedback.selectionClick();
+    }
   }
 
   Future<void> _addCustom() async {
