@@ -346,18 +346,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     await _schedule();
   }
 
-  Future<void> _previewQiyam() async {
-    try {
-      await PrayerNotifications.showQiyamPreview();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم إرسال نموذج تنبيه قيام الليل')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذر اختبار التذكير: $e')));
-    }
-  }
 
   Future<void> _schedule() async {
     if (latitude == null || zone == null) return;
@@ -459,39 +447,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     }
   }
 
-  Widget _voiceSelector(String label, String value, String prefKey) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(
-          color: _forest, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 7),
-        Row(children: [
-          Expanded(child: DropdownButtonFormField<String>(
-            initialValue: voiceNames.containsKey(value) ? value : 'adhan_makkah',
-            isExpanded: true,
-            decoration: const InputDecoration(
-              isDense: true, border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
-            items: voiceNames.entries.map((entry) => DropdownMenuItem(
-              value: entry.key,
-              child: Text(entry.value, overflow: TextOverflow.ellipsis),
-            )).toList(),
-            onChanged: (choice) {
-              if (choice != null) _setVoice(prefKey, choice);
-            },
-          )),
-          const SizedBox(width: 7),
-          IconButton.filledTonal(
-            tooltip: previewingVoice == value ? 'إيقاف التجربة' : 'تجربة الصوت',
-            onPressed: () => _previewVoice(value),
-            icon: Icon(previewingVoice == value
-              ? Icons.stop_circle_outlined : Icons.play_arrow_rounded),
-          ),
-        ]),
-      ]),
-    );
-  }
 
   Future<void> _testNotification() async {
     try {
