@@ -241,7 +241,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
       final batch=FirebaseFirestore.instance.batch();
       if(d['distribution']=='auto'){
         for(var i=0;i<ids.length;i++){
-          batch.update(ref.collection('members').doc(ids[i]),{'parts':[for(var p=1;p<=30;p++)if((p-1)%ids.length==i)p]});
+          batch.update(ref.collection('members').doc(ids[i]),{'parts':[for(var p=1;p<=30;p++)if(p > (30 * i ~/ ids.length) && p <= (30 * (i + 1) ~/ ids.length))p]});
         }
       }
       batch.update(ref,{'started':true});
