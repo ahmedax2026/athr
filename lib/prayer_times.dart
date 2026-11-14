@@ -610,7 +610,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   }
 
   bool _startingTest = false;
-  int _testSeconds = 10;
   Future<void> _testScheduledReminder() async {
     if (zone == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -623,7 +622,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       final policy = await PrayerAdminPolicy.load();
       final seconds = policy.minutes('testDelaySeconds', 10, 5, 120);
       if (!mounted) return;
-      setState(() => _testSeconds = seconds);
       if (adhanEnabled) {
         await PrayerNotifications.testFullAdhan(adhanVoice, seconds: seconds);
       } else {
@@ -690,7 +688,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   // Detailed diagnostics live in a separate dialog so the everyday
   // settings panel remains beautiful and fully visible without scrolling.
   void _openDiagnostics(StateSetter refresh) {
-    unawaited(PrayerAdminPolicy.load().then((policy) { if (mounted) { setState(() => _testSeconds = policy.minutes('testDelaySeconds', 10, 5, 120)); _refreshDiagnostics?.call(); } }));
     showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -808,15 +805,15 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                       foregroundColor: Colors.white),
                     child: const Text('اختبار الآن'))),
                   const SizedBox(width: 8),
-                  Expanded(child: OutlinedButton(
+                  Expanded(child: FilledButton(
                     onPressed: () async {
                       await _testScheduledReminder();
                       await update();
                     },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _forest,
-                      side: const BorderSide(color: _gold)),
-                    child: Text(adhanEnabled ? 'اختبار الأذان ($_testSeconds ث)' : 'بعد $_testSeconds ثانية'))),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _forest,
+                      foregroundColor: Colors.white),
+                    child: Text(adhanEnabled ? 'اختبار الأذان' : 'اختبار مجدول'))),
                 ]),
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
