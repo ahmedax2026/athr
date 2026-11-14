@@ -31,7 +31,7 @@ object AdhanScheduler {
             val at = (entry["at"] as? Number)?.toLong() ?: continue
             if (at <= System.currentTimeMillis()) continue
             val voice = entry["voice"] as? String ?: "adhan_makkah"
-            if (voice != "adhan_makkah" && voice != "adhan_afasy" && voice != "reminder") continue
+            if (voice != "adhan_makkah" && voice != "adhan_afasy" && voice != "reminder" && voice != "qiyam") continue
             val id = index
             val prayer = entry["prayer"] as? String ?: ""
             val json = JSONObject().put("id", id).put("at", at).put("voice", voice).put("prayer", prayer)
