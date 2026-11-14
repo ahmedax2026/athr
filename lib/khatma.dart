@@ -1,4 +1,6 @@
 import 'dart:math';
+import 'dart:async';
+import 'khatma_push.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -38,6 +40,7 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
       final auth = FirebaseAuth.instance;
       final u = auth.currentUser ?? (await auth.signInAnonymously()).user;
       final prefs = await SharedPreferences.getInstance();
+      unawaited(KhatmaPush.registerCurrent());
       if (mounted) setState(() { user = u; guestName = prefs.getString('khatma_guest_name'); });
     } catch (_) {
       if (mounted) setState(() => error = 'يجب تفعيل تسجيل الدخول المجهول Anonymous في Firebase Authentication لاستخدام الختمات.');
@@ -326,6 +329,8 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
       }
       final members = await ref.collection('members').get();
       var sent = 0;
+      var recorded = 0;
+      var skipped = 0;
       for (final member in members.docs) {
         if (member.id == widget.uid || (target != null && member.id != target)) {
           continue;
