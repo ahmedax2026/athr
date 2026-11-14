@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'admin_content.dart';
+import 'admin_restore.dart';
 
 const adminUid = '7g22L1RQBEcN7JtAYqv92J0qiAs2';
 
@@ -96,6 +97,13 @@ class AdminDashboardScreen extends StatelessWidget {
             if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
             final cases = snapshot.data!.docs;
             return ListView(padding: const EdgeInsets.all(16), children: [
+              Card(child: ListTile(
+                leading: const Icon(Icons.restore),
+                title: const Text('النسخ الاحتياطية والاستعادة'),
+                subtitle: const Text('استعادة إعدادات العرض الأصلية أو السابقة'),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const AdminRestoreScreen())),
+              )),
               const Text('التحكم في التطبيق', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               Card(child: ListTile(
