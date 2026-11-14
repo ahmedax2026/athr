@@ -2,26 +2,63 @@
 const json = (body, status=200) => Response.json(body, {status, headers:{"Cache-Control":"no-store"}});
 const enc = new TextEncoder();
 const b64 = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-let cached;
-async function accessToken(account) {
+const tokens = new Map();
+let statsCache;
+async function accessToken(account, scope="https://www.googleapis.com/auth/firebase.messaging https://www.googleapis.com/auth/datastore") {
+  const cacheKey=account.client_email+":"+scope;
+  const cached=tokens.get(cacheKey);
   if(cached && cached.exp > Date.now()+60000) return cached.token;
   const now=Math.floor(Date.now()/1000);
   const encode=x=>b64(enc.encode(JSON.stringify(x)));
   const unsigned=encode({alg:"RS256",typ:"JWT"})+"."+encode({
-    iss:account.client_email, scope:"https://www.googleapis.com/auth/firebase.messaging https://www.googleapis.com/auth/datastore",
+    iss:account.client_email, scope,
     aud:"https://oauth2.googleapis.com/token",iat:now,exp:now+3600});
   const pem=account.private_key.replace(/-----[^-]+-----/g,"").replace(/\s/g,"");
   const key=await crypto.subtle.importKey("pkcs8",Uint8Array.from(atob(pem),c=>c.charCodeAt(0)),{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["sign"]);
   const signature=await crypto.subtle.sign("RSASSA-PKCS1-v1_5",key,enc.encode(unsigned));
   const r=await fetch("https://oauth2.googleapis.com/token",{method:"POST",body:new URLSearchParams({grant_type:"urn:ietf:params:oauth:grant-type:jwt-bearer",assertion:unsigned+"."+b64(new Uint8Array(signature))})});
   if(!r.ok) throw Error("oauth");
-  const data=await r.json(); cached={token:data.access_token,exp:Date.now()+data.expires_in*1000};
-  return cached.token;
+  const data=await r.json(); tokens.set(cacheKey,{token:data.access_token,exp:Date.now()+data.expires_in*1000});
+  return data.access_token;
 }
 const id = x => typeof x==="string" && /^[A-Za-z0-9_-]{1,128}$/.test(x);
+async function analytics(req,env) {
+  const authorization=req.headers.get("Authorization")||"";
+  if(!/^Bearer [A-Za-z0-9._-]{20,8192}$/.test(authorization))return json({error:"auth_required"},401);
+  // Firestore enforces the existing admin-only read rule for this path, even if absent.
+  const check=await fetch("https://firestore.googleapis.com/v1/projects/athr-la-yanqati/databases/(default)/documents/admin_backups/analytics_authorization",{headers:{Authorization:authorization}});
+  if(check.status!==200&&check.status!==404)return json({error:"admin_required"},403);
+  if(statsCache&&statsCache.expires>Date.now())return json(statsCache.data);
+  if(!env.FIREBASE_SERVICE_ACCOUNT)return json({error:"analytics_not_configured"},503);
+  const account=JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
+  const token=await accessToken(account,"https://www.googleapis.com/auth/analytics.readonly");
+  const endpoint="https://analyticsdata.googleapis.com/v1beta/properties/564332134:";
+  async function report(method,body){
+    const res=await fetch(endpoint+method,{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(!res.ok)throw Error("analytics_"+res.status);
+    return res.json();
+  }
+  const range=(startDate,endDate="today")=>[{startDate,endDate}];
+  const metrics=(...names)=>names.map(name=>({name}));
+  const dimensions=(...names)=>names.map(name=>({name}));
+  const val=(r,i=0)=>Number(r.rows?.[0]?.metricValues?.[i]?.value||0);
+  const [today,month,all,live,days,countries]=await Promise.all([
+    report("runReport",{dateRanges:range("today"),metrics:metrics("activeUsers","newUsers")}),
+    report("runReport",{dateRanges:range("29daysAgo"),metrics:metrics("activeUsers","newUsers")}),
+    report("runReport",{dateRanges:range("2026-11-14"),metrics:metrics("totalUsers")}),
+    report("runRealtimeReport",{metrics:metrics("activeUsers")}),
+    report("runReport",{dateRanges:range("6daysAgo"),dimensions:dimensions("date"),metrics:metrics("activeUsers"),orderBys:[{dimension:{dimensionName:"date"}}]}),
+    report("runReport",{dateRanges:range("29daysAgo"),dimensions:dimensions("country"),metrics:metrics("activeUsers"),orderBys:[{metric:{metricName:"activeUsers"},desc:true}],limit:10})
+  ]);
+  const rows=r=>(r.rows||[]).map(x=>({label:x.dimensionValues[0].value,count:Number(x.metricValues[0].value)}));
+  const data={today:val(today),newToday:val(today,1),month:val(month),newMonth:val(month,1),total:val(all),live:val(live),days:rows(days),countries:rows(countries),updatedAt:new Date().toISOString()};
+  statsCache={data,expires:Date.now()+120000};
+  return json(data);
+}
 export default {async fetch(req,env){
   const path=new URL(req.url).pathname;
-  if(req.method==="GET"&&path==="/") return json({service:"Athr Notifications",status:"online",version:2,firebaseConfigured:!!env.FIREBASE_SERVICE_ACCOUNT});
+  if(req.method==="GET"&&path==="/") return json({service:"Athr Notifications",status:"online",version:3,firebaseConfigured:!!env.FIREBASE_SERVICE_ACCOUNT});
+  if(req.method==="GET"&&path==="/analytics") { try { return await analytics(req,env); } catch(e) { return json({error:String(e.message).match(/^analytics_\\d+$/)?e.message:"analytics_unavailable"},502); } }
   if(req.method!=="POST"||path!=="/remind") return json({error:"not_found"},404);
   try {
     const authorization=req.headers.get("Authorization")||"";
