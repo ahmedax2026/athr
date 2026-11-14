@@ -94,9 +94,7 @@ class AdminDashboardScreen extends StatelessWidget {
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance.collection('cases').snapshots(),
           builder: (context, snapshot) {
-            if (snapshot.hasError) return const Center(child: Text('تعذر تحميل الحالات. راجع صلاحيات Firestore.'));
-            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-            final cases = snapshot.data!.docs;
+            final cases = snapshot.data?.docs ?? [];
             return ListView(padding: const EdgeInsets.all(16), children: [
               Card(child: ListTile(
                 leading: const Icon(Icons.dashboard_customize_outlined),
@@ -188,6 +186,26 @@ class AdminDashboardScreen extends StatelessWidget {
                     ],
                   ))),
               )),
+              Card(child: ListTile(
+                leading: const Icon(Icons.notifications_active_outlined),
+                title: const Text('الإشعارات والأذان'),
+                subtitle: const Text('التحكم في سياسة التنبيهات العامة'),
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const AdminContentEditor(
+                    collection: 'content', document: 'prayer_policy', publicFlag: 'published',
+                    title: 'إدارة التنبيهات والأذان',
+                    fields: [
+                      ('allowAdhan', 'السماح بتشغيل الأذان'),
+                      ('allowAdvance', 'السماح بالتنبيه قبل الصلاة'),
+                      ('allowFollowup', 'السماح بمتابعة الصلاة'),
+                      ('allowQiyam', 'السماح بتنبيه قيام الليل'),
+                      ('followupMinutes', 'متابعة الصلاة بعد عدد دقائق (5 إلى 120)'),
+                      ('prayerBody', 'نص تنبيه حلول الصلاة'),
+                      ('followupBody', 'نص متابعة الصلاة'),
+                    ],
+                  ))),
+              )),
               const SizedBox(height: 24),
               const Text('إدارة حالات فك كرب', style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
@@ -196,7 +214,9 @@ class AdminDashboardScreen extends StatelessWidget {
                   builder: (_) => const CaseEditorScreen())),
                 icon: const Icon(Icons.add), label: const Text('إضافة حالة جديدة')),
               const SizedBox(height: 12),
-              if (cases.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Text('لم تتم إضافة حالات بعد')),
+              if (snapshot.hasError) const Text('تعذر تحميل الحالات. راجع صلاحيات Firestore.'),
+              if (!snapshot.hasData && !snapshot.hasError) const LinearProgressIndicator(),
+              if (snapshot.hasData && cases.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Text('لم تتم إضافة حالات بعد')),
               for (final doc in cases)
                 Card(child: ListTile(
                   title: Text((doc.data()['title'] ?? 'حالة بدون عنوان').toString()),
