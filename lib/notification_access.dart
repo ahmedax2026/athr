@@ -17,6 +17,7 @@ class _NotificationAccessCardState extends State<NotificationAccessCard>
   static const _enabledKey = 'athr_notifications_opt_in';
   bool _loading = true;
   bool _allowed = false;
+  bool _precise = false;
   bool _optedIn = true;
   bool _working = false;
 
@@ -45,6 +46,7 @@ class _NotificationAccessCardState extends State<NotificationAccessCard>
       if (!mounted) return;
       setState(() {
         _allowed = status.enabled;
+        _precise = status.exact;
         _optedIn = prefs.getBool(_enabledKey) ?? true;
         _loading = false;
       });
@@ -81,6 +83,22 @@ class _NotificationAccessCardState extends State<NotificationAccessCard>
       }
     } catch (_) {
       _message('تعذر طلب الإذن. افتح إعدادات إشعارات التطبيق من الهاتف.');
+    } finally {
+      if (mounted) setState(() => _working = false);
+      await _load();
+    }
+  }
+
+  Future<void> _requestPrecise() async {
+    if (_working) return;
+    setState(() => _working = true);
+    try {
+      final granted = await PrayerNotifications.requestExactPermission();
+      _message(granted
+          ? 'تم السماح بالمنبّهات الدقيقة.'
+          : 'فعّل المنبّهات الدقيقة من إعدادات الهاتف لضمان أفضل دقة ممكنة.');
+    } catch (_) {
+      _message('تعذر فتح صلاحية المنبّهات الدقيقة.');
     } finally {
       if (mounted) setState(() => _working = false);
       await _load();
@@ -158,6 +176,16 @@ class _NotificationAccessCardState extends State<NotificationAccessCard>
           'الإشعارات متوقفة باختيارك داخل التطبيق',
           style: const TextStyle(color: cream, fontSize: 13)),
         const SizedBox(height: 10),
+        if (!_loading && _allowed && !_precise) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _working ? null : _requestPrecise,
+            icon: const Icon(Icons.schedule_rounded, size: 18),
+            label: const Text('السماح بالتنبيهات الدقيقة'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: gold, side: const BorderSide(color: gold)),
+          ),
+        ],
         if (!_loading)
           Row(children: [
             Expanded(child: FilledButton.icon(
