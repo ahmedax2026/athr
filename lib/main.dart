@@ -361,10 +361,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return value is String && value.trim().isNotEmpty ? value : fallback;
   }
   bool _visible(String key) => config[key].toString() != 'false';
-  List<int> get _ordered {
-    final order = _text('sectionOrder', ids.join(',')).split(',').map((e) => ids.indexOf(e.trim())).where((e) => e >= 0).toSet();
-    return [...order, ...List.generate(ids.length, (i) => i).where((i) => !order.contains(i))].where((i) => _visible('show_${ids[i]}')).toList();
-  }
   @override
   void initState() {
     super.initState();
@@ -606,36 +602,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Wrap(alignment: WrapAlignment.center,
                   runAlignment: WrapAlignment.center,
                   spacing: 12, runSpacing: 8, children: [
-                  for (final i in _ordered)
-                    sectionTile(_text('title_${ids[i]}', sections[i].$1),
-                      _text('subtitle_${ids[i]}', sections[i].$2), sections[i].$3, () {
-                          if (sections[i].$1 == 'القرآن الكريم') {
-                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const QuranScreen()));
-                          } else if (sections[i].$1 == 'الختمات الجماعية') {
-                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const KhatmaScreen()));
-                          } else if (sections[i].$1 == 'الأذكار') {
-                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AzkarScreen()));
-                          } else if (sections[i].$1 == 'مواقيت الصلاة') {
-                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PrayerTimesScreen()));
-                          } else if (sections[i].$1 == 'السبحة') {
-                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TasbeehScreen()));
-                          } else if (sections[i].$1 == 'فك كرب') {
-                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PublicCasesScreen()));
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('قسم ${sections[i].$1} قيد التطوير')));
-                          }
-                        }),
-                  for (final item in _customSections)
-                    sectionTile(item['title'].toString(), item['description']?.toString() ?? '',
-                      Icons.menu_book_outlined, () => Navigator.of(context).push(MaterialPageRoute<void>(
-                        builder: (_) => Scaffold(
-                          appBar: AppBar(title: Text(item['title'].toString())),
-                          body: SafeArea(child: ListView(padding: const EdgeInsets.all(24), children: [
-                            SelectableText(item['body']?.toString() ?? '', textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 19, height: 1.9, fontWeight: FontWeight.w700)),
-                          ])),
-                        ),
-                      ))),
+                  for (final id in unifiedSectionOrder(config, _customSections))
+                    if (ids.contains(id) && _visible('show_$id'))
+                      sectionTile(_text('title_$id', sections[ids.indexOf(id)].$1),
+                        _text('subtitle_$id', sections[ids.indexOf(id)].$2), sections[ids.indexOf(id)].$3, () {
+                          final i = ids.indexOf(id);
+                          if (i == 0) { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const QuranScreen())); }
+                          else if (i == 1) { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AzkarScreen())); }
+                          else if (i == 2) { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const KhatmaScreen())); }
+                          else if (i == 3) { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PrayerTimesScreen())); }
+                          else if (i == 4) { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TasbeehScreen())); }
+                          else if (i == 5) { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PublicCasesScreen())); }
+                        })
+                    else if (id.startsWith('custom:'))
+                      for (final item in _customSections.where((e) => 'custom:${e['id']}' == id))
+                        sectionTile(item['title'].toString(), item['description']?.toString() ?? '', customSectionIcon(item),
+                          () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => CustomSectionReader(section: item)))),
                 ]),
                 const SizedBox(height: 9),
                 Row(children: [
