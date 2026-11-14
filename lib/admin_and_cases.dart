@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'admin_content.dart';
+import 'admin_analytics.dart';
 
 const adminUid = '7g22L1RQBEcN7JtAYqv92J0qiAs2';
 
@@ -98,6 +99,7 @@ class AdminDashboardScreen extends StatelessWidget {
             return ListView(padding: const EdgeInsets.all(16), children: [
               const Text('التحكم في التطبيق', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
+              Card(child: ListTile(leading: const Icon(Icons.analytics_outlined), title: const Text('إحصائيات التطبيق'), subtitle: const Text('المستخدمون الجدد والنشطون'), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AdminAnalyticsScreen())))),
               Card(child: ListTile(
                 leading: const Icon(Icons.phone_outlined),
                 title: const Text('وسائل التواصل'),
