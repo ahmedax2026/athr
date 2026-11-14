@@ -1,71 +1,225 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone_finder/timezone_finder.dart';
+import 'prayer_notifications.dart';
+import 'prayer_times.dart';
+
+const _settingGreen = Color(0xFF073E35);
+const _settingGold = Color(0xFFD6B56C);
+const _settingCream = Color(0xFFF8F0DE);
 
 class AppSettingsScreen extends StatefulWidget {
   const AppSettingsScreen({super.key});
+
   @override
   State<AppSettingsScreen> createState() => _AppSettingsScreenState();
 }
 
-class _AppSettingsScreenState extends State<AppSettingsScreen> {
-  final _prefs = SharedPreferencesAsync();
+class _AppSettingsScreenState extends State<AppSettingsScreen>
+    with WidgetsBindingObserver {
   final Map<String, bool> _values = {};
   bool _ready = false;
-  static const _items = [
-    ('adhan', 'تشغيل الأذان', 'التفضيل محفوظ؛ تشغيل الأذان التلقائي قيد التطوير', Icons.volume_up_outlined),
-    ('reminders', 'تذكيرات الأذكار', 'الإشعارات المجدولة قيد التطوير', Icons.notifications_outlined),
-    ('daily_prayer', 'الدعاء اليومي', 'تفضيل محفوظ للتخصيص في تحديث قادم', Icons.favorite_outline),
-    ('vibration', 'الاهتزاز عند التسبيح', 'سيعمل عند تطوير السبحة التفاعلية', Icons.vibration),
-  ];
+  bool _working = false;
+  String? _message;
+  PrayerNotificationStatus? _status;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
   }
 
-  Future<void> _load() async {
-    for (final item in _items) {
-      _values[item.$1] = await _prefs.getBool(item.$1) ?? false;
-    }
-    if (mounted) setState(() => _ready = true);
-  }
-
-  Future<void> _change(String key, bool value) async {
-    setState(() => _values[key] = value);
-    await _prefs.setBool(key, value);
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final accent = dark ? const Color(0xFFD6B56C) : const Color(0xFF075B4A);
-    return Scaffold(
-      appBar: AppBar(title: const Text('الإعدادات')),
-      body: !_ready ? const Center(child: CircularProgressIndicator()) :
-        ListView(padding: const EdgeInsets.all(18), children: [
-          Text('تفضيلاتك', style: TextStyle(color: accent, fontSize: 24, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          const Text('اختار اللي يناسبك. إعداداتك بتتحفظ على نفس الجهاز.'),
-          const SizedBox(height: 18),
-          Card(
-            child: Column(children: [
-              for (final item in _items)
-                SwitchListTile(
-                  title: Text(item.$2),
-                  subtitle: Text(item.$3),
-                  secondary: Icon(item.$4, color: accent),
-                  value: _values[item.$1] ?? false,
-                  onChanged: (value) => _change(item.$1, value),
-                ),
-            ]),
-          ),
-          const SizedBox(height: 18),
-          const Text('تنبيه: مفاتيح الأذان والإشعارات والاهتزاز تحفظ رغبتك فقط حاليًا؛ لن تصدر صوتًا أو إشعارات حتى نكمل تنفيذ تلك الميزات.',
-            style: TextStyle(height: 1.7)),
-        ]),
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _updateStatus();
+    }
+  }
+
+  Future<void> _updateStatus() async {
+    try {
+      final status = await PrayerNotifications.status();
+      if (mounted) setState(() => _status = status);
+    } catch (_) {
+      // The on-device permission dialog can be unavailable on some devices.
+    }
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _values['adhan'] = prefs.getBool('adhan') ?? false;
+      _values['reminders'] = prefs.getBool('reminders') ?? false;
+      _values['daily_prayer'] = prefs.getBool('daily_prayer') ?? false;
+      _values['vibration'] = prefs.getBool('vibration') ?? false;
+      _ready = true;
+    });
+    await _updateStatus();
+  }
+
+  Future<tz.Location> _reminderZone() async {
+    tzdata.initializeTimeZones();
+    final prefs = await SharedPreferences.getInstance();
+    final lat = prefs.getDouble('prayer_lat');
+    final lon = prefs.getDouble('prayer_lon');
+    if (lat != null && lon != null) {
+      final found = findLocation(lon, lat);
+      if (found != null) return found;
+    }
+    // Until first location setup, use Cairo as a documented fallback for
+    // Egyptian users rather than pretending we know their timezone.
+    return tz.getLocation('Africa/Cairo');
+  }
+
+  Future<void> _syncDaily() async {
+    final zone = await _reminderZone();
+    await PrayerNotifications.syncDailyReminders(
+      zone: zone,
+      azkar: _values['reminders'] ?? false,
+      dailyDua: _values['daily_prayer'] ?? false,
     );
   }
+
+  Future<void> _change(String key, bool value) async {
+    if (_working) return;
+    setState(() {
+      _working = true;
+      _message = null;
+      _values[key] = value;
+    });
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      if (value && (key == 'adhan' ||
+          key == 'reminders' || key == 'daily_prayer')) {
+        final granted = await PrayerNotifications.requestNotificationPermission();
+        if (!granted) {
+          throw StateError('اسمح بالإشعارات أولًا من إعدادات الهاتف.');
+        }
+      }
+      await prefs.setBool(key, value);
+      if (key == 'reminders' || key == 'daily_prayer') {
+        await _syncDaily();
+      } else if (key == 'adhan') {
+        final scheduled = await refreshPrayerScheduleFromCache();
+        if (!scheduled && value) {
+          _message = 'تم حفظ اختيار الأذان. افتح مواقيت الصلاة وحدد موقعك مرة واحدة لتشغيله تلقائيًا.';
+        }
+      }
+    } catch (e) {
+      await prefs.setBool(key, !value);
+      if (mounted) setState(() => _values[key] = !value);
+      _message = e is StateError ? e.message.toString() :
+          'تعذر تفعيل الميزة حاليًا. راجع صلاحيات الإشعارات وحاول مجددًا.';
+    } finally {
+      if (mounted) setState(() => _working = false);
+      await _updateStatus();
+    }
+  }
+
+  Widget _settingRow(String key, String title, String description,
+      IconData icon) {
+    final enabled = _values[key] ?? false;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 9),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: _settingGold.withValues(alpha: .65))),
+      child: SwitchListTile.adaptive(
+        activeTrackColor: _settingGreen,
+        activeThumbColor: _settingGold,
+        title: Text(title, style: const TextStyle(color: _settingGreen,
+          fontWeight: FontWeight.w900, fontSize: 16)),
+        subtitle: Text(description, style: const TextStyle(
+          color: Color(0xFF5E6A63), fontSize: 12, height: 1.5)),
+        secondary: Icon(icon, color: _settingGreen),
+        value: enabled, onChanged: _working ? null : (v) => _change(key, v)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: _settingCream,
+    appBar: AppBar(title: const Text('الإعدادات',
+      style: TextStyle(fontWeight: FontWeight.w900)),
+      backgroundColor: _settingGreen, foregroundColor: Colors.white),
+    body: !_ready
+      ? const Center(child: CircularProgressIndicator(color: _settingGreen))
+      : SafeArea(child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 15, 16, 20),
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [
+                  Color(0xFF15624F), _settingGreen]),
+                borderRadius: BorderRadius.circular(20)),
+              child: const Column(children: [
+                Icon(Icons.tune_rounded, color: _settingGold, size: 30),
+                SizedBox(height: 5),
+                Text('تفضيلاتك', style: TextStyle(
+                  color: Colors.white, fontSize: 24,
+                  fontWeight: FontWeight.w900)),
+                SizedBox(height: 5),
+                Text('إعدادات واضحة، وتعمل بضغطة واحدة',
+                  style: TextStyle(color: Color(0xFFF1E3C3), fontSize: 13)),
+              ]),
+            ),
+            const SizedBox(height: 15),
+            _settingRow('adhan', 'تشغيل الأذان',
+              'الأذان الكامل في مواعيد الصلاة بالصوت المختار',
+              Icons.volume_up_rounded),
+            _settingRow('reminders', 'أذكار الصباح والمساء',
+              'تذكير صباحًا الساعة ٨ ومساءً الساعة ٦',
+              Icons.notifications_active_outlined),
+            _settingRow('daily_prayer', 'الدعاء اليومي',
+              'تذكير يومي بالدعاء الساعة ٨:٣٠ مساءً',
+              Icons.favorite_rounded),
+            _settingRow('vibration', 'اهتزاز السبحة',
+              'اهتزاز خفيف عند كل تسبيحة',
+              Icons.vibration_rounded),
+            if (_message != null) Padding(
+              padding: const EdgeInsets.all(10),
+              child: Text(_message!, textAlign: TextAlign.center,
+                style: const TextStyle(color: _settingGreen,
+                  fontWeight: FontWeight.w800))),
+            const SizedBox(height: 6),
+            ListTile(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15)),
+              tileColor: Colors.white,
+              leading: Icon(_status?.enabled == true
+                  ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                color: _settingGreen),
+              title: Text(_status?.enabled == true
+                  ? 'الإشعارات مسموح بها' : 'إشعارات التطبيق تحتاج السماح',
+                style: const TextStyle(color: _settingGreen,
+                  fontWeight: FontWeight.w800)),
+              subtitle: const Text('يمكنك مراجعة صلاحيات الهاتف من هنا'),
+              trailing: const Icon(Icons.settings_rounded, color: _settingGreen),
+              onTap: () async {
+                await PrayerNotifications.openNotificationSettings();
+                await _updateStatus();
+              },
+            ),
+            const SizedBox(height: 12),
+            const Text('تُجدَّد تذكيرات الأذكار والدعاء للأيام القادمة عند فتح الإعدادات. وقد تؤخر قيود البطارية بعض التنبيهات؛ جرّب الاختبار من صفحة مواقيت الصلاة.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFF59675E),
+                height: 1.5, fontSize: 12)),
+          ],
+        )),
+  );
 }
 
 class ReliefScreen extends StatelessWidget {
