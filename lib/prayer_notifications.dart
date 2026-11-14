@@ -1,6 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
+import 'prayer_admin_policy.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 /// Prayer notification diagnostics. Sound of the full adhan is deliberately
@@ -222,7 +223,8 @@ class PrayerNotifications {
     }
 
     final preferences = await SharedPreferences.getInstance();
-    final useAdhan = preferences.getBool('adhan') ?? false;
+    final policy = await PrayerAdminPolicy.load();
+    final useAdhan = (preferences.getBool('adhan') ?? false) && policy.allows('allowAdhan');
     final normalVoice = preferences.getString('adhan_voice') ?? 'adhan_makkah';
     const choices = {'adhan_makkah', 'adhan_afasy'};
     NotificationDetails detailsFor(String name) {
@@ -242,9 +244,9 @@ class PrayerNotifications {
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle;
     const prayerNames = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
-    final qiyamEnabled = preferences.getBool('qiyam_reminder_enabled') ?? true;
-    final followupEnabled = preferences.getBool('prayer_followup_enabled') ?? true;
-    final followupDelay = 30;
+    final qiyamEnabled = (preferences.getBool('qiyam_reminder_enabled') ?? true) && policy.allows('allowQiyam');
+    final followupEnabled = (preferences.getBool('prayer_followup_enabled') ?? true) && policy.allows('allowFollowup');
+    final followupDelay = policy.minutes('followupMinutes', 30, 5, 120);
     final now = DateTime.now();
     var count = 0;
     final fullAdhanAlarms = <Map<String, Object>>[];
@@ -279,7 +281,7 @@ class PrayerNotifications {
           await _plugin.zonedSchedule(
             id: 1000 + day * 20 + prayer * 2,
             title: 'حان الآن موعد صلاة $name',
-            body: 'حي على الصلاة • أثر لا ينقطع',
+            body: policy.text('prayerBody', 'حي على الصلاة • أثر لا ينقطع'),
             scheduledDate: tz.TZDateTime.from(prayerTime, zone),
             notificationDetails: detailsFor(name),
             androidScheduleMode: mode,
@@ -296,7 +298,7 @@ class PrayerNotifications {
             await _plugin.zonedSchedule(
               id: 3000 + day * 10 + prayer,
               title: '🤍 هل صليت صلاة $name؟',
-              body: 'مر نصف ساعة على موعد الصلاة. ربنا يتقبل منك.',
+              body: policy.text('followupBody', 'مر $followupDelay دقيقة على موعد الصلاة. ربنا يتقبل منك.'),
               payload: 'prayer_done_${dateKey}_$name',
               scheduledDate: tz.TZDateTime.from(followAt, zone),
               notificationDetails: const NotificationDetails(android: AndroidNotificationDetails(
@@ -310,7 +312,7 @@ class PrayerNotifications {
             count++;
           }
         }
-        if (reminderMinutes > 0) {
+        if (reminderMinutes > 0 && policy.allows('allowAdvance')) {
           final before = prayerTime.subtract(Duration(minutes: reminderMinutes));
           if (before.isAfter(now)) {
             fullAdhanAlarms.add({
