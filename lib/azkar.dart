@@ -229,7 +229,7 @@ class _AzkarReaderState extends State<AzkarReader> {
         as Map<String, dynamic>;
     List<List<String>> cards = const [];
     try {
-      final raw = jsonDecode(await rootBundle.loadString('assets/azkar/manifest.json')) as List<dynamic>;
+      final raw = jsonDecode(await rootBundle.loadString('assets/azkar_vip/manifest.json')) as List<dynamic>;
       cards = raw.map((group) => (group as List<dynamic>).map((item) => item.toString()).toList()).toList();
     } catch (_) { /* Keep readable text if assets are missing. */ }
     // The 12-hour cycle starts only after all counters were completed.
@@ -354,7 +354,7 @@ class _AzkarReaderState extends State<AzkarReader> {
     if (groupIndex < 0 || groupIndex >= imageManifest.length) return null;
     final images = imageManifest[groupIndex];
     if (itemIndex < 0 || itemIndex >= images.length) return null;
-    return 'assets/azkar/${images[itemIndex]}';
+    return 'assets/azkar_vip/${images[itemIndex]}';
   }
 
   Widget _dhikrCard(Dhikr item, int itemIndex) {
