@@ -18,6 +18,16 @@ class MainActivity : FlutterActivity() {
                     } catch (e: Exception) {
                         result.error("ADHAN_ALARM", e.message, null)
                     }
+                } else if (call.method == "batteryStatus") {
+                    val power = getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+                    result.success(power.isIgnoringBatteryOptimizations(packageName))
+                } else if (call.method == "batterySettings") {
+                    try {
+                        startActivity(android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("BATTERY_SETTINGS", e.message, null)
+                    }
                 } else if (call.method == "testAdhan") {
                     try {
                         val voice = call.argument<String>("voice") ?: "adhan_makkah"
