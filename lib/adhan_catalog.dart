@@ -53,12 +53,23 @@ class AdhanCatalog {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
     IOSink? sink;
     try {
-      final request = await client.getUrl(Uri.parse(url));
-      request.followRedirects = false;
-      final response = await request.close().timeout(const Duration(seconds: 20));
-      if (response.statusCode != 200 || response.contentLength > 15 * 1024 * 1024) {
-        throw StateError('invalid response');
+      var uri = Uri.parse(url);
+      late HttpClientResponse response;
+      for (var redirects = 0; ; redirects++) {
+        final request = await client.getUrl(uri).timeout(const Duration(seconds: 20));
+        request.followRedirects = false;
+        response = await request.close().timeout(const Duration(seconds: 20));
+        if (![301, 302, 303, 307, 308].contains(response.statusCode)) break;
+        final location = response.headers.value(HttpHeaders.locationHeader);
+        if (location == null || redirects >= 5) throw StateError('redirect');
+        uri = uri.resolve(location);
+        if (uri.scheme != 'https' || uri.host.isEmpty || uri.userInfo.isNotEmpty) {
+          throw StateError('redirect');
+        }
+        await response.listen((_) {}).cancel();
       }
+      if (response.statusCode != 200) throw StateError('HTTP ${response.statusCode}');
+      if (response.contentLength > 15 * 1024 * 1024) throw StateError('file too large');
       sink = partial.openWrite();
       var size = 0;
       await for (final chunk in response.timeout(const Duration(seconds: 20))) {

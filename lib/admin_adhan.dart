@@ -57,8 +57,21 @@ class _AdminAdhanScreenState extends State<AdminAdhanScreen> {
         tx.set(ref, {'published': true, 'voices': items, 'updatedAt': FieldValue.serverTimestamp()});
       });
       message('تم نشر الصوت بعد التحقق من الملف');
+    } on FirebaseException catch (e) {
+      message(e.code == 'permission-denied'
+          ? 'لا توجد صلاحية لحفظ الصوت. تأكد من تسجيل الدخول بحساب الإدارة.'
+          : 'تعذر حفظ الصوت في Firebase (${e.code}).');
+    } on StateError catch (e) {
+      final reason = e.message.toString();
+      message(switch (reason) {
+        'limit' => 'وصلت إلى الحد الأقصى: 20 صوتًا إضافيًا.',
+        'redirect' => 'الرابط يعيد التوجيه إلى عنوان غير آمن أو غير صالح.',
+        'file too large' => 'حجم الصوت يتجاوز 15 ميجابايت.',
+        'invalid audio' || 'invalid MP3' => 'الملف ليس تسجيل MP3 صالحًا (من ثانية إلى 10 دقائق).',
+        _ => reason.startsWith('HTTP ') ? 'خادم الصوت رفض التحميل ($reason).' : 'تعذر التحقق من ملف الصوت.',
+      });
     } catch (_) {
-      message('تعذر حفظ الصوت. تحقق من الرابط والصلاحيات (الحد 20 صوتًا).');
+      message('تعذر تحميل الصوت. تأكد من الإنترنت والرابط المباشر ثم حاول مرة أخرى.');
     } finally {
       if (mounted) setState(() => busy = false);
     }

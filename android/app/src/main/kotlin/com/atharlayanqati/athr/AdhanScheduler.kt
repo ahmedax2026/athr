@@ -57,7 +57,7 @@ object AdhanScheduler {
     fun test(context: Context, voice: String) {
         val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         check(Build.VERSION.SDK_INT < 31 || alarm.canScheduleExactAlarms()) { "Exact alarm permission required" }
-        set(context, 9999, System.currentTimeMillis() + 120000L, voice, "تجربة الأذان")
+        set(context, 9999, System.currentTimeMillis() + 5000L, voice, "تجربة الأذان")
     }
 
     private fun set(context: Context, id: Int, at: Long, voice: String, prayer: String, lateLimitSeconds: Int = 120) {

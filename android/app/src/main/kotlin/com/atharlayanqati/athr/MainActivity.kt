@@ -29,16 +29,25 @@ class MainActivity : FlutterActivity() {
                         if (call.method == "voicePath") {
                             result.success(file.absolutePath)
                         } else {
-                            val retriever = android.media.MediaMetadataRetriever()
+                            val extractor = android.media.MediaExtractor()
                             try {
-                                retriever.setDataSource(file.absolutePath + ".part")
-                                val duration = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-                                val audio = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO)
-                                result.success(audio == "yes" && duration in 1000L..600000L)
+                                extractor.setDataSource(file.absolutePath + ".part")
+                                var valid = false
+                                for (i in 0 until extractor.trackCount) {
+                                    val format = extractor.getTrackFormat(i)
+                                    val mime = format.getString(android.media.MediaFormat.KEY_MIME)
+                                    val duration = if (format.containsKey(android.media.MediaFormat.KEY_DURATION))
+                                        format.getLong(android.media.MediaFormat.KEY_DURATION) else 0L
+                                    if (mime == "audio/mpeg" && duration in 1000000L..600000000L) {
+                                        valid = true
+                                        break
+                                    }
+                                }
+                                result.success(valid)
                             } catch (_: Exception) {
                                 result.success(false)
                             } finally {
-                                retriever.release()
+                                extractor.release()
                             }
                         }
                     }
