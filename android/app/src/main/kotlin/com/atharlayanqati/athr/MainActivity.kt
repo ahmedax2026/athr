@@ -53,7 +53,7 @@ class MainActivity : FlutterActivity() {
                     }
                 } else if (call.method == "testAdhan") {
                     try {
-                        AdhanScheduler.test(this, call.argument<String>("voice") ?: "adhan_makkah")
+                        AdhanScheduler.test(this, call.argument<String>("voice") ?: "adhan_makkah", call.argument<Int>("seconds") ?: 10)
                         result.success(true)
                     } catch (e: Exception) { result.error("ADHAN_TEST", e.message, null) }
                 } else if (call.method == "batteryStatus") {

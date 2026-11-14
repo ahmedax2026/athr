@@ -27,9 +27,10 @@ class KhatmaPush {
     });
     FirebaseMessaging.onMessageOpenedApp.listen(_open);
     FirebaseMessaging.onMessage.listen((message) async {
-      if(message.data['type']!='khatma_reminder')return;
+      final general = message.data['type'] == 'general';
+      if (!general && message.data['type'] != 'khatma_reminder') return;
       final plugin=FlutterLocalNotificationsPlugin();
-      try { await plugin.show(id:8000+(message.messageId??'').hashCode.abs()%10000,title:message.notification?.title??'تذكير بالختمة',body:message.notification?.body??'لا تنس إكمال وردك',notificationDetails:const NotificationDetails(android:AndroidNotificationDetails('athr_khatma','تذكيرات الختمات',importance:Importance.high,priority:Priority.high))); } catch (_) { }
+      try { await plugin.show(id:8000+(message.messageId??'').hashCode.abs()%10000,title:message.notification?.title??'تذكير بالختمة',body:message.notification?.body??'لا تنس إكمال وردك',notificationDetails:NotificationDetails(android:AndroidNotificationDetails(general ? 'athr_general' : 'athr_khatma',general ? 'إشعارات أثر لا ينقطع' : 'تذكيرات الختمات',importance:Importance.high,priority:Priority.high))); } catch (_) { }
     });
     unawaited(FirebaseMessaging.instance.getInitialMessage().then((m) {
       if (m != null) _open(m);
@@ -82,12 +83,13 @@ class KhatmaPush {
       await messaging.deleteToken();
       await prefs.remove('khatma_push_uid');
     }
-    if (user == null || FirebaseAuth.instance.currentUser?.uid != user.uid) return;
     final permission = await messaging.getNotificationSettings();
     if (permission.authorizationStatus != AuthorizationStatus.authorized &&
         permission.authorizationStatus != AuthorizationStatus.provisional) {
       return;
     }
+    await messaging.subscribeToTopic('athr_general_v1');
+    if (user == null || FirebaseAuth.instance.currentUser?.uid != user.uid) return;
     final token = await messaging.getToken();
     if (token == null || FirebaseAuth.instance.currentUser?.uid != user.uid) return;
     await FirebaseFirestore.instance.collection('push_devices').doc(user.uid).set({

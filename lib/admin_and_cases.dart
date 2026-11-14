@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'admin_content.dart';
 import 'admin_adhan.dart';
+import 'admin_broadcast.dart';
 import 'admin_analytics.dart';
 import 'admin_khatmas.dart';
 import 'admin_restore.dart';
@@ -125,6 +126,13 @@ class AdminDashboardScreen extends StatelessWidget {
                 onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
                   builder: (_) => const AdminAdhanScreen())),
               )),
+              Card(child: ListTile(
+                leading: const Icon(Icons.campaign_outlined),
+                title: const Text('مركز الإشعارات'),
+                subtitle: const Text('إرسال للجميع أو تجربة على جهازك'),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const AdminBroadcastScreen())),
+              )),
               const Text('التحكم في التطبيق', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               Card(child: ListTile(
@@ -214,6 +222,7 @@ class AdminDashboardScreen extends StatelessWidget {
                     title: 'إدارة التنبيهات والأذان',
                     fields: [
                       ('allowAdhan', 'السماح بتشغيل الأذان'),
+                      ('testDelaySeconds', 'مدة انتظار الاختبار بالثواني (5–120)'),
                       ('adhanLateMinutes', 'إلغاء الأذان إذا تأخر (بالدقائق، 1 إلى 10، الافتراضي 2)'),
                       ('allowAdvance', 'السماح بالتنبيه قبل الصلاة'),
                       ('allowFollowup', 'السماح بمتابعة الصلاة'),

@@ -168,13 +168,13 @@ class PrayerNotifications {
     await _adhanAlarmChannel.invokeMethod<void>('batterySettings');
   }
 
-  static Future<void> testFullAdhan(String voice) async {
+  static Future<void> testFullAdhan(String voice, {required int seconds}) async {
     if (!(await _android?.canScheduleExactNotifications() ?? false)) throw StateError('فعّل التوقيت الدقيق أولًا');
-    await _adhanAlarmChannel.invokeMethod<void>('testAdhan', {'voice':voice});
+    await _adhanAlarmChannel.invokeMethod<void>('testAdhan', {'voice':voice, 'seconds':seconds});
   }
 
   static Future<DateTime> scheduleTest({
-    required tz.Location zone,
+    required tz.Location zone, required int seconds,
   }) async {
     await _ensureInitialized();
     if (!(await _android?.areNotificationsEnabled() ?? false)) {
@@ -183,7 +183,7 @@ class PrayerNotifications {
     if (!(await _android?.canScheduleExactNotifications() ?? false)) {
       throw StateError('فعّل التوقيت الدقيق أولًا لاختبار التنبيه المجدول');
     }
-    final fireAt = DateTime.now().add(const Duration(seconds: 30));
+    final fireAt = DateTime.now().add(Duration(seconds: seconds));
     await _plugin.cancel(id: 901);
     await _plugin.zonedSchedule(
       id: 901,

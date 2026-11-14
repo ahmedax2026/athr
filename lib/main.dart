@@ -65,6 +65,12 @@ class _AthrAppState extends State<AthrApp> {
         seedColor: emerald,
         brightness: brightness,
       ).copyWith(primary: dark ? gold : emerald, surface: surface),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating, backgroundColor: const Color(0xFF063D33),
+        contentTextStyle: const TextStyle(color: Color(0xFFF8F0DE), fontWeight: FontWeight.w700),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: const BorderSide(color: Color(0xFFD9BC7D))),
+        elevation: 5,
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: background,
         foregroundColor: foreground,

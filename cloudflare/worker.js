@@ -55,10 +55,30 @@ async function analytics(req,env) {
   statsCache={data,expires:Date.now()+120000};
   return json(data);
 }
+async function broadcast(req,env) {
+  const authorization=req.headers.get("Authorization")||"";
+  if(!/^Bearer [A-Za-z0-9._-]{20,8192}$/.test(authorization))return json({error:"auth_required"},401);
+  const check=await fetch("https://firestore.googleapis.com/v1/projects/athr-la-yanqati/databases/(default)/documents/admin_backups?pageSize=1",{headers:{Authorization:authorization}});
+  if(!check.ok)return json({error:"admin_required"},403);
+  const raw=await req.text();
+  if(raw.length>4096)return json({error:"too_large"},413);
+  let payload;try{payload=JSON.parse(raw);}catch{return json({error:"invalid_json"},400);}
+  const {title,body,testToken}=payload||{};
+  if(typeof title!=="string"||!title.trim()||title.length>100||typeof body!=="string"||!body.trim()||body.length>500)return json({error:"invalid_message"},400);
+  if(testToken!==undefined && (typeof testToken!=="string"||testToken.length<20||testToken.length>4096))return json({error:"invalid_token"},400);
+  const account=JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
+  const token=await accessToken(account);
+  const push=await fetch("https://fcm.googleapis.com/v1/projects/"+account.project_id+"/messages:send",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({message:{
+    ...(testToken?{token:testToken}:{topic:"athr_general_v1"}),notification:{title:title.trim(),body:body.trim()},data:{type:"general"},android:{priority:"HIGH",ttl:"86400s"}
+  }})});
+  if(!push.ok)return json({error:"fcm_"+push.status},502);
+  return json({sent:true});
+}
 export default {async fetch(req,env){
   const path=new URL(req.url).pathname;
-  if(req.method==="GET"&&path==="/") return json({service:"Athr Notifications",status:"online",version:3,firebaseConfigured:!!env.FIREBASE_SERVICE_ACCOUNT});
+  if(req.method==="GET"&&path==="/") return json({service:"Athr Notifications",status:"online",version:4,firebaseConfigured:!!env.FIREBASE_SERVICE_ACCOUNT});
   if(req.method==="GET"&&path==="/analytics") { try { return await analytics(req,env); } catch(e) { return json({error:String(e.message).match(/^analytics_\d+$/)?e.message:"analytics_unavailable"},502); } }
+  if(req.method==="POST"&&path==="/broadcast") {try{return await broadcast(req,env);}catch{return json({error:"broadcast_unavailable"},502);}}
   if(req.method!=="POST"||path!=="/remind") return json({error:"not_found"},404);
   try {
     const authorization=req.headers.get("Authorization")||"";

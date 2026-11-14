@@ -46,7 +46,6 @@ class _AdminAdhanScreenState extends State<AdminAdhanScreen> {
       // Changing the URL creates a new cache identifier, so old downloads stay valid.
       final id = old != null && old['url'] == url ? old['id'].toString()
           : 'remote_${DateTime.now().microsecondsSinceEpoch}';
-      await AdhanCatalog.download(id, url);
       await ref.firestore.runTransaction((tx) async {
         final snap = await tx.get(ref);
         final items = List<Map<String, dynamic>>.from(
@@ -56,7 +55,7 @@ class _AdminAdhanScreenState extends State<AdminAdhanScreen> {
         items.add({'id': id, 'name': name, 'url': url});
         tx.set(ref, {'published': true, 'voices': items, 'updatedAt': FieldValue.serverTimestamp()});
       });
-      message('تم نشر الصوت بعد التحقق من الملف');
+      message('تم حفظ الرابط. استخدم زر المعاينة للتحقق من تشغيله');
     } on FirebaseException catch (e) {
       message(e.code == 'permission-denied'
           ? 'لا توجد صلاحية لحفظ الصوت. تأكد من تسجيل الدخول بحساب الإدارة.'

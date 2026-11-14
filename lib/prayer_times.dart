@@ -9,6 +9,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone_finder/timezone_finder.dart';
 import 'prayer_notifications.dart';
+import 'prayer_admin_policy.dart';
 import 'adhan_catalog.dart';
 
 const _forest = Color(0xFF063D33);
@@ -608,29 +609,37 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     }
   }
 
+  bool _startingTest = false;
+  int _testSeconds = 10;
   Future<void> _testScheduledReminder() async {
     if (zone == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('حدد مدينتك أو موقعك قبل تجربة التنبيه المجدول')));
       return;
     }
+    if (_startingTest) return;
+    _startingTest = true;
     try {
-      if (adhanEnabled) {
-        await PrayerNotifications.testFullAdhan(adhanVoice);
-      } else {
-        await PrayerNotifications.scheduleTest(zone: zone!);
-      }
-      await _checkNotificationStatus();
+      final policy = await PrayerAdminPolicy.load();
+      final seconds = policy.minutes('testDelaySeconds', 10, 5, 120);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('تم ضبط الاختبار بعد 30 ثانية. اقفل الشاشة وجرب وصوله.'),
-        duration: Duration(seconds: 6)));
+      setState(() => _testSeconds = seconds);
+      if (adhanEnabled) {
+        await PrayerNotifications.testFullAdhan(adhanVoice, seconds: seconds);
+      } else {
+        await PrayerNotifications.scheduleTest(zone: zone!, seconds: seconds);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(children: [const Icon(Icons.check_circle_outline, color: _gold, size: 28), const SizedBox(width: 12), Expanded(child: Text('تم ضبط الاختبار بعد $seconds ثانية. يمكنك البقاء هنا أو إغلاق الشاشة.', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)))]),
+        duration: Duration(seconds: seconds.clamp(5, 12).toInt())));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('لم يتم ضبط تنبيه التجربة: $e')));
       }
-    }
+    } finally { _startingTest = false; }
   }
 
   Future<void> _setMethod(String value) async {
@@ -681,6 +690,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   // Detailed diagnostics live in a separate dialog so the everyday
   // settings panel remains beautiful and fully visible without scrolling.
   void _openDiagnostics(StateSetter refresh) {
+    unawaited(PrayerAdminPolicy.load().then((policy) { if (mounted) { setState(() => _testSeconds = policy.minutes('testDelaySeconds', 10, 5, 120)); _refreshDiagnostics?.call(); } }));
     showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -720,7 +730,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                   ],
                 )),
                 Text(active == null ? 'جارٍ الفحص' :
-                    active ? 'مفعّل' : 'يحتاج تفعيل',
+                    active ? 'مفعّل' : title == 'العمل في الخلفية' ? 'غير مستثنى' : 'يحتاج تفعيل',
                   style: TextStyle(
                     color: active == true ? _forest :
                       const Color(0xFF9F6033),
@@ -806,7 +816,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _forest,
                       side: const BorderSide(color: _gold)),
-                    child: Text(adhanEnabled ? 'اختبار الأذان (30 ثانية)' : 'بعد 30 ثانية'))),
+                    child: Text(adhanEnabled ? 'اختبار الأذان ($_testSeconds ث)' : 'بعد $_testSeconds ثانية'))),
                 ]),
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
