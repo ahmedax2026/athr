@@ -62,8 +62,9 @@ class KhatmaPush {
   }
 
   static Future<void> enable() async {
-    await FirebaseMessaging.instance.requestPermission();
-    await registerCurrent();
+    final settings = await FirebaseMessaging.instance.requestPermission();
+    if (settings.authorizationStatus != AuthorizationStatus.authorized && settings.authorizationStatus != AuthorizationStatus.provisional) throw StateError('notification denied');
+    await _register(FirebaseAuth.instance.currentUser);
   }
 
   static Future<void> registerCurrent() async {
