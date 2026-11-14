@@ -26,6 +26,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   String city = 'حدد المدينة';
   String method = 'egypt';
   int reminder = 10;
+  bool followupEnabled = true;
+  bool qiyamEnabled = true;
+  final Map<String, bool> prayedToday = {};
   bool adhanEnabled = false;
   final AudioPlayer adhanPreview = AudioPlayer();
   String adhanVoice = 'adhan_makkah';
@@ -139,6 +142,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     city = prefs.getString('prayer_city') ?? 'حدد المدينة';
     method = prefs.getString('prayer_method') ?? 'egypt';
     reminder = prefs.getInt('prayer_reminder') ?? 10;
+    followupEnabled = prefs.getBool('prayer_followup_enabled') ?? true;
+    qiyamEnabled = prefs.getBool('qiyam_reminder_enabled') ?? true;
+    await _loadCompletedPrayers();
     adhanEnabled = prefs.getBool('adhan') ?? false;
     adhanVoice = prefs.getString('adhan_voice') ?? 'adhan_makkah';
     fajrVoice = prefs.getString('adhan_fajr_voice') ?? 'adhan_makkah';
@@ -252,6 +258,71 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
           error = 'تعذر العثور على المدينة. اكتب المدينة والدولة وتأكد من الإنترنت.';
         });
       }
+    }
+  }
+
+  String get _dayStamp {
+    final day = zone == null
+        ? DateTime.now()
+        : tz.TZDateTime.from(DateTime.now(), zone!);
+    return '${day.year.toString().padLeft(4, '0')}-'
+        '${day.month.toString().padLeft(2, '0')}-'
+        '${day.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _loadCompletedPrayers() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final name in names.where((v) => v != 'الشروق')) {
+      prayedToday[name] = prefs.getBool('prayer_done_${_dayStamp}_$name') ?? false;
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _markPrayer(String name) async {
+    final previous = prayedToday[name] ?? false;
+    final next = !previous;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('prayer_done_${_dayStamp}_$name', next);
+    if (!mounted) return;
+    setState(() => prayedToday[name] = next);
+    if (next) {
+      const prayerNames = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
+      final prayerIndex = prayerNames.indexOf(name);
+      if (prayerIndex != -1) {
+        await PrayerNotifications.cancelFollowUp(
+          dayOffset: 0, prayerIndex: prayerIndex);
+      }
+    } else {
+      await _schedule();
+    }
+  }
+
+  Future<void> _setFollowup(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('prayer_followup_enabled', value);
+    if (!mounted) return;
+    setState(() => followupEnabled = value);
+    await _schedule();
+  }
+
+  Future<void> _setQiyam(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('qiyam_reminder_enabled', value);
+    if (!mounted) return;
+    setState(() => qiyamEnabled = value);
+    await _schedule();
+  }
+
+  Future<void> _previewQiyam() async {
+    try {
+      await PrayerNotifications.showQiyamPreview();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إرسال نموذج تنبيه قيام الليل')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر اختبار التذكير: $e')));
     }
   }
 
@@ -558,6 +629,34 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                     },
                   ),
                 ),
+                const Divider(color: _gold, height: 28),
+                const Text('متابعة الصلاة وقيام الليل',
+                  style: TextStyle(color: _forest, fontSize: 18,
+                    fontWeight: FontWeight.w900)),
+                SwitchListTile.adaptive(
+                  title: const Text('اسألني بعد الصلاة بعشر دقائق',
+                    style: TextStyle(color: _forest,
+                      fontWeight: FontWeight.w800)),
+                  subtitle: const Text('سؤال لطيف: هل صليت؟ ويمكن إيقافه في أي وقت'),
+                  value: followupEnabled,
+                  onChanged: (enabled) async {
+                    await _setFollowup(enabled);
+                    refresh(() {});
+                  }),
+                SwitchListTile.adaptive(
+                  title: const Text('تذكير قيام الليل',
+                    style: TextStyle(color: _forest,
+                      fontWeight: FontWeight.w800)),
+                  subtitle: const Text('كل مساء بعد العشاء: لا تنسَ قيام الليل ولو ركعتين'),
+                  value: qiyamEnabled,
+                  onChanged: (enabled) async {
+                    await _setQiyam(enabled);
+                    refresh(() {});
+                  }),
+                OutlinedButton.icon(
+                  onPressed: _previewQiyam,
+                  icon: const Icon(Icons.nights_stay_outlined),
+                  label: const Text('تجربة إشعار قيام الليل')),
                 const Divider(color: _gold, height: 30),
                 const Text('حالة الإشعارات والاختبار',
                   style: TextStyle(color: _forest, fontSize: 18,
@@ -616,27 +715,52 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
 
   Widget _compactTile(String prayer) {
     final next = nextTime != null && nextName == prayer;
+    final isSunrise = prayer == 'الشروق';
+    final completed = prayedToday[prayer] ?? false;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: next ? const Color(0xFFEAD7A6) : Colors.white,
+        color: completed ? const Color(0xFFE1F1E6)
+            : next ? const Color(0xFFEAD7A6) : Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: next ? const Color(0xFFC09A50) : const Color(0xFFE3D9C6),
-          width: next ? 1.5 : 1),
+          color: completed ? const Color(0xFF518B71)
+              : next ? const Color(0xFFC09A50)
+              : const Color(0xFFE3D9C6),
+          width: next || completed ? 1.5 : 1),
       ),
       child: Row(children: [
         Icon(_prayerIcon(prayer), size: 18, color: _forest),
         const SizedBox(width: 5),
-        Expanded(child: Text(prayer, maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: _forest, fontSize: 13,
-            fontWeight: FontWeight.w800))),
-        FittedBox(fit: BoxFit.scaleDown,
-          child: Text(_clock(today[prayer]),
-            textDirection: TextDirection.ltr,
-            style: const TextStyle(color: _forest, fontSize: 12,
-              fontWeight: FontWeight.w800))),
+        Expanded(child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(prayer, maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: _forest, fontSize: 13,
+                fontWeight: FontWeight.w800)),
+            FittedBox(fit: BoxFit.scaleDown,
+              child: Text(_clock(today[prayer]),
+                textDirection: TextDirection.ltr,
+                style: const TextStyle(color: _forest, fontSize: 11,
+                  fontWeight: FontWeight.w800))),
+          ],
+        )),
+        if (!isSunrise)
+          Tooltip(
+            message: completed ? 'إلغاء علامة صليت' : 'صليت الحمد لله',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => _markPrayer(prayer),
+              child: Padding(
+                padding: const EdgeInsets.all(5),
+                child: Icon(completed
+                  ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                  size: 23, color: completed ? const Color(0xFF23845D) : _forest),
+              ),
+            ),
+          ),
       ]),
     );
   }
@@ -710,14 +834,18 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: Colors.red, fontSize: 10))),
                 Padding(
-                  padding: EdgeInsets.symmetric(vertical: tight ? 6 : 10),
-                  child: const Row(children: [
-                    Icon(Icons.calendar_month_outlined,
+                  padding: EdgeInsets.symmetric(vertical: tight ? 5 : 8),
+                  child: Row(children: [
+                    const Icon(Icons.calendar_month_outlined,
                       color: _forest, size: 18),
-                    SizedBox(width: 6),
-                    Text('مواقيت اليوم',
+                    const SizedBox(width: 6),
+                    const Text('صلوات اليوم',
                       style: TextStyle(color: _forest, fontSize: 16,
                         fontWeight: FontWeight.w900)),
+                    const Spacer(),
+                    Text('${prayedToday.values.where((done) => done).length} / 5 تمت',
+                      style: const TextStyle(color: _forest,
+                        fontSize: 13, fontWeight: FontWeight.w800)),
                   ]),
                 ),
                 Expanded(child: LayoutBuilder(builder: (context, gridBounds) {
