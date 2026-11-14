@@ -12,6 +12,7 @@ class _AdminRestoreScreenState extends State<AdminRestoreScreen> {
     'welcome': 'شاشة الدعاء والترحيب',
     'home': 'الصفحة الرئيسية',
     'custom_sections': 'الأقسام المضافة',
+    'prayer_policy': 'سياسة إشعارات الصلاة',
   };
   final db = FirebaseFirestore.instance;
 
