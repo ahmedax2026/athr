@@ -1420,7 +1420,8 @@ class _AdhanVoicePickerState extends State<_AdhanVoicePicker> {
         await _player.play(AssetSource('adhan/$id.mp3'));
       } else {
         try {
-          await _player.play(UrlSource(url)).timeout(const Duration(seconds: 20));
+          final cached = await AdhanCatalog.cachedPath(id);
+          await _player.play(cached == null ? UrlSource(url) : DeviceFileSource(cached)).timeout(const Duration(seconds: 20));
         } catch (_) {
           await _player.stop();
           final path = await AdhanCatalog.download(id, url);

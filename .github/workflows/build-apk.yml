@@ -2,6 +2,15 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
+    inputs:
+      audio_id:
+        description: 'Optional remote adhan ID (audio import only)'
+        type: string
+        required: false
+      audio_url:
+        description: 'HTTPS MP3 source for audio import'
+        type: string
+        required: false
   push:
     branches:
       - main
@@ -13,7 +22,7 @@ on:
       - feature/unified-verified-upgrades
 
 concurrency:
-  group: athr-build-${{ github.ref }}
+  group: athr-build-${{ inputs.audio_id || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -21,6 +30,7 @@ permissions:
 
 jobs:
   build-apk:
+    if: ${{ inputs.audio_id == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -132,3 +142,53 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+
+  import-adhan:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.audio_id != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and normalize adhan audio
+        env:
+          AUDIO_ID: ${{ inputs.audio_id }}
+          AUDIO_URL: ${{ inputs.audio_url }}
+        run: |
+          set -euo pipefail
+          [[ "$AUDIO_ID" =~ ^remote_[a-zA-Z0-9_]{1,64}$ ]]
+          [[ "$AUDIO_URL" == https://* ]]
+          command -v ffmpeg >/dev/null || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+          curl --fail --silent --show-error --location --max-redirs 5 --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 100 --max-filesize 52428800 --retry 2 --user-agent 'Mozilla/5.0 (Android) Athr Audio' --output "$RUNNER_TEMP/adhan-source" "$AUDIO_URL"
+          test "$(stat -c '%s' "$RUNNER_TEMP/adhan-source")" -le 52428800
+          duration=$(ffprobe -v error -protocol_whitelist file,pipe -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$RUNNER_TEMP/adhan-source")
+          python3 -c 'import sys, math; s=float(sys.argv[1]); assert math.isfinite(s) and 1 <= s <= 600, "invalid duration"' "$duration"
+          ffmpeg -nostdin -v error -y -protocol_whitelist file,pipe -i "$RUNNER_TEMP/adhan-source" -map 0:a:0 -vn -map_metadata -1 -ac 1 -ar 44100 -c:a libmp3lame -b:a 64k "$RUNNER_TEMP/adhan.mp3"
+          test -s "$RUNNER_TEMP/adhan.mp3"
+          test "$(stat -c '%s' "$RUNNER_TEMP/adhan.mp3")" -le 5500000
+      - name: Publish normalized audio to separate branch
+        env:
+          AUDIO_ID: ${{ inputs.audio_id }}
+        run: |
+          set -euo pipefail
+          [[ "$AUDIO_ID" =~ ^remote_[a-zA-Z0-9_]{1,64}$ ]]
+          git config user.name 'athr-audio-bot'
+          git config user.email 'athr-audio-bot@users.noreply.github.com'
+          for attempt in 1 2 3 4 5; do
+            if git ls-remote --exit-code --heads origin refs/heads/adhan-audio >/dev/null 2>&1; then
+              git fetch origin refs/heads/adhan-audio
+              git switch --detach FETCH_HEAD
+            else
+              git switch --orphan "audio-init-$attempt"
+            fi
+            mkdir -p audio
+            cp "$RUNNER_TEMP/adhan.mp3" "audio/$AUDIO_ID.mp3"
+            git add "audio/$AUDIO_ID.mp3"
+            if ! git diff --cached --quiet; then
+              git commit -m "Publish adhan $AUDIO_ID"
+            fi
+            if git push origin HEAD:refs/heads/adhan-audio; then exit 0; fi
+            sleep 3
+          done
+          exit 1

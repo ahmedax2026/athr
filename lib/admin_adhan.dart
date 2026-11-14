@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -34,9 +37,31 @@ class _AdminAdhanScreenState extends State<AdminAdhanScreen> {
   void message(String text) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
+  Future<String> _importAudio(String id, String sourceUrl) async {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 12);
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (token == null) throw StateError('admin_required');
+      final req = await client.postUrl(Uri.parse('https://athr-notifications.ahmedax0100.workers.dev/adhan/import'));
+      req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      req.headers.contentType = ContentType.json;
+      req.write(jsonEncode({'audioId': id, 'sourceUrl': sourceUrl}));
+      final res = await req.close().timeout(const Duration(seconds: 30));
+      final raw = await res.transform(utf8.decoder).join().timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) {
+        if (res.statusCode == 404 || res.statusCode == 503) throw StateError('github_not_configured');
+        throw StateError('github_import_failed');
+      }
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      if (data['accepted'] != true || !AdhanCatalog.validUrl(data['url'].toString())) throw StateError('github_import_failed');
+      return data['url'].toString();
+    } finally {
+      client.close(force: true);
+    }
+  }
   Future<void> editVoice([Map<String, dynamic>? old]) async {
     var name = old?['name']?.toString() ?? '';
-    var url = old?['url']?.toString() ?? '';
+    var url = (old?['sourceUrl'] ?? old?['url'])?.toString() ?? '';
     final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
       title: Text(old == null ? 'إضافة صوت أذان' : 'تعديل صوت الأذان'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -58,18 +83,20 @@ class _AdminAdhanScreenState extends State<AdminAdhanScreen> {
     setState(() => busy = true);
     try {
       // Changing the URL creates a new cache identifier, so old downloads stay valid.
-      final id = old != null && old['url'] == url ? old['id'].toString()
-          : 'remote_${DateTime.now().microsecondsSinceEpoch}';
+      final alreadyImported = old != null && old['sourceUrl'] == url && (old['url']?.toString().startsWith('https://raw.githubusercontent.com/ahmedax2026/athr/adhan-audio/audio/') ?? false);
+      final id = alreadyImported ? old['id'].toString() : 'remote_${DateTime.now().microsecondsSinceEpoch}';
+      final publishedUrl = alreadyImported ? old['url'].toString() : await _importAudio(id, url);
       await ref.firestore.runTransaction((tx) async {
         final snap = await tx.get(ref);
         final items = List<Map<String, dynamic>>.from(
           ((snap.data()?['voices'] as List?) ?? []).map((x) => Map<String, dynamic>.from(x as Map)));
         if (old != null) items.removeWhere((x) => x['id'] == old['id']);
         if (items.length >= 20) throw StateError('limit');
-        items.add({'id': id, 'name': name, 'url': url});
+        items.add({'id': id, 'name': name, 'url': publishedUrl, 'sourceUrl': url});
         tx.set(ref, {'published': true, 'voices': items, 'updatedAt': FieldValue.serverTimestamp()});
       });
-      message('تم حفظ الرابط. استخدم زر المعاينة للتحقق من تشغيله');
+      message(alreadyImported ? 'تم حفظ الاسم' : 'تم إرسال الصوت للتجهيز على GitHub. سيصبح متاحًا بعد انتهاء المعالجة.');
+      unawaited(AdhanCatalog.prefetch());
     } on FirebaseException catch (e) {
       message(e.code == 'permission-denied'
           ? 'لا توجد صلاحية لحفظ الصوت. تأكد من تسجيل الدخول بحساب الإدارة.'
@@ -78,6 +105,8 @@ class _AdminAdhanScreenState extends State<AdminAdhanScreen> {
       final reason = e.message.toString();
       message(switch (reason) {
         'limit' => 'وصلت إلى الحد الأقصى: 20 صوتًا إضافيًا.',
+        'github_not_configured' => 'ربط GitHub في Cloudflare غير مفعّل بعد.',
+        'github_import_failed' => 'تعذر بدء تجهيز الصوت على GitHub. راجع إعدادات الربط.',
         'redirect' => 'الرابط يعيد التوجيه إلى عنوان غير آمن أو غير صالح.',
         'file too large' => 'حجم الصوت يتجاوز 50 ميجابايت.',
         'invalid audio' || 'invalid MP3' => 'الملف ليس تسجيل MP3 صالحًا (من ثانية إلى 10 دقائق).',
@@ -122,7 +151,8 @@ class _AdminAdhanScreenState extends State<AdminAdhanScreen> {
     try {
       await player.stop();
       try {
-        await player.play(UrlSource(url)).timeout(const Duration(seconds: 20));
+        final cached = await AdhanCatalog.cachedPath(id);
+        await player.play(cached == null ? UrlSource(url) : DeviceFileSource(cached)).timeout(const Duration(seconds: 20));
       } catch (_) {
         await player.stop();
         final path = await AdhanCatalog.download(id, url);
@@ -155,7 +185,7 @@ class _AdminAdhanScreenState extends State<AdminAdhanScreen> {
           if (busy || previewLoading) const LinearProgressIndicator(),
           for (final item in items) Card(child: ListTile(
             title: Text(item['name'].toString()),
-            subtitle: Text(item['url'].toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(item['sourceUrl'] != null ? 'نسخة GitHub • تحميل تلقائي عند فتح التطبيق' : 'رابط خارجي • افتح التعديل واحفظ لتجهيزه', maxLines: 2, overflow: TextOverflow.ellipsis),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
               IconButton(onPressed: busy || previewLoading ? null : () => preview(item), icon: Icon(playingId == item['id'] ? Icons.stop_circle_outlined : Icons.play_circle_outline), tooltip: playingId == item['id'] ? 'إيقاف' : 'معاينة'),
               IconButton(onPressed: busy ? null : () => editVoice(item), icon: const Icon(Icons.edit_outlined), tooltip: 'تعديل'),

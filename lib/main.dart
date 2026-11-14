@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'prayer_times.dart';
 import 'prayer_notifications.dart';
+import 'adhan_catalog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dynamic_sections.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +31,7 @@ Future<void> main() async {
     try {
       await Firebase.initializeApp();
       KhatmaPush.start();
+      unawaited(AdhanCatalog.prefetch());
     } catch (error) {
       debugPrint('Firebase initialization failed: $error');
     }
@@ -353,7 +355,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_refreshDaily());
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refreshDaily());
+      unawaited(AdhanCatalog.prefetch());
+    }
   }
   Future<void> _refreshDaily() async {
     try { await refreshDailyRemindersFromCache(); } catch (_) {}
@@ -438,6 +443,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AdminSessionScreen()));
               await _refreshConfig();
               unawaited(_refreshDaily());
+              unawaited(AdhanCatalog.prefetch());
             },
             icon: const Icon(Icons.admin_panel_settings_outlined),
           ),

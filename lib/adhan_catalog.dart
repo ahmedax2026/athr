@@ -38,6 +38,28 @@ class AdhanCatalog {
     if (!validId.hasMatch(id)) throw ArgumentError('invalid voice');
     return (await channel.invokeMethod<String>('voicePath', {'id': id}))!;
   }
+  static Future<void>? _prefetching;
+  static Future<void> prefetch() => _prefetching ??= _prefetch().whenComplete(() => _prefetching = null);
+  static Future<void> _prefetch() async {
+    try {
+      final items = await load();
+      for (final item in items) {
+        try {
+          await download(item['id'].toString(), item['url'].toString());
+        } catch (_) {
+          // Not published yet or offline: retry at the next app launch/resume.
+        }
+      }
+    } catch (_) {}
+  }
+  static Future<String?> cachedPath(String id) async {
+    try {
+      final path = await localPath(id);
+      final file = File(path);
+      if (await file.exists() && await file.length() > 1024) return path;
+    } catch (_) {}
+    return null;
+  }
   static final _downloads = <String, Future<String>>{};
   static Future<String> download(String id, String url) =>
       _downloads.putIfAbsent(id, () async {

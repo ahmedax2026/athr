@@ -74,10 +74,33 @@ async function broadcast(req,env) {
   if(!push.ok)return json({error:"fcm_"+push.status},502);
   return json({sent:true});
 }
+
+async function importAdhan(req,env) {
+  const authorization=req.headers.get("Authorization")||"";
+  if(!/^Bearer [A-Za-z0-9._-]{20,8192}$/.test(authorization))return json({error:"auth_required"},401);
+  const check=await fetch("https://firestore.googleapis.com/v1/projects/athr-la-yanqati/databases/(default)/documents/admin_backups?pageSize=1",{headers:{Authorization:authorization}});
+  if(!check.ok)return json({error:"admin_required"},403);
+  if(!env.GITHUB_AUDIO_TOKEN)return json({error:"github_not_configured"},503);
+  const raw=await req.text();
+  if(raw.length>4096)return json({error:"too_large"},413);
+  let payload;try{payload=JSON.parse(raw);}catch{return json({error:"invalid_json"},400);}
+  const {audioId,sourceUrl}=payload||{};
+  if(typeof audioId!=="string"||!/^remote_[a-zA-Z0-9_]{1,64}$/.test(audioId)||typeof sourceUrl!=="string"||sourceUrl.length>2048)return json({error:"invalid_audio"},400);
+  let u;try{u=new URL(sourceUrl);}catch{return json({error:"invalid_url"},400);}
+  if(u.protocol!=="https:"||u.username||u.password||!u.pathname.toLowerCase().endsWith(".mp3"))return json({error:"invalid_url"},400);
+  const response=await fetch("https://api.github.com/repos/ahmedax2026/athr/actions/workflows/build-apk.yml/dispatches",{
+    method:"POST",headers:{Authorization:"Bearer "+env.GITHUB_AUDIO_TOKEN,"Accept":"application/vnd.github+json","Content-Type":"application/json","User-Agent":"Athr-Audio-Importer","X-GitHub-Api-Version":"2022-11-28"},
+    body:JSON.stringify({ref:"feature/unified-verified-upgrades",inputs:{audio_id:audioId,audio_url:u.href}})
+  });
+  if(!response.ok)return json({error:"github_dispatch_"+response.status},502);
+  return json({accepted:true,url:"https://raw.githubusercontent.com/ahmedax2026/athr/adhan-audio/audio/"+audioId+".mp3"});
+}
+
 export default {async fetch(req,env){
   const path=new URL(req.url).pathname;
-  if(req.method==="GET"&&path==="/") return json({service:"Athr Notifications",status:"online",version:4,firebaseConfigured:!!env.FIREBASE_SERVICE_ACCOUNT});
+  if(req.method==="GET"&&path==="/") return json({service:"Athr Notifications",status:"online",version:5,firebaseConfigured:!!env.FIREBASE_SERVICE_ACCOUNT,githubConfigured:!!env.GITHUB_AUDIO_TOKEN});
   if(req.method==="GET"&&path==="/analytics") { try { return await analytics(req,env); } catch(e) { return json({error:String(e.message).match(/^analytics_\d+$/)?e.message:"analytics_unavailable"},502); } }
+  if(req.method==="POST"&&path==="/adhan/import") {try{return await importAdhan(req,env);}catch{return json({error:"audio_import_unavailable"},502);}}
   if(req.method==="POST"&&path==="/broadcast") {try{return await broadcast(req,env);}catch{return json({error:"broadcast_unavailable"},502);}}
   if(req.method!=="POST"||path!=="/remind") return json({error:"not_found"},404);
   try {
