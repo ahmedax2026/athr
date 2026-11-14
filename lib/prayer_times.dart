@@ -405,11 +405,15 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       return;
     }
     try {
-      await PrayerNotifications.scheduleTest(zone: zone!);
+      if (adhanEnabled) {
+        await PrayerNotifications.testFullAdhan(adhanVoice);
+      } else {
+        await PrayerNotifications.scheduleTest(zone: zone!);
+      }
       await _checkNotificationStatus();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('تم ضبط تنبيه تجريبي بعد دقيقتين. اقفل الشاشة وجرب وصوله.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(adhanEnabled ? 'تم ضبط الأذان الكامل بعد دقيقتين. اقفل الشاشة وجرب وصوله.' : 'تم ضبط تنبيه تجريبي بعد دقيقتين. اقفل الشاشة وجرب وصوله.'),
         duration: Duration(seconds: 6)));
     } catch (e) {
       if (mounted) {
@@ -511,7 +515,13 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                     if (!mounted) return;
                     setState(() => adhanEnabled = value);
                     refresh(() {});
-                    await _schedule();
+                    if (value) {
+                      final status = await PrayerNotifications.status();
+                      if (!status.exact) await _enablePreciseReminders();
+                      else await _schedule();
+                    } else {
+                      await _schedule();
+                    }
                   },
                 ),
                 if (adhanEnabled) ...[
