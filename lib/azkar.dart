@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:image_picker/image_picker.dart';
@@ -86,7 +85,7 @@ class AzkarCatalog {
       final asset = row['assetIndex'], image = row['image'];
       if (id is! String || id.length > 80 || !seen.add(id) || text is! String ||
           text.trim().isEmpty || text.length > 4000 || target is! int || target < 1 || target > 1000 ||
-          source is! String || source.length > 300) return null;
+          source is! String || source.length > 300) { return null; }
       if (asset != null && (asset is! int || asset < 0 || asset >= _groups[title]!.length)) return null;
       if (image != null) {
         if (image is! String || image.length > 150000) return null;
