@@ -99,7 +99,7 @@ jobs:
       - name: Run tests
         run: flutter test
 
-      - name: Build Android App Bundle
+      - name: Build Android App Bundle 1.0.1
         run: flutter build appbundle --release
 
       - name: Verify bundle structure
@@ -109,7 +109,7 @@ jobs:
       - name: Upload AAB for local upload-key signing
         uses: actions/upload-artifact@v4
         with:
-          name: athr-play-aab-unsigned
+          name: athr-play-1.0.1-aab-unsigned
           path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 14
