@@ -13,6 +13,7 @@ class AdminContentEditor extends StatefulWidget {
 
 class _AdminContentEditorState extends State<AdminContentEditor> {
   final Map<String, TextEditingController> controllers = {};
+  bool _isSwitch(String key) => key == 'enabled' || key == 'showPhoto' || key.startsWith('show_') || key == 'showMemorial';
   bool loading = true;
   bool saving = false;
   String? error;
@@ -30,8 +31,12 @@ class _AdminContentEditorState extends State<AdminContentEditor> {
     try {
       final doc = await FirebaseFirestore.instance.collection(widget.collection)
         .doc(widget.document).get();
+      if (!mounted) return;
       for (final field in widget.fields) {
-        controllers[field.$1]!.text = (doc.data()?[field.$1] ?? '').toString();
+        final value = doc.data()?[field.$1];
+        controllers[field.$1]!.text = _isSwitch(field.$1)
+            ? (value.toString() != 'false').toString()
+            : (value ?? (field.$1 == 'tapCount' ? '3' : '')).toString();
       }
     } catch (_) {
       error = 'تعذر تحميل البيانات. تأكد من الاتصال والصلاحيات.';
@@ -48,10 +53,13 @@ class _AdminContentEditorState extends State<AdminContentEditor> {
   }
 
   Future<void> save() async {
+    if (loading || saving) return;
     setState(() { saving = true; error = null; });
     try {
       final data = <String, dynamic>{
-        for (final field in widget.fields) field.$1: controllers[field.$1]!.text.trim(),
+        for (final field in widget.fields) field.$1: _isSwitch(field.$1)
+            ? controllers[field.$1]!.text != 'false'
+            : controllers[field.$1]!.text.trim(),
         widget.publicFlag: true,
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -79,7 +87,20 @@ class _AdminContentEditorState extends State<AdminContentEditor> {
             style: Theme.of(context).textTheme.bodyLarge),
           const SizedBox(height: 18),
           for (final field in widget.fields) ...[
-            TextField(
+            if (_isSwitch(field.$1))
+              Card(child: SwitchListTile.adaptive(
+                title: Text(field.$2.split(':').first),
+                value: controllers[field.$1]!.text != 'false',
+                onChanged: saving ? null : (value) => setState(() => controllers[field.$1]!.text = value.toString()),
+              ))
+            else if (field.$1 == 'tapCount')
+              DropdownButtonFormField<String>(
+                initialValue: List.generate(10, (index) => '${index + 1}').contains(controllers[field.$1]!.text) ? controllers[field.$1]!.text : '3',
+                decoration: const InputDecoration(labelText: 'عدد ضغطات القلب', border: OutlineInputBorder()),
+                items: List.generate(10, (index) => DropdownMenuItem(value: '${index + 1}', child: Text('${index + 1}'))),
+                onChanged: saving ? null : (value) { if (value != null) { controllers[field.$1]!.text = value; } },
+              )
+            else TextField(
               controller: controllers[field.$1],
               minLines: field.$1 == 'prayer' ? 3 : 1,
               maxLines: field.$1 == 'prayer' ? 5 : 1,
@@ -92,7 +113,7 @@ class _AdminContentEditorState extends State<AdminContentEditor> {
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(error!, style: const TextStyle(color: Colors.red))),
           FilledButton.icon(
-            onPressed: saving ? null : save,
+            onPressed: saving || error == 'تعذر تحميل البيانات. تأكد من الاتصال والصلاحيات.' ? null : save,
             icon: const Icon(Icons.save_outlined),
             label: Text(saving ? 'جارٍ الحفظ...' : 'حفظ التعديلات'),
           ),
