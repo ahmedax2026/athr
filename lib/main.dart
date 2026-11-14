@@ -323,13 +323,30 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Map<String, dynamic> config = {};
   Timer? _scheduleRefresh;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _sectionSubscription;
+  List<Map<String, dynamic>> _customSections = [];
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _scheduleRefresh?.cancel();
+    _sectionSubscription?.cancel();
     super.dispose();
   }
   static const ids = ['quran', 'azkar', 'khatma', 'prayer', 'tasbeeh', 'relief'];
+  Future<void> _watchSections() async {
+    try {
+      if (!mounted) return;
+      if (Firebase.apps.isEmpty) return;
+      if (_sectionSubscription != null) return;
+      _sectionSubscription = FirebaseFirestore.instance.collection('content').doc('custom_sections').snapshots().listen((doc) {
+        if (!mounted) return;
+        final data = doc.data();
+        final items = data?['published'] == true ? sectionItems(data).where((e) => e['visible'] != false).toList() : <Map<String, dynamic>>[];
+        setState(() => _customSections = items);
+        // Firestore maintains its own offline document cache.
+      }, onError: (Object error) { debugPrint('Custom sections unavailable: $error'); });
+    } catch (_) {}
+  }
   Future<void> _refreshConfig() async {
     try {
       if (Firebase.apps.isEmpty) return;
@@ -352,12 +369,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) { KhatmaPush.homeReady(); _permission(); _refreshConfig(); });
+    WidgetsBinding.instance.addPostFrameCallback((_) { KhatmaPush.homeReady(); _permission(); _refreshConfig(); _watchSections(); });
   }
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_refreshDaily());
+      unawaited(_watchSections());
       unawaited(AdhanCatalog.prefetch());
       unawaited(AzkarCatalog.refresh());
     }
@@ -444,6 +462,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               }
               await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AdminSessionScreen()));
               await _refreshConfig();
+              unawaited(_watchSections());
               unawaited(_refreshDaily());
               unawaited(AdhanCatalog.prefetch());
               unawaited(AzkarCatalog.refresh());
@@ -471,6 +490,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           final maxWidth = availableWidth > 1100 ? 1100.0 : availableWidth;
           final columns = maxWidth >= 850 ? 5 : maxWidth >= 650 ? 4 : 3;
           final tileWidth = (maxWidth - 12 * (columns - 1)) / columns;
+          Widget sectionTile(String title, String subtitle, IconData icon, VoidCallback onTap) =>
+            SizedBox(width: tileWidth, child: InkWell(
+              borderRadius: BorderRadius.circular(22), onTap: onTap,
+              child: Container(
+                        constraints: const BoxConstraints(minHeight: 104),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft,
+                            colors: [tile, isDark ? const Color(0xFF0C3B33) : const Color(0xFFF4EBD7)]),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: accent.withValues(alpha: 0.55), width: 1.1),
+                          boxShadow: [BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.10 : 0.045),
+                            blurRadius: 22, offset: const Offset(0, 11),
+                          )],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 43, height: 43,
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(26),
+                              ),
+                              child: Icon(icon, color: accent, size: 24),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                              style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 13)),
+                            const SizedBox(height: 5),
+                            Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                              style: TextStyle(color: secondary, fontSize: 10, height: 1.3)),
+                          ],
+                        ),
+                      ),
+            ));
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
             child: Center(child: SizedBox(width: maxWidth, child: Column(
@@ -551,11 +607,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   runAlignment: WrapAlignment.center,
                   spacing: 12, runSpacing: 8, children: [
                   for (final i in _ordered)
-                    SizedBox(
-                      width: tileWidth,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(22),
-                        onTap: () {
+                    sectionTile(_text('title_${ids[i]}', sections[i].$1),
+                      _text('subtitle_${ids[i]}', sections[i].$2), sections[i].$3, () {
                           if (sections[i].$1 == 'القرآن الكريم') {
                             Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const QuranScreen()));
                           } else if (sections[i].$1 == 'الختمات الجماعية') {
@@ -571,44 +624,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('قسم ${sections[i].$1} قيد التطوير')));
                           }
-                        },
-                        child: Container(
-                        constraints: const BoxConstraints(minHeight: 104),
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 12),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft,
-                            colors: [tile, isDark ? const Color(0xFF0C3B33) : const Color(0xFFF4EBD7)]),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: accent.withValues(alpha: 0.55), width: 1.1),
-                          boxShadow: [BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.10 : 0.045),
-                            blurRadius: 22, offset: const Offset(0, 11),
-                          )],
+                        }),
+                  for (final item in _customSections)
+                    sectionTile(item['title'].toString(), item['description']?.toString() ?? '',
+                      Icons.menu_book_outlined, () => Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => Scaffold(
+                          appBar: AppBar(title: Text(item['title'].toString())),
+                          body: SafeArea(child: ListView(padding: const EdgeInsets.all(24), children: [
+                            SelectableText(item['body']?.toString() ?? '', textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 19, height: 1.9, fontWeight: FontWeight.w700)),
+                          ])),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 43, height: 43,
-                              decoration: BoxDecoration(
-                                color: accent.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(26),
-                              ),
-                              child: Icon(sections[i].$3, color: accent, size: 24),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(_text('title_${ids[i]}', sections[i].$1), textAlign: TextAlign.center,
-                              style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 13)),
-                            const SizedBox(height: 5),
-                            Text(_text('subtitle_${ids[i]}', sections[i].$2), textAlign: TextAlign.center,
-                              style: TextStyle(color: secondary, fontSize: 10, height: 1.3)),
-                          ],
-                        ),
-                      ),
-                      ),
-                    ),
+                      ))),
                 ]),
-                if (Firebase.apps.isNotEmpty) const DynamicSectionCards(),
                 const SizedBox(height: 9),
                 Row(children: [
                   Expanded(child: OutlinedButton.icon(
