@@ -72,6 +72,66 @@ class PrayerNotifications {
     await _android?.openAppNotificationSettings();
   }
 
+  /// Separate notification IDs keep optional daily content independent from
+  /// prayer-time notifications (which use IDs 1000–3999).
+  static Future<void> syncDailyReminders({
+    required tz.Location zone,
+    required bool azkar,
+    required bool dailyDua,
+  }) async {
+    await _ensureInitialized();
+    for (var day = 0; day < 14; day++) {
+      for (final id in [5000 + day * 2, 5001 + day * 2, 6000 + day]) {
+        await _plugin.cancel(id: id);
+      }
+    }
+    if (!azkar && !dailyDua) return;
+    if (!(await _android?.areNotificationsEnabled() ?? false)) {
+      throw StateError('اسمح للتطبيق بإرسال الإشعارات من إعدادات الهاتف');
+    }
+    final exact = await _android?.canScheduleExactNotifications() ?? false;
+    final mode = exact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+    final now = tz.TZDateTime.now(zone);
+    for (var day = 0; day < 14; day++) {
+      final date = tz.TZDateTime(zone, now.year, now.month, now.day + day);
+      if (azkar) {
+        for (final entry in [
+          (hour: 8, id: 5000 + day * 2, title: 'أذكار الصباح'),
+          (hour: 18, id: 5001 + day * 2, title: 'أذكار المساء'),
+        ]) {
+          final at = tz.TZDateTime(
+            zone, date.year, date.month, date.day, entry.hour);
+          if (at.isAfter(now)) {
+            await _plugin.zonedSchedule(
+              id: entry.id,
+              title: entry.title,
+              body: 'خذ دقيقة لذكر الله، وابدأ وردك اليومي في أثر لا ينقطع.',
+              scheduledDate: at,
+              notificationDetails: _details,
+              androidScheduleMode: mode,
+            );
+          }
+        }
+      }
+      if (dailyDua) {
+        final at = tz.TZDateTime(
+          zone, date.year, date.month, date.day, 20, 30);
+        if (at.isAfter(now)) {
+          await _plugin.zonedSchedule(
+            id: 6000 + day,
+            title: 'دعاء اليوم 🤍',
+            body: 'اللهم اغفر لنا ولوالدينا وارحم موتانا وموتى المسلمين.',
+            scheduledDate: at,
+            notificationDetails: _details,
+            androidScheduleMode: mode,
+          );
+        }
+      }
+    }
+  }
+
   static Future<void> showTest() async {
     await _ensureInitialized();
     final allowed = await _android?.areNotificationsEnabled() ?? false;
@@ -184,14 +244,6 @@ class PrayerNotifications {
         final afterIsha = isha.add(const Duration(minutes: 45));
         final qiyamAt = afterIsha.isAfter(at) ? afterIsha : at;
         if (qiyamAt.isAfter(now)) {
-          await _plugin.zonedSchedule(
-            id: 2000 + day,
-            title: '🌙 ركعتان تنيران ليلتك',
-            body: 'لا تنسَ قيام الليل 🤍 حتى لو ركعتين خفيفتين قبل النوم.',
-            scheduledDate: tz.TZDateTime.from(qiyamAt, zone),
-            notificationDetails: _details,
-            androidScheduleMode: mode,
-          );
           fullAdhanAlarms.add({
             'at': qiyamAt.millisecondsSinceEpoch,
             'voice': 'qiyam',
@@ -254,7 +306,14 @@ class PrayerNotifications {
               title: 'اقتربت صلاة $name',
               body: 'اقتربت صلاة $name • متبقي $reminderMinutes دقيقة',
               scheduledDate: tz.TZDateTime.from(before, zone),
-              notificationDetails: _details,
+              notificationDetails: const NotificationDetails(
+                android: AndroidNotificationDetails(
+                  'athr_prayer_early_silent_v1', 'تذكير قبل الصلاة',
+                  channelDescription: 'تنبيه بصري قبل الصلاة، ويُشغّل الصوت مرة واحدة في الخلفية',
+                  importance: Importance.high,
+                  priority: Priority.high,
+                  playSound: false,
+                )),
               androidScheduleMode: mode,
             );
             count++;
