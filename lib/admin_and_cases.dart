@@ -278,22 +278,36 @@ const _reliefGold = Color(0xFFC6A35F);
 const _reliefInk = Color(0xFF183C33);
 const _reliefCream = Color(0xFFF8F5EC);
 
-class PublicCasesScreen extends StatelessWidget {
+class PublicCasesScreen extends StatefulWidget {
   const PublicCasesScreen({super.key});
+  @override
+  State<PublicCasesScreen> createState() => _PublicCasesScreenState();
+}
+
+class _PublicCasesScreenState extends State<PublicCasesScreen> {
+  final PageController pager = PageController();
+  int selected = 0;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> casesStream =
+    FirebaseFirestore.instance.collection('cases')
+      .where('status', isEqualTo: 'published').snapshots();
+
+  @override
+  void dispose() {
+    pager.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: _reliefCream,
     appBar: AppBar(
       title: const Text('فك كرب',
-        style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
+        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
       centerTitle: true,
       backgroundColor: _reliefGreen,
-      foregroundColor: Colors.white,
-    ),
+      foregroundColor: Colors.white),
     body: SafeArea(child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('cases')
-        .where('status', isEqualTo: 'published').snapshots(),
+      stream: casesStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return const Center(child: Text('تعذر تحميل الحالات، حاول مرة أخرى',
@@ -303,64 +317,81 @@ class PublicCasesScreen extends StatelessWidget {
           return const Center(child: CircularProgressIndicator(color: _reliefGreen));
         }
         final cases = snapshot.data!.docs;
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
-          children: [
+        if (cases.isEmpty) {
+          return const Center(child: Text('لا توجد حالات منشورة حاليًا',
+            style: TextStyle(color: _reliefGreen, fontSize: 18,
+              fontWeight: FontWeight.w800)));
+        }
+        final current = selected.clamp(0, cases.length - 1);
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 9),
+          child: Column(children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 17),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
-                color: _reliefGreen,
-                borderRadius: BorderRadius.circular(19)),
-              child: const Row(children: [
-                Icon(Icons.volunteer_activism_rounded,
-                  color: _reliefGold, size: 29),
-                SizedBox(width: 13),
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('فَإِنَّ مَعَ الْعُسْرِ يُسْرًا',
-                      style: TextStyle(color: Colors.white,
-                        fontSize: 20, fontWeight: FontWeight.w800)),
-                    SizedBox(height: 4),
-                    Text('ساهم في تفريج كرب محتاج ولو بالقليل',
-                      style: TextStyle(color: Color(0xFFF0DFBC), fontSize: 12)),
-                  ],
-                )),
-              ]),
-            ),
-            const SizedBox(height: 20),
-            const Text('الحالات المتاحة',
-              style: TextStyle(color: _reliefInk,
-                fontSize: 19, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 11),
-            if (cases.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 28),
-                child: Center(child: Text('لا توجد حالات منشورة حاليًا',
-                  style: TextStyle(color: _reliefInk)))),
-            for (final doc in cases) _ReliefCaseCard(data: doc.data()),
-            const SizedBox(height: 7),
-            Container(
-              padding: const EdgeInsets.all(17),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAEFE7),
-                borderRadius: BorderRadius.circular(17)),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF12604D), _reliefGreen]),
+                borderRadius: BorderRadius.circular(19),
+                border: Border.all(color: _reliefGold, width: 1.2)),
               child: const Column(children: [
-                Row(children: [
-                  Icon(Icons.favorite_outline_rounded, color: _reliefGreen),
-                  SizedBox(width: 9),
-                  Text('رُكن الدعاء',
-                    style: TextStyle(color: _reliefGreen,
-                      fontSize: 17, fontWeight: FontWeight.w800)),
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(Icons.volunteer_activism_rounded,
+                    color: _reliefGold, size: 23),
+                  SizedBox(width: 8),
+                  Flexible(child: Text('فَإِنَّ مَعَ الْعُسْرِ يُسْرًا',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white,
+                      fontWeight: FontWeight.w900, fontSize: 20))),
                 ]),
-                SizedBox(height: 9),
-                Text('اللهم فرّج همّ كل مهموم، ونفّس كرب كل مكروب',
+                SizedBox(height: 3),
+                Text('ساهم في تفريج كرب محتاج ولو بالقليل',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: _reliefInk,
-                    fontSize: 15, height: 1.6)),
+                  style: TextStyle(color: Color(0xFFF0DFBC),
+                    fontWeight: FontWeight.w700, fontSize: 12)),
               ]),
             ),
-          ],
+            const SizedBox(height: 9),
+            Expanded(child: PageView.builder(
+              controller: pager,
+              itemCount: cases.length,
+              onPageChanged: (page) => setState(() => selected = page),
+              itemBuilder: (context, index) => RepaintBoundary(
+                child: _ReliefCaseCard(
+                  key: ValueKey(cases[index].id),
+                  data: cases[index].data())),
+            )),
+            if (cases.length > 1) SizedBox(height: 42,
+              child: Row(mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    tooltip: 'الحالة السابقة',
+                    onPressed: current == 0 ? null : () => pager.animateToPage(
+                      current - 1, duration: const Duration(milliseconds: 230),
+                      curve: Curves.easeOut),
+                    icon: const Icon(Icons.chevron_right_rounded,
+                      color: _reliefGreen)),
+                  Text((current + 1).toString() + ' / ' + cases.length.toString(),
+                    style: const TextStyle(color: _reliefGreen,
+                      fontWeight: FontWeight.w900)),
+                  IconButton(
+                    tooltip: 'الحالة التالية',
+                    onPressed: current == cases.length - 1 ? null :
+                      () => pager.animateToPage(current + 1,
+                        duration: const Duration(milliseconds: 230),
+                        curve: Curves.easeOut),
+                    icon: const Icon(Icons.chevron_left_rounded,
+                      color: _reliefGreen)),
+                ]),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 5),
+              child: Text('اللهم فرّج همّ كل مهموم ونفّس كرب كل مكروب',
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _reliefGreen,
+                  fontWeight: FontWeight.w700, fontSize: 11))),
+          ]),
         );
       },
     )),
