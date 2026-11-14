@@ -12,6 +12,10 @@ class AdhanAlarmReceiver : BroadcastReceiver() {
             AdhanScheduler.restore(context)
             return
         }
+        // A delayed alarm must never play an old adhan when the phone wakes.
+        val scheduledAt = intent.getLongExtra("scheduled_at", 0L)
+        val lateBy = System.currentTimeMillis() - scheduledAt
+        if (scheduledAt <= 0L || lateBy > 90_000L || lateBy < -30_000L) return
         val voice = intent.getStringExtra("voice") ?: "adhan_makkah"
         val service = Intent(context, AdhanPlaybackService::class.java)
             .putExtra("voice", voice)
