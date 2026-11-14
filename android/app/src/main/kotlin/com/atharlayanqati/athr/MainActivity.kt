@@ -26,6 +26,9 @@ class MainActivity : FlutterActivity() {
                         AdhanScheduler.setCheckinEnabled(this, enabled)
                         result.success(true)
                     }
+                } else if (call.method == "testCheckin") {
+                    PrayerCheckinReceiver.show(this, "الظهر", System.currentTimeMillis())
+                    result.success(true)
                 } else result.notImplemented()
             }
     }
