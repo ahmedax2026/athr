@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'react_quran_preview.dart';
+import 'khatma_push.dart';
 
 const _starts = <int>[1,22,42,62,82,102,121,142,162,182,201,222,242,262,282,302,322,342,362,382,402,422,442,462,482,502,522,542,562,582];
 const _green = Color(0xFF075143);
@@ -59,6 +60,7 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
       FilledButton.icon(onPressed: saveGuest, icon: const Icon(Icons.login), label: const Text('متابعة كضيف')),
     ])) :
     ListView(padding: const EdgeInsets.all(16), children: [
+      OutlinedButton.icon(onPressed: () async { try { await KhatmaPush.enable(); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم طلب تفعيل إشعارات الختمات. تحقق من سماح الهاتف بالإشعارات.'))); } catch (_) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر تفعيل الإشعارات'))); } }, icon: const Icon(Icons.notifications_active_outlined), label: const Text('تفعيل إشعارات الختمات')),
       ListTile(title: Text('أهلًا، $guestName'), subtitle: const Text('مشارك كضيف'), trailing: IconButton(tooltip: 'تغيير الاسم', icon: const Icon(Icons.edit_outlined), onPressed: () { guestInput.text = guestName!; setState(() => guestName = null); })),
       FilledButton.icon(onPressed: () => Navigator.push(context,MaterialPageRoute<void>(builder: (_) => KhatmaCreateScreen(uid:user!.uid,guestName:guestName!))),
         icon: const Icon(Icons.add),label: const Text('إنشاء ختمة')),
@@ -318,6 +320,29 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
     finally { if (mounted) setState(() => busy = false); }
   }
 
+  Future<void> remindPending() async {
+    if (busy) return;
+    setState(()=>busy=true);
+    try {
+      final members=await ref.collection('members').get();
+      int sent=0, failed=0, missing=0, cooldown=0;
+      for(final member in members.docs){
+        if(member.id==widget.uid)continue;
+        final parts=List<int>.from(member.data()['parts']??[]);
+        final done=List<int>.from(member.data()['completed']??[]);
+        if(!parts.any((p)=>!done.contains(p)))continue;
+        try {
+          final result=await KhatmaPush.remind(widget.id,member.id);
+          if(result=='sent'){sent++;}
+          else if(result=='device_not_registered'){missing++;}
+          else if(result=='not_allowed_or_cooldown'){cooldown++;}
+          else {failed++;}
+        } catch (_) {failed++;}
+      }
+      message('تم الإرسال: $sent • لم يفعّل الإشعارات: $missing • صلاحيات أو فترة انتظار: $cooldown • فشل: $failed');
+    } catch(e){message('تعذر إرسال التذكيرات: $e');}
+    finally{if(mounted)setState(()=>busy=false);}
+  }
   Future<void> shareInvite() async {
     final msg='انضم إلى ختمتنا في أثر لا ينقطع. كود الدعوة: ${widget.id}';
     final url=Uri.parse('https://wa.me/?text=${Uri.encodeComponent(msg)}');
@@ -460,6 +485,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
               const SizedBox(height:16),
               if(creator&&!started&&!closed) FilledButton(onPressed:busy?null:()=>startKhatma(d),child:const Text('بدء الختمة وتوزيع الأجزاء')),
               if(!started) const Text('في انتظار بدء الختمة'),
+              if(creator&&started&&!closed&&completed.length<30) OutlinedButton.icon(onPressed:busy?null:remindPending,icon:const Icon(Icons.notifications_active_outlined),label:const Text('تذكير المشاركين الذين لم يكملوا')),
               if(creator&&!closed) TextButton(onPressed:extendDeadline,child:const Text('تمديد موعد الختمة')),
               if(creator&&!closed) OutlinedButton.icon(onPressed:busy?null:closeKhatma,
                 icon:const Icon(Icons.lock_outline),label:const Text('إغلاق الختمة')),
