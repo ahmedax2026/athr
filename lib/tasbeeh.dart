@@ -108,122 +108,201 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
   @override
   Widget build(BuildContext context) {
     final count = _counts[_selected] ?? 0;
+    final total = _counts.values.fold<int>(0, (sum, v) => sum + v);
     final isLong = _selected.length > 95;
-    final isMedium = _selected.length > 28;
-    final fontSize = isLong ? 26.0 : isMedium ? 25.0 : 34.0;
-    final diameter = (MediaQuery.sizeOf(context).width - 66).clamp(220.0, 380.0);
-    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('السبحة الإلكترونية')),
-      body: !_loaded ? const Center(child: CircularProgressIndicator()) : SafeArea(
-        child: ListView(padding: const EdgeInsets.all(18), children: [
-          Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-            const Text('اختر الذكر', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              key: ValueKey(_selected),
-              initialValue: _selected,
-              isExpanded: true,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-              items: [..._defaults, ..._custom].map((v) => DropdownMenuItem(
-                value: v, child: Text(v == _ibrahim ? 'الصلاة الإبراهيمية كاملة' : _plain(v),
-                  maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
-              onChanged: (v) { if (v != null) { setState(() { _selected = v; if (_goal != 0 && (_counts[v] ?? 0) > _goal) _counts[v] = _goal; }); _save(); } },
-            ),
-            const SizedBox(height: 8),
-            Wrap(alignment: WrapAlignment.center, spacing: 8, children: [
-              TextButton.icon(onPressed: _addCustom, icon: const Icon(Icons.add), label: const Text('إضافة تسبيحة')),
-              if (_custom.contains(_selected)) TextButton.icon(
-                onPressed: _deleteCustom, icon: const Icon(Icons.delete_outline), label: const Text('حذف الذكر الخاص')),
-            ]),
-          ]))),
-          const SizedBox(height: 14),
-          Container(
-            decoration: BoxDecoration(
-              color: _green,
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: _gold, width: 1.5),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
-            child: Column(children: [
-              GestureDetector(
-                onTap: _increment,
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  width: diameter,
-                  height: diameter,
-                  clipBehavior: Clip.antiAlias,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0A493D),
-                    border: Border.all(color: _gold, width: 2),
-                    shape: BoxShape.circle,
+      backgroundColor: const Color(0xFFF8F0DE),
+      appBar: AppBar(
+        title: const Text('السبحة الإلكترونية'),
+        backgroundColor: _green,
+        foregroundColor: Colors.white,
+        centerTitle: true,
+      ),
+      body: !_loaded
+          ? const Center(child: CircularProgressIndicator(color: _green))
+          : SafeArea(child: LayoutBuilder(builder: (context, area) {
+              final compact = area.maxHeight < 580;
+              final gap = compact ? 5.0 : 10.0;
+              return Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 10 : 16,
+                  vertical: compact ? 6 : 12),
+                child: Column(children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: _gold),
+                      borderRadius: BorderRadius.circular(17)),
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                    child: Row(children: [
+                      Expanded(child: DropdownButtonFormField<String>(
+                        key: ValueKey(_selected),
+                        initialValue: _selected,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'اختر الذكر',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 10)),
+                        items: [..._defaults, ..._custom].map((v) => DropdownMenuItem(
+                          value: v,
+                          child: Text(v == _ibrahim ? 'الصلاة الإبراهيمية كاملة' : _plain(v),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        )).toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() {
+                            _selected = value;
+                            if (_goal != 0 && (_counts[value] ?? 0) > _goal) {
+                              _counts[value] = _goal;
+                            }
+                          });
+                          _save();
+                        },
+                      )),
+                      IconButton(
+                        onPressed: _addCustom,
+                        tooltip: 'إضافة ذكر',
+                        icon: const Icon(Icons.add_circle_outline, color: _green)),
+                      if (_custom.contains(_selected))
+                        IconButton(
+                          onPressed: _deleteCustom,
+                          tooltip: 'حذف الذكر',
+                          icon: const Icon(Icons.delete_outline, color: _green)),
+                    ]),
                   ),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Expanded(
-                      child: SizedBox(width: diameter - 58,
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.center,
-                          child: SizedBox(
-                            width: diameter - 58,
-                            child: Text(_plain(_selected),
-                              textAlign: TextAlign.center,
-                              softWrap: true,
-                              textDirection: TextDirection.rtl,
-                              style: TextStyle(
-                                color: const Color(0xFFFFE6AB),
-                                fontSize: fontSize,
-                                fontWeight: FontWeight.w700,
-                                height: isLong ? 1.45 : 1.35,
+                  SizedBox(height: gap),
+                  Expanded(child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF155E4B), Color(0xFF06362E)],
+                        begin: Alignment.topCenter, end: Alignment.bottomCenter),
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: _gold, width: 1.4)),
+                    child: LayoutBuilder(builder: (context, inner) {
+                      // Premium compact dial: never exceed 240 dp, and always
+                      // fit the available vertical space without scrolling.
+                      final diameter = (inner.maxWidth * .66)
+                          .clamp(120.0, 240.0);
+                      return Column(children: [
+                        Expanded(child: Center(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: GestureDetector(
+                              onTap: _increment,
+                              behavior: HitTestBehavior.opaque,
+                              child: Container(
+                                width: diameter,
+                                height: diameter,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0A493D),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: _gold, width: 2.5),
+                                  boxShadow: const [BoxShadow(
+                                    color: Color(0x55000000), blurRadius: 17,
+                                    offset: Offset(0, 6))]),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Expanded(child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: SizedBox(
+                                        width: diameter - 43,
+                                        child: Text(_plain(_selected),
+                                          textDirection: TextDirection.rtl,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: const Color(0xFFFFE6AB),
+                                            fontSize: isLong ? 20 : 27,
+                                            fontWeight: FontWeight.w700,
+                                            height: 1.3)),
+                                      ),
+                                    )),
+                                    Text('$count', style: const TextStyle(
+                                      color: Colors.white, fontSize: 34,
+                                      fontWeight: FontWeight.w900)),
+                                    Text(_goal == 0 ? 'تسبيح مفتوح' : 'الهدف: $_goal',
+                                      style: const TextStyle(
+                                        color: _gold, fontSize: 12)),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
+                        )),
+                        Padding(
+                          padding: EdgeInsets.only(bottom: compact ? 6 : 12),
+                          child: Text(
+                            _goal != 0 && count >= _goal
+                                ? 'أتممت العدد المستهدف'
+                                : 'اضغط على الدائرة للتسبيح',
+                            style: const TextStyle(
+                              color: _gold, fontSize: 13,
+                              fontWeight: FontWeight.w700)),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text('$count', style: const TextStyle(
-                      color: Colors.white, fontSize: 38, fontWeight: FontWeight.bold)),
-                    Text(_goal == 0 ? 'تسبيح مفتوح' : 'الهدف: $_goal',
-                      style: const TextStyle(color: _gold, fontSize: 13)),
+                      ]);
+                    }),
+                  )),
+                  SizedBox(height: gap),
+                  Row(children: [
+                    Expanded(child: OutlinedButton.icon(
+                      onPressed: count == 0 ? null : () {
+                        setState(() => _counts[_selected] = count - 1);
+                        _save();
+                      },
+                      icon: const Icon(Icons.undo, size: 18),
+                      label: const Text('تراجع'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _green,
+                        minimumSize: const Size.fromHeight(42)))),
+                    const SizedBox(width: 9),
+                    Expanded(child: OutlinedButton.icon(
+                      onPressed: count == 0 ? null : () {
+                        setState(() => _counts[_selected] = 0);
+                        _save();
+                      },
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('تصفير'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _green,
+                        minimumSize: const Size.fromHeight(42)))),
                   ]),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(_goal != 0 && count >= _goal ? 'اكتمل العدد المستهدف' : 'المس الدائرة للتسبيح',
-                style: const TextStyle(color: _gold, fontSize: 16)),
-              const SizedBox(height: 12),
-              Wrap(spacing: 8, alignment: WrapAlignment.center, children: [
-                OutlinedButton.icon(onPressed: count == 0 ? null : () {
-                  setState(() => _counts[_selected] = count - 1); _save();
-                }, icon: const Icon(Icons.undo), label: const Text('تراجع'),
-                  style: OutlinedButton.styleFrom(foregroundColor: _gold)),
-                OutlinedButton.icon(onPressed: count == 0 ? null : () {
-                  setState(() => _counts[_selected] = 0); _save();
-                }, icon: const Icon(Icons.refresh), label: const Text('تصفير'),
-                  style: OutlinedButton.styleFrom(foregroundColor: _gold)),
-              ]),
-            ]),
-          ),
-          const SizedBox(height: 18),
-          Text('العدد المستهدف', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Wrap(spacing: 8, children: [
-            for (final goal in [33, 100, 1000, 0])
-              ChoiceChip(label: Text(goal == 0 ? 'مفتوح' : '$goal'),
-                selected: _goal == goal,
-                onSelected: (_) { setState(() { _goal = goal; if (goal != 0 && (_counts[_selected] ?? 0) > goal) _counts[_selected] = goal; }); _save(); }),
-          ]),
-          const SizedBox(height: 14),
-          Card(child: ListTile(
-            leading: const Icon(Icons.auto_awesome, color: _gold),
-            title: const Text('إجمالي التسبيحات المحفوظة'),
-            trailing: Text('${_counts.values.fold<int>(0, (sum, v) => sum + v)}',
-              style: theme.textTheme.titleLarge),
-          )),
-        ]),
-      ),
+                  SizedBox(height: gap),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      for (final goal in [33, 100, 1000, 0])
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: ChoiceChip(
+                            label: Text(goal == 0 ? 'مفتوح' : '$goal'),
+                            selected: _goal == goal,
+                            onSelected: (_) {
+                              setState(() {
+                                _goal = goal;
+                                if (goal != 0 && (_counts[_selected] ?? 0) > goal) {
+                                  _counts[_selected] = goal;
+                                }
+                              });
+                              _save();
+                            }),
+                        ),
+                    ]),
+                  ),
+                  SizedBox(height: gap),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.auto_awesome, color: _green, size: 17),
+                    const SizedBox(width: 8),
+                    Text('إجمالي التسبيحات: $total',
+                      style: const TextStyle(
+                        color: _green, fontWeight: FontWeight.w800)),
+                  ]),
+                ]),
+              );
+            })),
     );
   }
 }
