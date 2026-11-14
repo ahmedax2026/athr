@@ -37,6 +37,9 @@ jobs:
       - name: Bundle Quran surah-to-page index (no page images)
         run: python3 tool/bundle_mushaf.py
 
+      - name: Rebuild adhkar image index from approved uploaded files
+        run: python3 tool/sync_azkar_manifest.py
+
       - name: Verify every adhkar entry has an offline image
         run: |
           python3 - <<'PY'
