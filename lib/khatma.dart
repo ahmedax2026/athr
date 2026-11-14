@@ -313,6 +313,63 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
     finally { if (mounted) setState(() => busy = false); }
   }
 
+  Future<void> remindMembers({String? target}) async {
+    if (busy) return;
+    setState(() => busy = true);
+    try {
+      final room = (await ref.get()).data();
+      if (room == null || room['creatorId'] != widget.uid ||
+          room['closed'] == true || room['started'] != true) {
+        throw StateError('not allowed');
+      }
+      final members = await ref.collection('members').get();
+      var sent = 0;
+      for (final member in members.docs) {
+        if (member.id == widget.uid || (target != null && member.id != target)) {
+          continue;
+        }
+        final data = member.data();
+        final parts = List<int>.from(data['parts'] ?? []);
+        final done = List<int>.from(data['completed'] ?? []);
+        if (parts.every(done.contains)) continue;
+        final reminder = ref.collection('reminders').doc(member.id);
+        final written = await FirebaseFirestore.instance.runTransaction((tx) async {
+          final existing = await tx.get(reminder);
+          final last = existing.data()?['sentAt'];
+          if (last is Timestamp &&
+              DateTime.now().difference(last.toDate()).inHours < 12) {
+            return false;
+          }
+          tx.set(reminder, {
+            'sentAt': FieldValue.serverTimestamp(),
+            'senderId': widget.uid,
+          });
+          return true;
+        });
+        if (written) sent++;
+      }
+      message(sent == 0 ? 'لا يوجد مشاركون يحتاجون تذكيرًا الآن، أو تم تذكيرهم مؤخرًا.'
+          : 'تم تسجيل تذكير داخل التطبيق لـ $sent مشارك.');
+    } catch (_) {
+      message('تعذر تسجيل التذكير. تحقق من الاتصال وقواعد Firestore.');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Widget reminderBanner() => StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+    stream: ref.collection('reminders').doc(widget.uid).snapshots(),
+    builder: (context, snapshot) {
+      final sent = snapshot.data?.data()?['sentAt'];
+      if (sent is! Timestamp) return const SizedBox.shrink();
+      return Card(child: ListTile(
+        leading: const Icon(Icons.notifications_active_outlined, color: _green),
+        title: const Text('تذكير من صاحب الختمة'),
+        subtitle: Text('لا تنسَ إكمال وردك من القرآن الكريم. ${sent.toDate().day}/${sent.toDate().month}'),
+      ));
+    },
+  );
+
   Future<void> shareInvite() async {
     final msg='انضم إلى ختمتنا في أثر لا ينقطع. كود الدعوة: ${widget.id}';
     final url=Uri.parse('https://wa.me/?text=${Uri.encodeComponent(msg)}');
@@ -452,6 +509,13 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
               const SizedBox(height:16),
               if(creator&&!started&&!closed) FilledButton(onPressed:busy?null:()=>startKhatma(d),child:const Text('بدء الختمة وتوزيع الأجزاء')),
               if(!started) const Text('في انتظار بدء الختمة'),
+              if(creator&&started&&!closed&&completed.length<30)
+                FilledButton.icon(onPressed:busy?null:()=>remindMembers(),
+                  icon:const Icon(Icons.notifications_active_outlined),
+                  label:const Text('تذكير المشاركين الذين لم يكملوا')),
+              if(mine!=null&&!creator&&started&&!closed &&
+                  List<int>.from(mine['parts']??[]).any((p)=>!List<int>.from(mine['completed']??[]).contains(p)))
+                reminderBanner(),
               if(creator&&!closed) TextButton(onPressed:extendDeadline,child:const Text('تمديد موعد الختمة')),
               if(creator&&!closed) OutlinedButton.icon(onPressed:busy?null:closeKhatma,
                 icon:const Icon(Icons.lock_outline),label:const Text('إغلاق الختمة')),
@@ -503,8 +567,12 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
                     Card(child:ListTile(
                       title:Text((member.data()['name']??'مشارك').toString()),
                       subtitle:Text('الأجزاء: ${(List<int>.from(member.data()['parts']??[])..sort()).join('، ')} • المكتمل: ${(member.data()['completed'] as List?)?.length??0}'),
-                      trailing:creator&&d['distribution']=='manual'
-                        ?IconButton(icon:const Icon(Icons.edit),onPressed:()=>assign(member.id,List<int>.from(member.data()['parts']??[]))):null,
+                      trailing: creator ? Row(mainAxisSize: MainAxisSize.min, children: [
+                        if (started && !closed && member.id != widget.uid && List<int>.from(member.data()['parts']??[]).any((p)=>!List<int>.from(member.data()['completed']??[]).contains(p)))
+                          IconButton(tooltip: 'تذكير المشارك', icon: const Icon(Icons.notifications_outlined), onPressed: busy ? null : ()=>remindMembers(target: member.id)),
+                        if (d['distribution']=='manual' && !closed)
+                          IconButton(icon:const Icon(Icons.edit),onPressed:()=>assign(member.id,List<int>.from(member.data()['parts']??[]))),
+                      ]) : null,
                     )),
                   ]);
                 }),
