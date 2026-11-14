@@ -144,10 +144,14 @@ service cloud.firestore {
         function owner() { return signedIn() && request.auth.uid == memberId; }
         function host() { return signedIn() && parent().creatorId == request.auth.uid; }
         function activeParent() { return parent().get('closed', false) == false; }
+        allow get: if owner();
         allow get, list: if isAdmin();
         allow get, list: if signedIn() && (parent().privacy == 'public'
           || request.auth.uid in parent().memberIds);
-        allow create: if activeParent() && owner()
+        allow create: if owner()
+          && getAfter(pp()).data.get('closed', false) == false
+          && getAfter(pp()).data.started == false
+          && request.resource.data.parts == []
           && request.resource.data.name is string
           && request.resource.data.name.size() >= 2
           && request.resource.data.name.size() <= 60
