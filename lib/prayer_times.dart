@@ -163,7 +163,12 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     } catch (e) {
       if (mounted) setState(() => error = 'تعذر تهيئة تنبيهات الصلاة: $e');
     }
-    if (mounted) setState(() => busy = false);
+    if (mounted) {
+      setState(() => busy = false);
+      // Refresh prayer times automatically when the screen opens. Cached
+      // coordinates remain usable if location services are unavailable.
+      unawaited(_useGps(automatic: true));
+    }
   }
 
   void _resolveZone() {
@@ -188,8 +193,13 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     if (mounted) setState(() => busy = false);
   }
 
-  Future<void> _useGps() async {
-    setState(() { busy = true; error = null; });
+  Future<void> _useGps({bool automatic = false}) async {
+    if (!mounted) return;
+    final hasCachedLocation = latitude != null && longitude != null;
+    // Avoid hiding an already-valid timetable behind a GPS spinner.
+    if (!automatic || !hasCachedLocation) {
+      setState(() { busy = true; error = null; });
+    }
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
         throw StateError('فعّل خدمة الموقع في الهاتف أولًا');
@@ -203,19 +213,37 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
         throw StateError('اسمح للتطبيق بالوصول للموقع، أو اختر مدينة يدويًا');
       }
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium));
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 12)));
+      if (!mounted) return;
       String label = 'موقعي الحالي';
       try {
-        final places = await geocoding.placemarkFromCoordinates(position.latitude, position.longitude);
+        final places = await geocoding.placemarkFromCoordinates(
+          position.latitude, position.longitude);
         if (places.isNotEmpty) {
-          final p = places.first;
-          label = [p.locality, p.administrativeArea, p.country]
-              .where((s) => s != null && s.trim().isNotEmpty).join('، ');
+          final place = places.first;
+          label = [place.locality, place.administrativeArea, place.country]
+              .where((value) => value != null && value.trim().isNotEmpty)
+              .join('، ');
+          if (label.isEmpty) label = 'موقعي الحالي';
         }
-      } catch (_) {}
+      } catch (_) {
+        // Reverse geocoding can fail offline: coordinates still work.
+      }
+      if (!mounted) return;
       await _storePosition(position.latitude, position.longitude, label);
+      await _loadCompletedPrayers();
     } catch (e) {
-      if (mounted) setState(() { busy = false; error = e.toString(); });
+      if (!mounted) return;
+      setState(() {
+        busy = false;
+        // Preserve cached prayer times instead of showing a location error
+        // on every automatic opening, but make first-time setup actionable.
+        if (!automatic || !hasCachedLocation) {
+          error = automatic && hasCachedLocation ? null : e.toString();
+        }
+      });
     }
   }
 
