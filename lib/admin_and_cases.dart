@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -295,6 +297,42 @@ class AdminDashboardScreen extends StatelessWidget {
   );
 }
 
+List<String> _casePhotos(Map<String, dynamic> data) {
+    final result = <String>[];
+    for (final field in ['images', 'imageUrls', 'attachments']) {
+      final items = data[field];
+      if (items is! List) continue;
+      for (final item in items) {
+        final value = item is String ? item :
+          item is Map ? (item['url'] ?? '').toString() : '';
+        final uri = Uri.tryParse(value);
+        if ((value.startsWith('data:image/jpeg;base64,') || (uri != null && uri.scheme == 'https' && uri.host.isNotEmpty)) && !result.contains(value)) {
+          result.add(value);
+        }
+      }
+    }
+    final old = (data['imageUrl'] ?? '').toString();
+    final uri = Uri.tryParse(old);
+    if (uri != null && uri.scheme == 'https' &&
+        uri.host.isNotEmpty && !result.contains(old)) {
+      result.insert(0, old);
+    }
+    return result.take(5).toList();
+  }
+
+
+Widget _caseImage(String source, {BoxFit fit = BoxFit.cover}) {
+  Widget failure() => const Center(child: Icon(Icons.broken_image_outlined, color: _reliefGreen));
+  if (source.startsWith('data:image/jpeg;base64,')) {
+    try {
+      return Image.memory(base64Decode(source.substring('data:image/jpeg;base64,'.length)),
+        fit: fit, errorBuilder: (_, _, _) => failure());
+    } catch (_) { return failure(); }
+  }
+  return Image.network(source, fit: fit,
+    errorBuilder: (_, _, _) => failure());
+}
+
 class CaseEditorScreen extends StatefulWidget {
   const CaseEditorScreen({super.key, this.caseId, this.existing});
   final String? caseId;
@@ -309,7 +347,44 @@ class _CaseEditorScreenState extends State<CaseEditorScreen> {
   late final goal = TextEditingController(text: (widget.existing?['goal'] ?? '').toString());
   late final collected = TextEditingController(text: (widget.existing?['collected'] ?? 0).toString());
   late final payment = TextEditingController(text: (widget.existing?['payment'] ?? '').toString());
-  late final imageUrl = TextEditingController(text: (widget.existing?['imageUrl'] ?? '').toString());
+  final imageUrl = TextEditingController();
+  late final photos = _casePhotos(widget.existing ?? {});
+  bool picking = false;
+  String? photoError;
+
+  void _addLink() {
+    final value = imageUrl.text.trim();
+    final uri = Uri.tryParse(value);
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty || value.length > 2048) {
+      setState(() => photoError = 'أدخل رابط HTTPS صالحًا للصورة');
+      return;
+    }
+    if (photos.length >= 5 || photos.contains(value)) return;
+    setState(() { photos.add(value); imageUrl.clear(); photoError = null; });
+  }
+
+  Future<void> _pickPhotos() async {
+    if (picking || busy || photos.length >= 5) return;
+    setState(() { picking = true; photoError = null; });
+    try {
+      final files = await ImagePicker().pickMultiImage(maxWidth: 1400, maxHeight: 1400, imageQuality: 65, limit: 5 - photos.length);
+      for (final file in files) {
+        if (!mounted || photos.length >= 5) break;
+        final bytes = await file.readAsBytes();
+        if (!mounted) return;
+        if (bytes.length > 125000 || bytes.length < 3 || bytes[0] != 255 || bytes[1] != 216 || bytes[2] != 255) {
+          setState(() => photoError = 'بعض الصور كبيرة أو ليست JPEG. اختر صورة JPEG أصغر أو أضف رابطها.');
+          continue;
+        }
+        final value = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        if (!photos.contains(value)) setState(() => photos.add(value));
+      }
+    } catch (_) {
+      if (mounted) setState(() => photoError = 'تعذر اختيار الصور من الجهاز');
+    } finally {
+      if (mounted) setState(() => picking = false);
+    }
+  }
   late final vodafoneCash = TextEditingController(text: (widget.existing?['vodafoneCash'] ?? '').toString());
   late final instapay = TextEditingController(text: (widget.existing?['instapay'] ?? '').toString());
   late bool published = widget.existing?['status'] == 'published';
@@ -322,6 +397,11 @@ class _CaseEditorScreenState extends State<CaseEditorScreen> {
   }
 
   Future<void> save() async {
+    if (picking || busy) return;
+    if (imageUrl.text.trim().isNotEmpty) {
+      _addLink();
+      if (imageUrl.text.trim().isNotEmpty) return;
+    }
     final target = double.tryParse(goal.text.trim());
     final raised = double.tryParse(collected.text.trim());
     if (title.text.trim().isEmpty || target == null || target <= 0 ||
@@ -338,7 +418,10 @@ class _CaseEditorScreenState extends State<CaseEditorScreen> {
         'goal': target,
         'collected': raised,
         'payment': payment.text.trim(),
-        'imageUrl': imageUrl.text.trim(),
+        'imageUrl': photos.where((p) => p.startsWith('https://')).firstOrNull ?? '',
+        'images': photos,
+        'imageUrls': FieldValue.delete(),
+        'attachments': FieldValue.delete(),
         'vodafoneCash': vodafoneCash.text.trim(),
         'instapay': instapay.text.trim(),
         'status': published ? 'published' : 'draft',
@@ -346,6 +429,8 @@ class _CaseEditorScreenState extends State<CaseEditorScreen> {
       };
       final collection = FirebaseFirestore.instance.collection('cases');
       if (widget.caseId == null) {
+        data.remove('imageUrls');
+        data.remove('attachments');
         await collection.add({...data, 'createdAt': FieldValue.serverTimestamp()});
       } else {
         await collection.doc(widget.caseId).update(data);
@@ -372,11 +457,31 @@ class _CaseEditorScreenState extends State<CaseEditorScreen> {
         TextField(controller: goal, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'المبلغ المطلوب بالجنيه')),
         TextField(controller: collected, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'المبلغ المحصل بالجنيه')),
         const SizedBox(height: 18),
-        const Text('صورة الحالة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        const Text('صور ومستندات الحالة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
-        TextField(controller: imageUrl, keyboardType: TextInputType.url,
-          decoration: const InputDecoration(labelText: 'رابط صورة الحالة (HTTPS)',
-            helperText: 'أضف رابط صورة منشورة بموافقة صاحبها', border: OutlineInputBorder())),
+        Text('${photos.length} / 5 صور • أضف الصور بموافقة صاحبها', style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        if (photos.isNotEmpty) Wrap(spacing: 8, runSpacing: 8, children: [
+          for (var i = 0; i < photos.length; i++) SizedBox(width: 96, height: 96,
+            child: Stack(fit: StackFit.expand, children: [
+              ClipRRect(borderRadius: BorderRadius.circular(12), child: _caseImage(photos[i])),
+              Positioned(top: 0, right: 0, child: IconButton(
+                onPressed: busy || picking ? null : () => setState(() => photos.removeAt(i)),
+                style: IconButton.styleFrom(backgroundColor: _reliefGreen, foregroundColor: Colors.white),
+                icon: const Icon(Icons.close, size: 17), tooltip: 'حذف الصورة')),
+            ])),
+        ]),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(onPressed: busy || picking || photos.length >= 5 ? null : _pickPhotos,
+          icon: const Icon(Icons.photo_library_outlined),
+          label: Text(picking ? 'جارٍ تجهيز الصور...' : 'اختيار صور من الهاتف')),
+        if (photos.length < 5) Row(children: [
+          Expanded(child: TextField(controller: imageUrl, enabled: !busy && !picking,
+            keyboardType: TextInputType.url,
+            decoration: const InputDecoration(labelText: 'رابط الصورة (HTTPS)', border: OutlineInputBorder()))),
+          IconButton(onPressed: busy || picking ? null : _addLink, icon: const Icon(Icons.add_circle_outline), tooltip: 'إضافة الرابط'),
+        ]),
+        if (photoError != null) Text(photoError!, style: const TextStyle(color: Colors.red)),
         const SizedBox(height: 18),
         const Text('طرق التبرع', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
@@ -390,7 +495,7 @@ class _CaseEditorScreenState extends State<CaseEditorScreen> {
         SwitchListTile(title: const Text('نشر الحالة للمستخدمين'), value: published,
           onChanged: (v) => setState(() => published = v)),
         const SizedBox(height: 20),
-        FilledButton(onPressed: busy ? null : save, child: Text(busy ? 'جارٍ الحفظ...' : 'حفظ الحالة')),
+        FilledButton(onPressed: busy || picking ? null : save, child: Text(busy ? 'جارٍ الحفظ...' : 'حفظ الحالة')),
       ]),
     )),
   );
@@ -525,29 +630,7 @@ class _ReliefCaseCard extends StatelessWidget {
   const _ReliefCaseCard({super.key, required this.data});
   final Map<String, dynamic> data;
 
-  List<String> get _photos {
-    final result = <String>[];
-    for (final field in ['images', 'imageUrls', 'attachments']) {
-      final items = data[field];
-      if (items is! List) continue;
-      for (final item in items) {
-        final value = item is String ? item :
-          item is Map ? (item['url'] ?? '').toString() : '';
-        final uri = Uri.tryParse(value);
-        if (uri != null && uri.scheme == 'https' &&
-            uri.host.isNotEmpty && !result.contains(value)) {
-          result.add(value);
-        }
-      }
-    }
-    final old = (data['imageUrl'] ?? '').toString();
-    final uri = Uri.tryParse(old);
-    if (uri != null && uri.scheme == 'https' &&
-        uri.host.isNotEmpty && !result.contains(old)) {
-      result.insert(0, old);
-    }
-    return result.take(3).toList();
-  }
+  List<String> get _photos => _casePhotos(data);
 
   Future<void> _copy(BuildContext ctx, String title, String value) async {
     await Clipboard.setData(ClipboardData(text: value));
@@ -641,14 +724,14 @@ class _ReliefCaseCard extends StatelessWidget {
           const SizedBox(height: 9),
           Expanded(child: PageView.builder(
             itemCount: images.length,
-            itemBuilder: (_, index) => InteractiveViewer(
-              minScale: 1, maxScale: 5,
-              child: Image.network(images[index],
-                fit: BoxFit.contain,
-                cacheWidth: 1600,
-                errorBuilder: (_, error, stack) =>
-                  const Center(child: Text('تعذر عرض المستند'))),
-            ),
+            itemBuilder: (_, index) => Padding(padding: const EdgeInsets.all(12), child: Column(children: [
+              Text('${index + 1} / ${images.length}', style: const TextStyle(color: _reliefGreen, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+              Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(16), child: InteractiveViewer(
+                minScale: 1, maxScale: 5,
+                child: Center(child: _caseImage(images[index], fit: BoxFit.contain)),
+              ))),
+            ])),
           )),
           const SizedBox(height: 8),
           const Text('اسحب للتنقل • كبّر الصورة بإصبعين',
@@ -740,6 +823,12 @@ class _ReliefCaseCard extends StatelessWidget {
                 child: const Text('قراءة التفاصيل',
                   style: TextStyle(color: _reliefGreen,
                     fontWeight: FontWeight.w900)))),
+            if (photoCount > 0) Padding(padding: const EdgeInsets.symmetric(vertical: 7), child: InkWell(
+              onTap: () => _showImages(context),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                for (final photo in _photos) Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 3), child: ClipRRect(
+                  borderRadius: BorderRadius.circular(9), child: SizedBox(height: 52, child: _caseImage(photo))))),
+              ]))),
             const Spacer(),
             Container(
               height: 78,
