@@ -11,6 +11,9 @@ root = Path(__file__).resolve().parents[1]
 data = json.loads((root / "tool/azkar_data.json").read_text(encoding="utf-8"))
 out = root / "assets/azkar"
 out.mkdir(parents=True, exist_ok=True)
+# Replace previous generated images on every run, preserving user originals.
+for old in out.glob("dhikr_*.webp"):
+    old.unlink()
 f_candidates = list((root / "react_quran/node_modules/react-quran").rglob("*.ttf"))
 f_candidates = sorted(f_candidates, key=lambda p: (0 if "uthman" in p.name.lower() else 1, str(p)))
 fallback = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
@@ -87,25 +90,23 @@ for group_index, group in enumerate(data):
             body_font = font(40)
             lines = lines_of(content, draw, body_font, width - 120)
         line_height = int(body_font.size * 1.8)
-        extra = 130 if is_short_surah else 0
-        height = max(520, 260 + extra + line_height * len(lines) + 125)
+        extra = 135 if is_short_surah else 0
+        height = max(520, 235 + extra + line_height * len(lines) + 110)
         card = Image.new("RGB", (width, height), "#F1E3C6")
         d = ImageDraw.Draw(card)
         ink = "#241F18"
-        d.line((18, 17, width-18, 17), fill="#AF9980", width=2)
-        d.text((width//2, 54), title, fill=ink, font=font(54), anchor="mt", direction="rtl")
-        d.line((18, 148, width-18, 148), fill="#AF9980", width=2)
+        d.line((14, 4, width-14, 4), fill="#B1A394", width=1)
+        d.text((width//2, 35), title, fill=ink, font=font(58), anchor="mt", direction="rtl")
+        d.line((14, 125, width-14, 125), fill="#B1A394", width=1)
         if is_short_surah:
             d.text((width//2, 183), "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
                    fill=ink, font=font(56), anchor="mt", direction="rtl")
-        top = 205 + extra + max(
+        top = 175 + extra + max(
             0, (height - 340 - extra - line_height * len(lines))//2)
         for line in lines:
             d.text((width//2, top), line, fill=ink, font=body_font, anchor="mt", direction="rtl")
             top += line_height
-        d.line((18, height-52, width-18, height-52), fill="#AF9980", width=2)
-        d.text((width//2, height-30), item["source"], fill="#63533D",
-               font=font(24), anchor="mm", direction="rtl")
+        d.line((14, height-15, width-14, height-15), fill="#B1A394", width=1)
         target = out / filename
         card.save(target, format="WEBP", quality=91, method=5)
         assert target.stat().st_size > 1000
