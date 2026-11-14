@@ -22,6 +22,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   bool readerReady = false;
   bool readerConfigured = false;
   bool openingPageAcknowledged = false;
+  bool completionDialogOpen = false;
   double zoom = 1.0;
   int? bookmark;
   String? error;
@@ -80,11 +81,12 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
             readerConfigured = true;
             if (mounted) setState(() { loading = false; error = null; });
           }
-          if (data['type'] == 'partEnd' && mounted) {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('انتهى الجزء. اضغط «أتممت قراءة الجزء» أسفل الصفحة.'),
-              duration: Duration(seconds: 3)));
+          if (data['type'] == 'partEnd' && mounted &&
+              widget.lastPage < 604 && readerConfigured &&
+              !loading && error == null) {
+            // The reader reached its assigned boundary. Ask for explicit
+            // confirmation; reaching the page alone does not prove reading.
+            await _confirmPartFinished();
           }
           if (data['type'] == 'page' && data['page'] is num) {
             final reported = (data['page'] as num).toInt();
@@ -217,7 +219,8 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
   }
 
   Future<void> _confirmPartFinished() async {
-    if (loading || error != null) return;
+    if (loading || error != null || completionDialogOpen || !mounted) return;
+    completionDialogOpen = true;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -236,6 +239,7 @@ class _ReactQuranPreviewState extends State<ReactQuranPreview> {
         ],
       ),
     );
+    completionDialogOpen = false;
     if (confirmed == true && mounted) Navigator.of(context).pop(true);
   }
 
