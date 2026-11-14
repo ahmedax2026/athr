@@ -93,18 +93,70 @@ class WelcomeScreen extends StatefulWidget {
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
   int _count = 0;
+  int _target = 3;
+  bool _showPhoto = true;
+  String _photoUrl = '';
+  String _buttonText = 'اللهم ارحمه\nواغفر له';
+  String _completion = 'اللهم تقبل';
+  bool _leaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadWelcome());
+  }
+
+  Future<void> _loadWelcome() async {
+    try {
+      // Firebase is intentionally initialized after the first frame in the stable app.
+      for (var i = 0; i < 20 && Firebase.apps.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        if (!mounted) return;
+      }
+      if (Firebase.apps.isEmpty || !mounted) return;
+      final doc = await FirebaseFirestore.instance.collection('content')
+          .doc('welcome').get().timeout(const Duration(seconds: 3));
+      final data = doc.data();
+      if (!mounted || _count != 0 || _leaving || data == null ||
+          data['published'] != true) {
+        return;
+      }
+      final taps = int.tryParse((data['tapCount'] ?? '3').toString()) ?? 3;
+      final photo = (data['photoUrl'] ?? '').toString().trim();
+      setState(() {
+        _target = taps.clamp(1, 10).toInt();
+        _showPhoto = data['showPhoto'].toString() != 'false';
+        _photoUrl = Uri.tryParse(photo)?.scheme == 'https' ? photo : '';
+        final label = (data['buttonText'] ?? '').toString().trim();
+        if (label.isNotEmpty) _buttonText = label;
+        final completion = (data['completion'] ?? '').toString().trim();
+        if (completion.isNotEmpty) _completion = completion;
+      });
+      if (data['enabled'].toString() == 'false') _goHome();
+    } catch (_) {
+      // Preserve the offline memorial experience.
+    }
+  }
+
+  void _goHome() {
+    if (!mounted || _leaving) return;
+    _leaving = true;
+    Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+      builder: (_) => HomeScreen(onToggleTheme: widget.onToggleTheme)));
+  }
+
   void _pray() {
-    if (_count >= 3) return;
+    if (_count >= _target || _leaving) return;
     setState(() => _count++);
-    if (_count == 3) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('اللهم تقبل', textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF052B27), fontSize: 18, fontWeight: FontWeight.w900)),
-        duration: Duration(milliseconds: 1600),
-        backgroundColor: Color(0xFFFFE3A0),
+    if (_count == _target) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_completion, textAlign: TextAlign.center,
+          style: const TextStyle(color: Color(0xFF052B27), fontSize: 18, fontWeight: FontWeight.w900)),
+        duration: const Duration(milliseconds: 1600),
+        backgroundColor: const Color(0xFFFFE3A0),
       ));
       Future<void>.delayed(const Duration(milliseconds: 1100), () {
-        if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: (_) => HomeScreen(onToggleTheme: widget.onToggleTheme)));
+        _goHome();
       });
     }
   }
@@ -138,7 +190,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 const SizedBox(height: 6),
                 const LiveContentText(document: 'welcome', field: 'subtitle', fallback: 'ذِكرى طيبة، ودعاء لا ينقطع', style: TextStyle(color: muted, fontSize: 13)),
                 const SizedBox(height: 10),
-                Container(
+                if (_showPhoto) Container(
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
                     color: const Color(0xFF164F43),
@@ -148,7 +200,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(17),
-                    child: Image.asset(
+                    child: _photoUrl.isNotEmpty ? Image.network(_photoUrl,
+                      fit: BoxFit.contain, width: double.infinity, height: 210,
+                      errorBuilder: (_, _, _) => Image.asset('assets/images/father.jpg',
+                        fit: BoxFit.contain, height: 210)) : Image.asset(
                       'assets/images/father.jpg',
                       key: const ValueKey('father-portrait'),
                       fit: BoxFit.contain,
@@ -180,9 +235,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   ]),
                 ),
                 const SizedBox(height: 8),
-                _PrayerHeart(count: _count, onTap: _pray),
+                _PrayerHeart(count: _count, target: _target, buttonText: _buttonText, onTap: _pray),
                 const SizedBox(height: 8),
-                const Text('اضغط على القلب 3 مرات للدخول إلى أبواب الخير', textAlign: TextAlign.center, style: TextStyle(color: cream, fontSize: 13, fontWeight: FontWeight.w800)),
+                Text(_target == 1 ? 'اضغط على القلب مرة واحدة للدخول إلى أبواب الخير' : 'اضغط على القلب $_target مرات للدخول إلى أبواب الخير', textAlign: TextAlign.center, style: const TextStyle(color: cream, fontSize: 13, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 7),
                 const Wrap(alignment: WrapAlignment.center, crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: 6, runSpacing: 3, children: [
@@ -202,8 +257,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 }
 
 class _PrayerHeart extends StatelessWidget {
-  const _PrayerHeart({required this.count, required this.onTap});
-  final int count;
+  const _PrayerHeart({required this.count, required this.target, required this.buttonText, required this.onTap});
+  final int count, target;
+  final String buttonText;
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Column(children: [
@@ -211,10 +267,10 @@ class _PrayerHeart extends StatelessWidget {
     const SizedBox(height: 8),
     Semantics(
       button: true,
-      label: 'اللهم ارحمه واغفر له',
+      label: buttonText,
       child: InkWell(
         key: const ValueKey('welcome-pray-button'),
-        onTap: count < 3 ? onTap : null,
+        onTap: count < target ? onTap : null,
         borderRadius: BorderRadius.circular(90),
         child: SizedBox(
           width: 150,
@@ -222,15 +278,15 @@ class _PrayerHeart extends StatelessWidget {
           child: Stack(alignment: Alignment.center, children: [
             const Icon(Icons.favorite, size: 128, color: Color(0xFFB68B4E)),
             const Icon(Icons.favorite, size: 118, color: Color(0xFF17584A)),
-            const Padding(
-              padding: EdgeInsets.only(top: 4),
-              child: Text('اللهم ارحمه\nواغفر له', textAlign: TextAlign.center, style: TextStyle(color: cream, fontSize: 15, fontWeight: FontWeight.w800, height: 1.3)),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(buttonText, textAlign: TextAlign.center, style: const TextStyle(color: cream, fontSize: 15, fontWeight: FontWeight.w800, height: 1.3)),
             ),
           ]),
         ),
       ),
     ),
-    Text('$count/3', key: const ValueKey('tasbeeh-count'), style: const TextStyle(color: gold, fontSize: 23, fontWeight: FontWeight.bold)),
+    Text('$count/$target', key: const ValueKey('tasbeeh-count'), style: const TextStyle(color: gold, fontSize: 23, fontWeight: FontWeight.bold)),
   ]);
 }
 
