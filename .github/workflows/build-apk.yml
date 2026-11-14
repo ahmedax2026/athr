@@ -42,6 +42,29 @@ jobs:
           python3 -m pip install --quiet Pillow
           python3 tool/bundle_azkar_cards.py
 
+      - name: Verify every adhkar entry has an offline image
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('tool/azkar_data.json').read_text(encoding='utf-8'))
+          manifest = json.loads(Path('assets/azkar/manifest.json').read_text(encoding='utf-8'))
+          assert len(data) == len(manifest), 'Adhkar group count mismatch'
+          for group, images in zip(data, manifest):
+              assert len(group['items']) == len(images), 'Missing adhkar images'
+              for filename in images:
+                  assert (Path('assets/azkar') / filename).stat().st_size > 1000, filename
+          print('Verified every adhkar entry maps to a real offline image')
+          PY
+
+      - name: Upload adhkar images for visual review
+        uses: actions/upload-artifact@v4
+        with:
+          name: athr-azkar-images
+          path: assets/azkar/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Install complete adhan recordings for native background playback
         run: python3 tool/install_adhan_android.py
 
