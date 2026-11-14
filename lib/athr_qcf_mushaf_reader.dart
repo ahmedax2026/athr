@@ -257,7 +257,7 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
                     style: FilledButton.styleFrom(backgroundColor: _green, foregroundColor: _gold),
                     onPressed: () async {
                       final confirmed=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('إتمام قراءة الجزء'),content:const Text('هل أتممت قراءة هذا الجزء كاملًا؟'),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('إلغاء')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('تأكيد'))]));
-                      if(confirmed==true && mounted)Navigator.of(context).pop(true);
+                      if(confirmed==true && context.mounted)Navigator.of(context).pop(true);
                     },icon:const Icon(Icons.check_circle_outline),label:const Text('لقد أتممت قراءة هذا الجزء',style:TextStyle(fontWeight:FontWeight.w900)),
                   ))),
                 SafeArea(
