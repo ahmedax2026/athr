@@ -273,6 +273,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
           notificationStatus = status;
           error = status.pending == 0 ? 'لم يتم تأكيد وجود إشعارات مجدولة؛ افحص الصلاحيات.' : null;
         });
+        _refreshPermissionSheet?.call();
       }
     } catch (e) {
       if (mounted) setState(() => error = 'تعذر جدولة الإشعارات: $e');
@@ -284,7 +285,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     setState(() => checkingNotifications = true);
     try {
       final status = await PrayerNotifications.status();
-      if (mounted) setState(() => notificationStatus = status);
+      if (mounted) { setState(() => notificationStatus = status); _refreshPermissionSheet?.call(); }
     } catch (e) {
       if (mounted) setState(() => error = 'تعذر فحص الإشعارات: $e');
     } finally {
@@ -468,7 +469,21 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     }
   }
 
+  VoidCallback? _refreshPermissionSheet;
+
+  Widget _permissionRow(String title, String description, IconData icon, bool? enabled, Future<void> Function() action) {
+    return Card(color: Colors.white, child: ListTile(
+      leading: Icon(icon, color: _forest),
+      title: Text(title, style: const TextStyle(color: _forest, fontWeight: FontWeight.w800)),
+      subtitle: Text(enabled == true ? 'مفعّل' : enabled == null ? 'جارٍ الفحص' : description, style: const TextStyle(color: _forest)),
+      trailing: enabled == true ? const Icon(Icons.check_circle, color: _forest) : FilledButton(onPressed: () async {
+        try { await action(); } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر فتح الإعدادات: $e'))); }
+      }, child: const Text('تفعيل')),
+    ));
+  }
+
   void _openSettings() {
+    _checkNotificationStatus();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -483,7 +498,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
           textTheme: Theme.of(ctx).textTheme.apply(
             bodyColor: _forest, displayColor: _forest)),
         child: StatefulBuilder(
-        builder: (ctx, refresh) => SafeArea(
+        builder: (ctx, refresh) {
+          _refreshPermissionSheet = () { if (ctx.mounted) refresh(() {}); };
+          return SafeArea(
           child: FractionallySizedBox(
             heightFactor: 0.94,
             child: ListView(
@@ -584,32 +601,13 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: _forest, fontSize: 15, fontWeight: FontWeight.w800)),
                 ),
-                if (notificationStatus?.unrestrictedBattery == false)
-                  const Padding(padding: EdgeInsets.all(8), child: Text('تحسين البطارية قد يؤخر الأذان على بعض الهواتف. اسمح بالعمل في الخلفية من إعدادات الهاتف.', textAlign: TextAlign.center, style: TextStyle(color: _forest))),
+                _permissionRow('السماح بالإشعارات', 'اسمح بإشعارات التطبيق', Icons.notifications_active_outlined, notificationStatus?.enabled, _enableNotifications),
+                _permissionRow('التوقيت الدقيق', 'اسمح بالمنبهات والتذكيرات', Icons.alarm_on_outlined, notificationStatus?.exact, _enablePreciseReminders),
+                _permissionRow('العمل في الخلفية', 'اختر البطارية ثم بدون قيود إن كان الخيار متاحًا', Icons.battery_charging_full, notificationStatus?.unrestrictedBattery, PrayerNotifications.openBatterySettings),
+                const SizedBox(height: 12),
                 Wrap(spacing: 10, runSpacing: 12,
                   alignment: WrapAlignment.center, children: [
-                  OutlinedButton.icon(onPressed: () async { await PrayerNotifications.openBatterySettings(); }, icon: const Icon(Icons.battery_charging_full), label: const Text('إعدادات البطارية')),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      await _checkNotificationStatus();
-                      refresh(() {});
-                    },
-                    icon: const Icon(Icons.fact_check_outlined),
-                    label: const Text('فحص التنبيهات')),
-                  FilledButton.tonalIcon(
-                    onPressed: () async {
-                      await _enableNotifications();
-                      refresh(() {});
-                    },
-                    icon: const Icon(Icons.notifications_active_outlined),
-                    label: const Text('سماح الإشعارات')),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      await _enablePreciseReminders();
-                      refresh(() {});
-                    },
-                    icon: const Icon(Icons.alarm_on_outlined),
-                    label: const Text('التوقيت الدقيق')),
+                  OutlinedButton.icon(onPressed: _checkNotificationStatus, icon: const Icon(Icons.fact_check_outlined), label: const Text('إعادة الفحص')),
                   OutlinedButton.icon(
                     onPressed: _testNotification,
                     icon: const Icon(Icons.send_outlined),
@@ -623,8 +621,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
             ),
           ),
         ),
+      );
+        },
       )),
-    );
+    ).whenComplete(() { _refreshPermissionSheet = null; });
   }
 
   Widget _compactTile(String prayer) {
