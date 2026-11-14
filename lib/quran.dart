@@ -67,7 +67,13 @@ class _QuranScreenState extends State<QuranScreen> {
   }
 
   // Full Mushaf index stays unrestricted; the dedicated Juz cards open\n  // readers with hard first/last page limits.
-  Future<void> _index() => _read(lastPage);
+  Future<void> _index() async {
+    final selectedPage = await Navigator.of(context).push<int>(
+      MaterialPageRoute(builder: (_) => const QcfMushafIndex()));
+    if (selectedPage != null && mounted) {
+      await _read(selectedPage);
+    }
+  }
   Future<void> _juz() async {
     await Navigator.of(context).push<void>(MaterialPageRoute<void>(
       builder: (_) => const QuranJuzScreen()));
