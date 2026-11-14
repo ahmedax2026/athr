@@ -386,6 +386,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
 
   Future<void> _loadCompletedPrayers() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
     final day = _dayStamp;
     final loaded = <String, bool>{};
     for (final name in names.where((v) => v != 'الشروق')) {
@@ -960,7 +961,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                         ),
                       _settingsToggle(
                         title: 'متابعة الصلاة',
-                        subtitle: 'اسألني بعد الصلاة بـ 10 دقائق',
+                        subtitle: 'اسألني بعد الصلاة بـ 30 دقيقة',
                         icon: Icons.fact_check_rounded,
                         value: followupEnabled,
                         onChanged: (enabled) async {
