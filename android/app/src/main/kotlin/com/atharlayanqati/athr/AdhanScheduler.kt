@@ -58,6 +58,7 @@ object AdhanScheduler {
         val intent = Intent(context, AdhanAlarmReceiver::class.java)
             .putExtra("voice", voice)
             .putExtra("prayer", prayer)
+            .putExtra("scheduled_at", at)
         val request = PendingIntent.getBroadcast(context, BASE + id, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         if (Build.VERSION.SDK_INT >= 31 && !alarm.canScheduleExactAlarms()) {
