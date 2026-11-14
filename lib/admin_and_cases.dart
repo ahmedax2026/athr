@@ -399,151 +399,279 @@ class _PublicCasesScreenState extends State<PublicCasesScreen> {
 }
 
 class _ReliefCaseCard extends StatelessWidget {
-  const _ReliefCaseCard({required this.data});
+  const _ReliefCaseCard({super.key, required this.data});
   final Map<String, dynamic> data;
 
-  Future<void> _copy(BuildContext context, String label, String value) async {
-    await Clipboard.setData(ClipboardData(text: value));
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('تم نسخ $label')));
+  List<String> get _photos {
+    final result = <String>[];
+    for (final field in ['images', 'imageUrls', 'attachments']) {
+      final items = data[field];
+      if (items is! List) continue;
+      for (final item in items) {
+        final value = item is String ? item :
+          item is Map ? (item['url'] ?? '').toString() : '';
+        final uri = Uri.tryParse(value);
+        if (uri != null && uri.scheme == 'https' &&
+            uri.host.isNotEmpty && !result.contains(value)) result.add(value);
+      }
+    }
+    final old = (data['imageUrl'] ?? '').toString();
+    final uri = Uri.tryParse(old);
+    if (uri != null && uri.scheme == 'https' &&
+        uri.host.isNotEmpty && !result.contains(old)) result.insert(0, old);
+    return result.take(3).toList();
   }
 
-  Widget _payment(BuildContext context, String title, String value,
-      IconData icon) => Padding(
-    padding: const EdgeInsets.only(top: 9),
-    child: Material(
-      color: const Color(0xFFEDF3EC),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _copy(context, title, value),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          child: Row(children: [
-            Icon(icon, color: _reliefGreen, size: 21),
-            const SizedBox(width: 10),
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(
-                  color: _reliefInk, fontSize: 13,
-                  fontWeight: FontWeight.w700)),
-                const SizedBox(height: 3),
-                Text(value, textDirection: TextDirection.ltr,
-                  textAlign: TextAlign.left,
-                  style: const TextStyle(color: _reliefGreen,
-                    fontSize: 16, fontWeight: FontWeight.w800)),
-              ],
-            )),
-            const Icon(Icons.copy_rounded, color: _reliefGreen, size: 19),
-          ]),
-        ),
+  Future<void> _copy(BuildContext ctx, String title, String value) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (ctx.mounted) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(content: Text('تم نسخ ' + title)));
+    }
+  }
+
+  Widget _payment(BuildContext ctx, String title, String value, IconData icon) =>
+    Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(13),
+        side: const BorderSide(color: _reliefGold)),
+      child: ListTile(
+        onTap: () => _copy(ctx, title, value),
+        leading: Icon(icon, color: _reliefGreen),
+        title: Text(title, style: const TextStyle(
+          color: _reliefGreen, fontWeight: FontWeight.w900)),
+        subtitle: Text(value, textDirection: TextDirection.ltr,
+          style: const TextStyle(color: _reliefInk,
+            fontSize: 17, fontWeight: FontWeight.w800)),
+        trailing: const Icon(Icons.copy_rounded, color: _reliefGreen),
       ),
-    ),
+    );
+
+  void _showPayments(BuildContext context) {
+    final vodafone = (data['vodafoneCash'] ?? '').toString().trim();
+    final instapay = (data['instapay'] ?? '').toString().trim();
+    final other = (data['payment'] ?? '').toString().trim();
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: _reliefCream,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
+        child: SingleChildScrollView(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('طرق المساهمة', textAlign: TextAlign.center,
+              style: TextStyle(color: _reliefGreen,
+                fontWeight: FontWeight.w900, fontSize: 23)),
+            const SizedBox(height: 8),
+            if (vodafone.isNotEmpty)
+              _payment(ctx, 'فودافون كاش', vodafone,
+                Icons.phone_android_rounded),
+            if (instapay.isNotEmpty)
+              _payment(ctx, 'إنستا باي', instapay,
+                Icons.account_balance_wallet_outlined),
+            if (other.isNotEmpty) Padding(
+              padding: const EdgeInsets.all(12),
+              child: SelectableText(other, textAlign: TextAlign.center,
+                style: const TextStyle(color: _reliefInk,
+                  fontSize: 15, fontWeight: FontWeight.w700))),
+            if (vodafone.isEmpty && instapay.isEmpty && other.isEmpty)
+              const Padding(padding: EdgeInsets.all(15),
+                child: Text('لم تُحدد طرق المساهمة بعد')),
+            const SizedBox(height: 12),
+            const Text('تأكد من بيانات التحويل قبل إرسال أي مبلغ',
+              style: TextStyle(color: _reliefInk, fontSize: 12)),
+          ],
+        )),
+      )),
+    );
+  }
+
+  void _showImages(BuildContext context) {
+    final images = _photos;
+    if (images.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('لا توجد صور أو مستندات لهذه الحالة بعد')));
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: _reliefCream,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(child: SizedBox(
+        height: MediaQuery.sizeOf(ctx).height * .72,
+        child: Column(children: [
+          const Text('صور ومستندات الحالة',
+            style: TextStyle(color: _reliefGreen,
+              fontSize: 21, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 9),
+          Expanded(child: PageView.builder(
+            itemCount: images.length,
+            itemBuilder: (_, index) => InteractiveViewer(
+              minScale: 1, maxScale: 5,
+              child: Image.network(images[index],
+                fit: BoxFit.contain,
+                cacheWidth: 1600,
+                errorBuilder: (_, error, stack) =>
+                  const Center(child: Text('تعذر عرض المستند'))),
+            ),
+          )),
+          const SizedBox(height: 8),
+          const Text('اسحب للتنقل • كبّر الصورة بإصبعين',
+            style: TextStyle(color: _reliefInk, fontSize: 12)),
+          const SizedBox(height: 12),
+        ]),
+      )),
+    );
+  }
+
+  void _showDetails(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context, backgroundColor: _reliefCream,
+      showDragHandle: true, isScrollControlled: true,
+      builder: (ctx) => SafeArea(child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(child: Column(
+          mainAxisSize: MainAxisSize.min, children: [
+            Text((data['title'] ?? 'حالة مساعدة').toString(),
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _reliefGreen,
+                fontSize: 22, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 12),
+            Text((data['details'] ?? '').toString(),
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _reliefInk,
+                fontSize: 16, height: 1.6)),
+          ],
+        )),
+      )),
+    );
+  }
+
+  Widget _metric(String title, double amount) => Expanded(
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Text(title, textAlign: TextAlign.center,
+        style: const TextStyle(color: Color(0xFF68736C),
+          fontSize: 12, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 5),
+      FittedBox(fit: BoxFit.scaleDown,
+        child: Text(amount.toStringAsFixed(0) + ' ج.م',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: _reliefGreen,
+            fontSize: 18, fontWeight: FontWeight.w900))),
+    ]),
   );
 
   @override
   Widget build(BuildContext context) {
     final goal = (data['goal'] as num?)?.toDouble() ?? 0;
-    final collected = (data['collected'] as num?)?.toDouble() ?? 0;
-    final fraction = goal <= 0 ? 0.0 : (collected / goal).clamp(0.0, 1.0);
-    final remaining = (goal - collected).clamp(0.0, double.infinity);
+    final paid = (data['collected'] as num?)?.toDouble() ?? 0;
+    final remaining = (goal - paid).clamp(0.0, double.infinity);
+    final fraction = goal <= 0 ? 0.0 : (paid / goal).clamp(0.0, 1.0);
     final title = (data['title'] ?? 'حالة مساعدة').toString();
-    final details = (data['details'] ?? '').toString();
-    final vodafone = (data['vodafoneCash'] ?? '').toString().trim();
-    final instapay = (data['instapay'] ?? '').toString().trim();
-    final other = (data['payment'] ?? '').toString().trim();
-    final imageUrl = (data['imageUrl'] ?? '').toString().trim();
-    final uri = Uri.tryParse(imageUrl);
-    final hasImage = uri != null && uri.scheme == 'https' && uri.host.isNotEmpty;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 13),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(19),
-        border: Border.all(color: const Color(0xFFE6D8B7)),
-        boxShadow: const [BoxShadow(color: Color(0x0B073E35),
-          blurRadius: 12, offset: Offset(0, 3))]),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (hasImage) ...[
+    final details = (data['details'] ?? '').toString().trim();
+    final photoCount = _photos.length;
+    return Center(child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: SizedBox(width: 356, height: 484,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(17, 18, 17, 17),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: const Color(0xFFDFC893), width: 1.3),
+            boxShadow: const [BoxShadow(
+              color: Color(0x16073E35), blurRadius: 13,
+              offset: Offset(0, 5))]),
+          child: Column(children: [
+            const Icon(Icons.favorite_rounded,
+              color: _reliefGold, size: 30),
+            const SizedBox(height: 8),
+            Text(title,
+              textAlign: TextAlign.center, maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: _reliefGreen,
+                fontWeight: FontWeight.w900, fontSize: 24)),
+            const SizedBox(height: 9),
+            Text(details.isEmpty
+                ? 'ساهم في تفريج كرب هذه الحالة' : details,
+              textAlign: TextAlign.center, maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: _reliefInk, height: 1.6,
+                fontSize: 14, fontWeight: FontWeight.w700)),
+            if (details.length > 80) SizedBox(
+              height: 32,
+              child: TextButton(
+                onPressed: () => _showDetails(context),
+                child: const Text('قراءة التفاصيل',
+                  style: TextStyle(color: _reliefGreen,
+                    fontWeight: FontWeight.w900)))),
+            const Spacer(),
+            Container(
+              height: 78,
+              decoration: BoxDecoration(
+                color: _reliefCream,
+                borderRadius: BorderRadius.circular(16)),
+              child: Row(children: [
+                _metric('الهدف', goal),
+                const SizedBox(width: 1, height: 35,
+                  child: ColoredBox(color: Color(0xFFE3D4B7))),
+                _metric('تم جمعه', paid),
+                const SizedBox(width: 1, height: 35,
+                  child: ColoredBox(color: Color(0xFFE3D4B7))),
+                _metric('المتبقي', remaining),
+              ]),
+            ),
+            const SizedBox(height: 17),
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(imageUrl, height: 135, fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const SizedBox.shrink())),
-            const SizedBox(height: 12),
-          ],
-          Row(children: [
-            const Icon(Icons.favorite_rounded, color: _reliefGold, size: 21),
-            const SizedBox(width: 8),
-            Expanded(child: Text(title,
+              child: LinearProgressIndicator(
+                value: fraction, minHeight: 10,
+                backgroundColor: const Color(0xFFECE4D7),
+                color: const Color(0xFF16735C))),
+            const SizedBox(height: 9),
+            Text('تم تحقيق ' + (fraction * 100).toStringAsFixed(0) + '٪ من الهدف',
+              textAlign: TextAlign.center,
               style: const TextStyle(color: _reliefGreen,
-                fontSize: 19, fontWeight: FontWeight.w800))),
+                fontSize: 13, fontWeight: FontWeight.w900)),
+            const Spacer(),
+            Row(children: [
+              Expanded(child: FilledButton.icon(
+                onPressed: () => _showPayments(context),
+                icon: const Icon(Icons.volunteer_activism_rounded, size: 18),
+                label: const Text('ساهم الآن',
+                  style: TextStyle(fontWeight: FontWeight.w900)),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _reliefGreen, foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(48),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14))))),
+              const SizedBox(width: 9),
+              Expanded(child: OutlinedButton.icon(
+                onPressed: () => _showImages(context),
+                icon: const Icon(Icons.photo_library_outlined, size: 17),
+                label: Text(photoCount == 0
+                    ? 'المستندات' : 'المستندات (' + photoCount.toString() + ')',
+                  style: const TextStyle(fontWeight: FontWeight.w900)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _reliefGreen,
+                  minimumSize: const Size.fromHeight(48),
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  side: const BorderSide(color: _reliefGold, width: 1.3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14))))),
+            ]),
           ]),
-          if (details.trim().isNotEmpty) ...[
-            const SizedBox(height: 9),
-            Text(details, style: const TextStyle(
-              color: _reliefInk, fontSize: 14, height: 1.6)),
-          ],
-          const SizedBox(height: 15),
-          Row(children: [
-            Expanded(child: _amount('تم جمعه', collected)),
-            Expanded(child: _amount('الهدف', goal)),
-          ]),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: fraction, minHeight: 8,
-              backgroundColor: const Color(0xFFEAE5DB),
-              color: const Color(0xFF16735C))),
-          const SizedBox(height: 9),
-          Text('${(fraction * 100).toStringAsFixed(0)}٪ مكتمل  •  '
-            'المتبقي ${remaining.toStringAsFixed(0)} ج.م',
-            style: const TextStyle(color: _reliefInk,
-              fontSize: 13, fontWeight: FontWeight.w700)),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 13),
-            child: Divider(height: 1, color: Color(0xFFE7E4DC))),
-          const Text('طرق المساهمة',
-            style: TextStyle(color: _reliefGreen,
-              fontSize: 16, fontWeight: FontWeight.w800)),
-          if (vodafone.isNotEmpty)
-            _payment(context, 'فودافون كاش', vodafone, Icons.phone_android_rounded),
-          if (instapay.isNotEmpty)
-            _payment(context, 'إنستا باي', instapay,
-              Icons.account_balance_wallet_outlined),
-          if (other.isNotEmpty) ...[
-            const SizedBox(height: 9),
-            SelectableText(other, style: const TextStyle(
-              color: _reliefInk, fontSize: 14, height: 1.5)),
-          ],
-          if (vodafone.isEmpty && instapay.isEmpty && other.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text('لم تُحدد طرق المساهمة بعد',
-                style: TextStyle(color: _reliefInk))),
-          const SizedBox(height: 11),
-          const Text('تأكد من بيانات التحويل قبل إرسال أي مبلغ',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF53665C), fontSize: 11)),
-        ],
+        ),
       ),
-    );
+    ));
   }
-
-  Widget _amount(String label, double amount) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(label, style: const TextStyle(
-        color: Color(0xFF53665C), fontSize: 12)),
-      const SizedBox(height: 4),
-      Text('${amount.toStringAsFixed(0)} ج.م',
-        style: const TextStyle(color: _reliefGreen,
-          fontSize: 18, fontWeight: FontWeight.w800)),
-    ],
-  );
 }
