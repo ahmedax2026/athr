@@ -25,9 +25,9 @@ const id = x => typeof x==="string" && /^[A-Za-z0-9_-]{1,128}$/.test(x);
 async function analytics(req,env) {
   const authorization=req.headers.get("Authorization")||"";
   if(!/^Bearer [A-Za-z0-9._-]{20,8192}$/.test(authorization))return json({error:"auth_required"},401);
-  // Firestore enforces the existing admin-only read rule for this path, even if absent.
-  const check=await fetch("https://firestore.googleapis.com/v1/projects/athr-la-yanqati/databases/(default)/documents/admin_backups/analytics_authorization",{headers:{Authorization:authorization}});
-  if(check.status!==200&&check.status!==404)return json({error:"admin_required"},403);
+  // Firestore enforces the existing admin-only read rule for this path, using a collection list (including an empty result).
+  const check=await fetch("https://firestore.googleapis.com/v1/projects/athr-la-yanqati/databases/(default)/documents/admin_backups?pageSize=1",{headers:{Authorization:authorization}});
+  if(!check.ok)return json({error:"admin_required"},403);
   if(statsCache&&statsCache.expires>Date.now())return json(statsCache.data);
   if(!env.FIREBASE_SERVICE_ACCOUNT)return json({error:"analytics_not_configured"},503);
   const account=JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
