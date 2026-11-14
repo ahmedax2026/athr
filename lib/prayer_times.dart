@@ -14,6 +14,49 @@ const _forest = Color(0xFF063D33);
 const _gold = Color(0xFFD9BC7D);
 const _cream = Color(0xFFF8F0DE);
 
+/// Rebuild the next two weeks of prayer notifications from the saved
+/// location when the home settings toggle changes, even if the prayer page
+/// has not been opened in the current session.
+Future<bool> refreshPrayerScheduleFromCache() async {
+  final prefs = await SharedPreferences.getInstance();
+  final lat = prefs.getDouble('prayer_lat');
+  final lon = prefs.getDouble('prayer_lon');
+  if (lat == null || lon == null) return false;
+  tzdata.initializeTimeZones();
+  final location = findLocation(lon, lat);
+  if (location == null) return false;
+  final parameters = switch (prefs.getString('prayer_method') ?? 'egypt') {
+    'umm' => adhan.CalculationMethodParameters.ummAlQura(),
+    'mwl' => adhan.CalculationMethodParameters.muslimWorldLeague(),
+    'karachi' => adhan.CalculationMethodParameters.karachi(),
+    'north' => adhan.CalculationMethodParameters.northAmerica(),
+    'turkiye' => adhan.CalculationMethodParameters.turkiye(),
+    'singapore' => adhan.CalculationMethodParameters.singapore(),
+    _ => adhan.CalculationMethodParameters.egyptian(),
+  };
+  final localNow = tz.TZDateTime.now(location);
+  final days = <Map<String, DateTime>>[];
+  for (var day = 0; day < 14; day++) {
+    final date = tz.TZDateTime(
+      location, localNow.year, localNow.month, localNow.day + day);
+    final times = adhan.PrayerTimes(
+      coordinates: adhan.Coordinates(lat, lon),
+      date: date, calculationParameters: parameters);
+    days.add({
+      'الفجر': times.fajr,
+      'الشروق': times.sunrise,
+      'الظهر': times.dhuhr,
+      'العصر': times.asr,
+      'المغرب': times.maghrib,
+      'العشاء': times.isha,
+    });
+  }
+  await PrayerNotifications.schedule(
+    days: days, zone: location,
+    reminderMinutes: prefs.getInt('prayer_reminder') ?? 10);
+  return true;
+}
+
 class PrayerTimesScreen extends StatefulWidget {
   const PrayerTimesScreen({super.key});
   @override
@@ -454,21 +497,18 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   }
 
   Future<void> _setVoice(String key, String value) async {
+    // Immediate visual selection; audio is played only by the preview button.
+    if (!mounted) return;
+    setState(() {
+      if (key == 'adhan_voice') {
+        adhanVoice = value;
+      } else {
+        fajrVoice = value;
+      }
+    });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(key, value);
-    if (mounted) {
-      setState(() {
-        if (key == 'adhan_voice') {
-          adhanVoice = value;
-        } else {
-          fajrVoice = value;
-        }
-      });
-    }
-    // The two adhan tracks are shipped with the APK, so voice switching
-    // requires no network download. Preview the selected track immediately.
-    await _previewVoice(value, forcePlay: true);
-    await _schedule();
+    unawaited(_schedule());
   }
 
   Future<void> _previewVoice(String voice, {bool forcePlay = false}) async {
@@ -577,54 +617,137 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   void _openDiagnostics(StateSetter refresh) {
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: _cream,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-          side: const BorderSide(color: _gold, width: 1.3)),
-        title: const Row(children: [
-          Icon(Icons.verified_user_outlined, color: _forest),
-          SizedBox(width: 8),
-          Expanded(child: Text('فحص الإشعارات',
-            style: TextStyle(color: _forest, fontWeight: FontWeight.w900))),
-        ]),
-        content: Text(notificationStatus?.enabled != true
-            ? 'الإشعارات غير مفعّلة على الجهاز.'
-            : notificationStatus?.exact != true
-              ? 'التوقيت الدقيق غير مفعّل، وقد تتأخر التنبيهات.'
-              : 'تمت جدولة ${notificationStatus?.pending ?? 0} تنبيه. يمكنك اختبار وصولها.',
-          style: const TextStyle(color: _forest)),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton.icon(
-            onPressed: () async {
-              await _enableNotifications();
-              await _checkNotificationStatus();
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, repaint) {
+          Future<void> update() async {
+            try {
+              final latest = await PrayerNotifications.status();
+              if (!dialogContext.mounted) return;
+              setState(() => notificationStatus = latest);
+              repaint(() {});
               refresh(() {});
-            },
-            icon: const Icon(Icons.notifications_active_outlined),
-            label: const Text('السماح')),
-          TextButton.icon(
-            onPressed: () async {
-              await _enablePreciseReminders();
-              await _checkNotificationStatus();
-              refresh(() {});
-            },
-            icon: const Icon(Icons.alarm_rounded),
-            label: const Text('التوقيت الدقيق')),
-          TextButton.icon(
-            onPressed: _testNotification,
-            icon: const Icon(Icons.send_rounded),
-            label: const Text('اختبار فوري')),
-          TextButton.icon(
-            onPressed: _testScheduledReminder,
-            icon: const Icon(Icons.timer_outlined),
-            label: const Text('بعد دقيقتين')),
-          TextButton(onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إغلاق')),
-        ],
+            } catch (_) {
+              if (dialogContext.mounted) repaint(() {});
+            }
+          }
+
+          Widget stateRow(String title, bool? active,
+              IconData icon, String hint) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Container(
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE3CFA7))),
+              child: Row(children: [
+                Icon(icon, color: _forest),
+                const SizedBox(width: 10),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(
+                      color: _forest, fontWeight: FontWeight.w900)),
+                    Text(hint, style: const TextStyle(
+                      color: Color(0xFF67756D), fontSize: 11)),
+                  ],
+                )),
+                Text(active == null ? 'جارٍ الفحص' :
+                    active ? 'مفعّل' : 'يحتاج تفعيل',
+                  style: TextStyle(
+                    color: active == true ? _forest :
+                      const Color(0xFF9F6033),
+                    fontSize: 12, fontWeight: FontWeight.w900)),
+              ]),
+            ),
+          );
+
+          return AlertDialog(
+            backgroundColor: _cream,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(25),
+              side: const BorderSide(color: _gold, width: 1.6)),
+            title: const Column(children: [
+              Icon(Icons.verified_user_rounded,
+                color: _forest, size: 34),
+              SizedBox(height: 5),
+              Text('فحص الإشعارات', textAlign: TextAlign.center,
+                style: TextStyle(color: _forest,
+                  fontWeight: FontWeight.w900, fontSize: 23)),
+              SizedBox(height: 4),
+              Text('تأكد من وصول تنبيهات الصلاة',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Color(0xFF68756B),
+                  fontSize: 12, fontWeight: FontWeight.w700)),
+            ]),
+            content: SizedBox(width: 355, child: Column(
+              mainAxisSize: MainAxisSize.min, children: [
+                stateRow('السماح بالإشعارات',
+                  notificationStatus?.enabled,
+                  Icons.notifications_active_outlined,
+                  'مطلوب لاستقبال إشعارات الصلاة'),
+                stateRow('التنبيهات في وقتها',
+                  notificationStatus?.exact,
+                  Icons.alarm_rounded,
+                  'يساعد في وصول التنبيه بدقة'),
+                const SizedBox(height: 8),
+                if (notificationStatus?.enabled != true)
+                  SizedBox(width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        await _enableNotifications();
+                        await update();
+                      },
+                      icon: const Icon(Icons.notifications_active_outlined),
+                      label: const Text('تفعيل الإشعارات'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _forest,
+                        foregroundColor: Colors.white))),
+                if (notificationStatus?.exact != true)
+                  SizedBox(width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await _enablePreciseReminders();
+                        await update();
+                      },
+                      icon: const Icon(Icons.alarm_on_rounded),
+                      label: const Text('ضبط التوقيت الدقيق'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _forest,
+                        side: const BorderSide(color: _gold, width: 1.4)))),
+                Row(children: [
+                  Expanded(child: FilledButton(
+                    onPressed: () async {
+                      await _testNotification();
+                      await update();
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _forest,
+                      foregroundColor: Colors.white),
+                    child: const Text('اختبار الآن'))),
+                  const SizedBox(width: 8),
+                  Expanded(child: OutlinedButton(
+                    onPressed: () async {
+                      await _testScheduledReminder();
+                      await update();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _forest,
+                      side: const BorderSide(color: _gold)),
+                    child: const Text('بعد دقيقتين'))),
+                ]),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('تم', style: TextStyle(
+                    color: _forest, fontWeight: FontWeight.w900))),
+              ],
+            )),
+          );
+        },
       ),
     );
+    unawaited(_checkNotificationStatus());
   }
 
   Widget _settingsToggle({
@@ -801,10 +924,40 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                         subtitle: reminder == 0 ? 'متوقف' : 'قبل الأذان بـ $reminder دقيقة',
                         icon: Icons.notifications_active_rounded,
                         value: reminder != 0,
-                        onChanged: (enabled) async {
-                          await _setReminder(enabled ? 10 : 0);
+                        onChanged: (enabled) {
+                          final next = enabled ? 10 : 0;
+                          setState(() => reminder = next);
                           refresh(() {});
+                          unawaited(_setReminder(next));
                         }),
+                      if (reminder > 0)
+                        SizedBox(height: 40,
+                          child: Row(children: [
+                            const Text('قبل الصلاة', style: TextStyle(
+                              color: _forest, fontSize: 12,
+                              fontWeight: FontWeight.w900)),
+                            const SizedBox(width: 8),
+                            Expanded(child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true, value: reminder,
+                                dropdownColor: _cream,
+                                style: const TextStyle(color: _forest,
+                                  fontWeight: FontWeight.w900, fontSize: 13),
+                                items: [5, 10, 15, 20, 30, 45, 60]
+                                  .map((minutes) => DropdownMenuItem(
+                                    value: minutes,
+                                    child: Text('$minutes دقيقة')))
+                                  .toList(),
+                                onChanged: (next) {
+                                  if (next == null) return;
+                                  setState(() => reminder = next);
+                                  refresh(() {});
+                                  unawaited(_setReminder(next));
+                                },
+                              ),
+                            )),
+                          ]),
+                        ),
                       _settingsToggle(
                         title: 'متابعة الصلاة',
                         subtitle: 'اسألني بعد الصلاة بـ 10 دقائق',
