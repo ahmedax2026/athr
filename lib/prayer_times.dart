@@ -144,15 +144,14 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     fajrVoice = prefs.getString('adhan_fajr_voice') ?? 'adhan_makkah';
     if (!voiceNames.containsKey(adhanVoice)) adhanVoice = 'adhan_makkah';
     if (!voiceNames.containsKey(fajrVoice)) fajrVoice = 'adhan_makkah';
-    // Ask for notification permission when the prayer timetable opens.
-    // The Android exact-alarm special access remains a separate user action.
+    // Permission is requested once after the memorial screen, on Home.
+    // Merely viewing prayer times must never interrupt the user.
     try {
-      final allowed = await PrayerNotifications.requestNotificationPermission();
       notificationStatus = await PrayerNotifications.status();
       if (latitude != null && longitude != null) {
         _resolveZone();
         _compute();
-        if (allowed) await _schedule();
+        if (notificationStatus!.enabled) await _schedule();
       }
     } catch (e) {
       if (mounted) setState(() => error = 'تعذر تهيئة تنبيهات الصلاة: $e');
