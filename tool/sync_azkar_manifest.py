@@ -40,7 +40,7 @@ order = [
 ]
 
 def git_blob_sha(payload):
-    header = f"blob {len(payload)}\\0".encode("ascii")
+    header = f"blob {len(payload)}\0".encode("ascii")
     return hashlib.sha1(header + payload).hexdigest()
 
 files_by_sha = {}
@@ -56,7 +56,7 @@ manifest = [[resolved[key] for key in group] for group in order]
 data = json.loads((root / "tool" / "azkar_data.json").read_text(encoding="utf-8"))
 assert len(data) == len(manifest)
 assert all(len(group["items"]) == len(images) for group, images in zip(data, manifest))
-(folder / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+(folder / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 print(f"Linked {sum(map(len, manifest))} placements to {len(sources)} original images")
 for group, images in zip(data, manifest):
     print(f'{group["title"]}: ' + ", ".join(images))
