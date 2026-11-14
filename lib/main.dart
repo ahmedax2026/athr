@@ -310,6 +310,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic> config = {};
+  Timer? _scheduleRefresh;
+  @override
+  void dispose() {
+    _scheduleRefresh?.cancel();
+    super.dispose();
+  }
   static const ids = ['quran', 'azkar', 'khatma', 'prayer', 'tasbeeh', 'relief'];
   Future<void> _refreshConfig() async {
     try {
@@ -345,7 +351,15 @@ class _HomeScreenState extends State<HomeScreen> {
         await PrayerNotifications.requestNotificationPermission();
       }
       if ((await PrayerNotifications.status()).enabled) {
-        await refreshPrayerScheduleFromCache();
+        if (!mounted) return;
+        _scheduleRefresh?.cancel();
+        _scheduleRefresh = Timer(const Duration(milliseconds: 700), () async {
+          try {
+            await refreshPrayerScheduleFromCache();
+          } catch (_) {
+            // Keep the home interface responsive if scheduling is unavailable.
+          }
+        });
       }
     } catch (_) {
       // Notification setup must not prevent access to the home screen.
