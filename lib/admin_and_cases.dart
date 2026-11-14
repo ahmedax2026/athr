@@ -371,7 +371,7 @@ class _PublicCasesScreenState extends State<PublicCasesScreen> {
                       curve: Curves.easeOut),
                     icon: const Icon(Icons.chevron_right_rounded,
                       color: _reliefGreen)),
-                  Text((current + 1).toString() + ' / ' + cases.length.toString(),
+                  Text('${current + 1} / ${cases.length}',
                     style: const TextStyle(color: _reliefGreen,
                       fontWeight: FontWeight.w900)),
                   IconButton(
@@ -412,13 +412,17 @@ class _ReliefCaseCard extends StatelessWidget {
           item is Map ? (item['url'] ?? '').toString() : '';
         final uri = Uri.tryParse(value);
         if (uri != null && uri.scheme == 'https' &&
-            uri.host.isNotEmpty && !result.contains(value)) result.add(value);
+            uri.host.isNotEmpty && !result.contains(value)) {
+          result.add(value);
+        }
       }
     }
     final old = (data['imageUrl'] ?? '').toString();
     final uri = Uri.tryParse(old);
     if (uri != null && uri.scheme == 'https' &&
-        uri.host.isNotEmpty && !result.contains(old)) result.insert(0, old);
+        uri.host.isNotEmpty && !result.contains(old)) {
+      result.insert(0, old);
+    }
     return result.take(3).toList();
   }
 
@@ -426,7 +430,7 @@ class _ReliefCaseCard extends StatelessWidget {
     await Clipboard.setData(ClipboardData(text: value));
     if (ctx.mounted) {
       ScaffoldMessenger.of(ctx).showSnackBar(
-        SnackBar(content: Text('تم نسخ ' + title)));
+        SnackBar(content: Text('تم نسخ $title')));
     }
   }
 
@@ -562,7 +566,7 @@ class _ReliefCaseCard extends StatelessWidget {
           fontSize: 12, fontWeight: FontWeight.w700)),
       const SizedBox(height: 5),
       FittedBox(fit: BoxFit.scaleDown,
-        child: Text(amount.toStringAsFixed(0) + ' ج.م',
+        child: Text('${amount.toStringAsFixed(0)} ج.م',
           textAlign: TextAlign.center,
           style: const TextStyle(color: _reliefGreen,
             fontSize: 18, fontWeight: FontWeight.w900))),
@@ -637,7 +641,7 @@ class _ReliefCaseCard extends StatelessWidget {
                 backgroundColor: const Color(0xFFECE4D7),
                 color: const Color(0xFF16735C))),
             const SizedBox(height: 9),
-            Text('تم تحقيق ' + (fraction * 100).toStringAsFixed(0) + '٪ من الهدف',
+            Text('تم تحقيق ${(fraction * 100).toStringAsFixed(0)}٪ من الهدف',
               textAlign: TextAlign.center,
               style: const TextStyle(color: _reliefGreen,
                 fontSize: 13, fontWeight: FontWeight.w900)),
@@ -659,7 +663,7 @@ class _ReliefCaseCard extends StatelessWidget {
                 onPressed: () => _showImages(context),
                 icon: const Icon(Icons.photo_library_outlined, size: 17),
                 label: Text(photoCount == 0
-                    ? 'المستندات' : 'المستندات (' + photoCount.toString() + ')',
+                    ? 'المستندات' : 'المستندات ($photoCount)',
                   style: const TextStyle(fontWeight: FontWeight.w900)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _reliefGreen,
