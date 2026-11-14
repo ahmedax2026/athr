@@ -1,7 +1,9 @@
+import 'dart:ui' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tzdata;
 
 /// Prayer notification diagnostics. Sound of the full adhan is deliberately
 /// independent from the mandatory prayer-time notifications.
@@ -297,8 +299,19 @@ class PrayerNotifications {
       // mark a prayer as completed.
       await prefs.setString('prayer_later_${dateKey}_$prayer',
           DateTime.now().toIso8601String());
+      tzdata.initializeTimeZones();
+      await _plugin.zonedSchedule(
+        id: response.id ?? 3900,
+        title: '🤍 هل صليت $prayer؟',
+        body: 'تذكير جديد بعد ١٠ دقائق. ربنا يتقبل منك.',
+        payload: 'prayer|$dateKey|$prayer',
+        scheduledDate: tz.TZDateTime.from(
+          DateTime.now().add(const Duration(minutes: 10)), tz.local),
+        notificationDetails: _followupDetails(),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
     }
-    if (response.id != null) {
+    if (action == _doneAction && response.id != null) {
       await _plugin.cancel(id: response.id!);
     }
   }
