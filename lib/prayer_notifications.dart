@@ -67,6 +67,19 @@ class PrayerNotifications {
     return await _android?.canScheduleExactNotifications() ?? false;
   }
 
+  static Future<void> setCheckinsEnabled(bool enabled) async {
+    await _adhanAlarmChannel.invokeMethod<void>(
+      'setCheckinsEnabled', <String, bool>{'enabled': enabled});
+  }
+
+  static Future<void> testCheckin() async {
+    await _ensureInitialized();
+    if (!(await _android?.areNotificationsEnabled() ?? false)) {
+      throw StateError('يجب السماح بالإشعارات أولًا');
+    }
+    await _adhanAlarmChannel.invokeMethod<void>('testCheckin');
+  }
+
   static Future<void> cancelPrayerNotifications() async {
     await _ensureInitialized();
     final old = await _plugin.pendingNotificationRequests();
@@ -145,6 +158,8 @@ class PrayerNotifications {
       }
     }
 
+    final checkinsEnabled = preferences.getBool('prayer_checkin_enabled') ?? true;
+    await setCheckinsEnabled(checkinsEnabled);
     final useAdhan = preferences.getBool('adhan') ?? false;
     final normalVoice = preferences.getString('adhan_voice') ?? 'adhan_makkah';
     const choices = {'adhan_makkah', 'adhan_afasy'};
@@ -192,6 +207,16 @@ class PrayerNotifications {
             androidScheduleMode: mode,
           );
           count++;
+        }
+        // This is a separate notification 30 minutes AFTER this prayer,
+        // not a reminder about the next upcoming prayer.
+        final checkinTime = prayerTime.add(const Duration(minutes: 30));
+        if (checkinsEnabled && checkinTime.isAfter(now)) {
+          fullAdhanAlarms.add({
+            'at': checkinTime.millisecondsSinceEpoch,
+            'voice': 'checkin',
+            'prayer': name,
+          });
         }
         if (reminderMinutes > 0) {
           final before = prayerTime.subtract(Duration(minutes: reminderMinutes));
