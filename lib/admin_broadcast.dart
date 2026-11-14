@@ -60,6 +60,31 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
     } catch (e) { notice('تعذر الإرسال: $e'); }
     finally { client.close(force: true); if (mounted) setState(() => busy = false); }
   }
+  Future<void> removeHistory(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) async {
+    if (busy || docs.isEmpty) return;
+    final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: Text(docs.length == 1 ? 'حذف الإشعار من السجل؟' : 'حذف الإشعارات المحددة من السجل؟'),
+      content: const Text('سيختفي الإشعار من مركز الإدارة فقط، ولن يُسحب من أجهزة المستخدمين أو يُحذف سجل التدقيق.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تأكيد الحذف')),
+      ],
+    ));
+    if (yes != true || !mounted || busy) return;
+    setState(() => busy = true);
+    try {
+      final db = FirebaseFirestore.instance;
+      final batch = db.batch();
+      for (final doc in docs) {
+        batch.set(db.collection('settings').doc('broadcast_hidden_${doc.id}'), {
+          'public': false, 'hidden': true, 'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit();
+      notice('تم حذف الإشعارات من سجل العرض');
+    } catch (_) { notice('تعذر حذف الإشعارات من السجل'); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('مركز الإشعارات')),
@@ -84,9 +109,32 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
         builder: (context, snap) {
           if (snap.hasError) return const Text('تعذر قراءة السجل');
           if (!snap.hasData) return const LinearProgressIndicator();
-          final docs = snap.data!.docs.where((d) => d.data()['type'] == 'broadcast');
-          if (docs.isEmpty) return const Text('لا توجد إشعارات في السجل الأخير');
-          return Column(children: [for (final doc in docs) Card(child: ListTile(leading: const Icon(Icons.history), title: Text(doc.data()['title'].toString()), subtitle: Text(doc.data()['body'].toString()), trailing: Text(doc.data()['test'] == true ? 'تجربة' : 'عام')))]);
+          return StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
+            stream: FirebaseFirestore.instance.collection('settings')
+              .where(FieldPath.documentId, isGreaterThanOrEqualTo: 'broadcast_hidden_')
+              .where(FieldPath.documentId, isLessThan: 'broadcast_hidden_\uf8ff').snapshots(),
+            builder: (context, hidden) {
+              if (hidden.hasError) return const Text('تعذر تحميل حالة السجل');
+              if (!hidden.hasData) return const LinearProgressIndicator();
+              final removed = hidden.data!.docs.map((d) => d.id).toSet();
+              final docs = snap.data!.docs.where((d) => d.data()['type'] == 'broadcast' && !removed.contains('broadcast_hidden_${d.id}')).toList();
+              if (docs.isEmpty) return const Text('لا توجد إشعارات في السجل الأخير');
+              return Column(children: [
+                Align(alignment: AlignmentDirectional.centerEnd, child: TextButton.icon(
+                  onPressed: busy ? null : () => removeHistory(docs),
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  label: const Text('حذف السجل المعروض'),
+                )),
+                for (final doc in docs) Card(child: ListTile(
+                  leading: const Icon(Icons.history),
+                  title: Text(doc.data()['title'].toString()),
+                  subtitle: Text('${doc.data()['test'] == true ? 'تجربة' : 'عام'} • ${doc.data()['body']}'),
+                  trailing: IconButton(onPressed: busy ? null : () => removeHistory([doc]),
+                    tooltip: 'حذف من السجل', icon: const Icon(Icons.delete_outline)),
+                )),
+              ]);
+            },
+          );
         }),
     ]))),
   );
