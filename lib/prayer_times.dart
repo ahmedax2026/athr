@@ -31,6 +31,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   final Map<String, bool> prayedToday = {};
   bool adhanEnabled = false;
   final AudioPlayer adhanPreview = AudioPlayer();
+  StreamSubscription<void>? _previewFinished;
   String adhanVoice = 'adhan_makkah';
   String fajrVoice = 'adhan_makkah';
   String? previewingVoice;
@@ -64,6 +65,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _previewFinished = adhanPreview.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => previewingVoice = null);
+    });
     tzdata.initializeTimeZones();
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -77,6 +81,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     timer?.cancel();
+    _previewFinished?.cancel();
     adhanPreview.dispose();
     super.dispose();
   }
@@ -428,17 +433,22 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
         }
       });
     }
+    // The two adhan tracks are shipped with the APK, so voice switching
+    // requires no network download. Preview the selected track immediately.
+    await _previewVoice(value, forcePlay: true);
     await _schedule();
   }
 
-  Future<void> _previewVoice(String voice) async {
+  Future<void> _previewVoice(String voice, {bool forcePlay = false}) async {
     try {
-      if (previewingVoice == voice) {
+      if (!forcePlay && previewingVoice == voice) {
         await adhanPreview.stop();
         if (mounted) setState(() => previewingVoice = null);
         return;
       }
       await adhanPreview.stop();
+      if (!mounted) return;
+      setState(() => previewingVoice = null);
       await adhanPreview.play(AssetSource('adhan/$voice.mp3'));
       if (mounted) setState(() => previewingVoice = voice);
     } catch (e) {
@@ -563,182 +573,324 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     }
   }
 
+  // Detailed diagnostics live in a separate dialog so the everyday
+  // settings panel remains beautiful and fully visible without scrolling.
+  void _openDiagnostics(StateSetter refresh) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _cream,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: const BorderSide(color: _gold, width: 1.3)),
+        title: const Row(children: [
+          Icon(Icons.verified_user_outlined, color: _forest),
+          SizedBox(width: 8),
+          Expanded(child: Text('فحص الإشعارات',
+            style: TextStyle(color: _forest, fontWeight: FontWeight.w900))),
+        ]),
+        content: Text(notificationStatus?.enabled != true
+            ? 'الإشعارات غير مفعّلة على الجهاز.'
+            : notificationStatus?.exact != true
+              ? 'التوقيت الدقيق غير مفعّل، وقد تتأخر التنبيهات.'
+              : 'تمت جدولة ${notificationStatus?.pending ?? 0} تنبيه. يمكنك اختبار وصولها.',
+          style: const TextStyle(color: _forest)),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton.icon(
+            onPressed: () async {
+              await _enableNotifications();
+              await _checkNotificationStatus();
+              refresh(() {});
+            },
+            icon: const Icon(Icons.notifications_active_outlined),
+            label: const Text('السماح')),
+          TextButton.icon(
+            onPressed: () async {
+              await _enablePreciseReminders();
+              await _checkNotificationStatus();
+              refresh(() {});
+            },
+            icon: const Icon(Icons.alarm_rounded),
+            label: const Text('التوقيت الدقيق')),
+          TextButton.icon(
+            onPressed: _testNotification,
+            icon: const Icon(Icons.send_rounded),
+            label: const Text('اختبار فوري')),
+          TextButton.icon(
+            onPressed: _testScheduledReminder,
+            icon: const Icon(Icons.timer_outlined),
+            label: const Text('بعد دقيقتين')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إغلاق')),
+        ],
+      ),
+    );
+  }
+
+  Widget _settingsToggle({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) => Container(
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 5),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFFCF3),
+      borderRadius: BorderRadius.circular(17),
+      border: Border.all(color: const Color(0xFFDCC58D), width: 1)),
+    child: Row(children: [
+      Container(
+        width: 35, height: 35,
+        decoration: BoxDecoration(
+          color: _forest, borderRadius: BorderRadius.circular(11)),
+        child: Icon(icon, color: _gold, size: 20)),
+      const SizedBox(width: 10),
+      Expanded(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: _forest,
+              fontWeight: FontWeight.w900, fontSize: 14)),
+          Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Color(0xFF756B58), fontSize: 11)),
+        ])),
+      Switch.adaptive(
+        value: value,
+        activeTrackColor: _forest,
+        activeThumbColor: _gold,
+        onChanged: onChanged),
+    ]),
+  );
+
   void _openSettings() {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
+      showDragHandle: false,
       backgroundColor: _cream,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
       builder: (ctx) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: ColorScheme.fromSeed(
-            seedColor: _forest,
-            brightness: Brightness.light,
-            surface: _cream),
+            seedColor: _forest, brightness: Brightness.light, surface: _cream),
           textTheme: Theme.of(ctx).textTheme.apply(
             bodyColor: _forest, displayColor: _forest)),
-        child: StatefulBuilder(
-        builder: (ctx, refresh) => SafeArea(
-          child: FractionallySizedBox(
-            heightFactor: 0.94,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
-              children: [
-                const Icon(Icons.mosque_rounded, color: _gold, size: 38),
-                const SizedBox(height: 8),
-                const Center(child: Text('إعدادات الأذان والتنبيهات',
-                  style: TextStyle(color: _forest, fontSize: 25,
-                    fontWeight: FontWeight.w900))),
-                const SizedBox(height: 8),
-                const Center(child: Text(
-                  'تحكم في الأذان والتذكير بالصلاة من مكان واحد',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: _forest, fontSize: 14))),
-                const SizedBox(height: 22),
-                SwitchListTile.adaptive(
-                  activeTrackColor: _forest,
-                  activeThumbColor: _gold,
-                  title: const Text('تفعيل صوت الأذان',
-                    style: TextStyle(color: _forest, fontSize: 18,
-                      fontWeight: FontWeight.w800)),
-                  subtitle: const Text('التشغيل يعتمد على أذونات الهاتف وإعدادات Android',
-                    style: TextStyle(color: Color(0xFF5F5848), fontSize: 13)),
-                  value: adhanEnabled,
-                  onChanged: (value) async {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setBool('adhan', value);
-                    if (!mounted) return;
-                    setState(() => adhanEnabled = value);
-                    refresh(() {});
-                    await _schedule();
-                  },
-                ),
-                if (adhanEnabled) ...[
-                  _voiceSelector('صوت الأذان للصلوات', adhanVoice, 'adhan_voice'),
-                ],
-                const Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text('تقدر تسمع الصوت قبل اختياره. صوت المعيقلي لم يُضف بعد. أذان الفجر يستخدم نفس الصوت المختار للصلوات حاليًا.',
-                    style: TextStyle(fontSize: 12, color: _forest, height: 1.5)),
-                ),
-                const Divider(color: _gold, height: 28),
-                const Text('مواعيد التنبيهات',
-                  style: TextStyle(color: _forest, fontSize: 18,
-                    fontWeight: FontWeight.w900)),
-                const SizedBox(height: 8),
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                  title: const Text('تنبيه قبل الصلاة',
-                    style: TextStyle(color: _forest, fontWeight: FontWeight.w800)),
-                  trailing: DropdownButton<int>(
-                    value: reminder,
-                    items: [0, 5, 10, 15, 20, 30, 45, 60].map((v) =>
-                      DropdownMenuItem(value: v,
-                        child: Text(v == 0 ? 'إيقاف' : '$v دقيقة'))).toList(),
-                    onChanged: (v) async {
-                      if (v == null) return;
-                      await _setReminder(v);
-                      refresh(() {});
-                    },
+        child: StatefulBuilder(builder: (ctx, refresh) =>
+          SafeArea(child: FractionallySizedBox(
+            heightFactor: .94,
+            child: LayoutBuilder(builder: (ctx, bounds) {
+              // All options on one screen. Scale modestly on shorter devices
+              // instead of hiding actions below an invisible scroll region.
+              return FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  width: bounds.maxWidth < 390 ? bounds.maxWidth : 390,
+                  height: 718,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+                    child: Column(children: [
+                      Container(
+                        height: 104,
+                        padding: const EdgeInsets.all(12),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF14634E), Color(0xFF04362E)]),
+                          borderRadius: BorderRadius.circular(23),
+                          border: Border.all(color: _gold, width: 1.5)),
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Row(mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.mosque_rounded, color: _gold, size: 24),
+                                SizedBox(width: 8),
+                                Flexible(child: Text('الأذان والتنبيهات',
+                                  maxLines: 1,
+                                  style: TextStyle(color: Colors.white,
+                                    fontSize: 22, fontWeight: FontWeight.w900))),
+                              ]),
+                            const SizedBox(height: 5),
+                            const Text('إعدادات بسيطة ومريحة لكل صلاة',
+                              style: TextStyle(color: Color(0xFFFFE7B5),
+                                fontSize: 12)),
+                          ]),
+                      ),
+                      const SizedBox(height: 11),
+                      _settingsToggle(
+                        title: 'تشغيل الأذان كاملًا',
+                        subtitle: 'يعمل بالصوت المختار وقت الصلاة',
+                        icon: Icons.volume_up_rounded,
+                        value: adhanEnabled,
+                        onChanged: (enabled) async {
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('adhan', enabled);
+                          if (!mounted) return;
+                          setState(() => adhanEnabled = enabled);
+                          if (!enabled) {
+                            await adhanPreview.stop();
+                            if (mounted) setState(() => previewingVoice = null);
+                          }
+                          refresh(() {});
+                          await _schedule();
+                        }),
+                      Container(
+                        height: 106,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 13, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFFCF3),
+                          border: Border.all(color: const Color(0xFFDCC58D)),
+                          borderRadius: BorderRadius.circular(17)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('اختر صوت الأذان',
+                              style: TextStyle(color: _forest,
+                                fontSize: 14, fontWeight: FontWeight.w900)),
+                            const SizedBox(height: 6),
+                            Row(children: [
+                              for (final entry in voiceNames.entries)
+                                Expanded(child: Padding(
+                                  padding: const EdgeInsets.only(left: 6),
+                                  child: FilledButton(
+                                    onPressed: () async {
+                                      await _setVoice('adhan_voice', entry.key);
+                                      refresh(() {});
+                                    },
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: adhanVoice == entry.key
+                                          ? _forest : const Color(0xFFEDE2C7),
+                                      foregroundColor: adhanVoice == entry.key
+                                          ? Colors.white : _forest,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12)),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4, vertical: 9)),
+                                    child: FittedBox(fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        entry.key == 'adhan_makkah'
+                                            ? 'الحرم المكي' : 'العفاسي',
+                                        style: const TextStyle(
+                                          fontSize: 13, fontWeight: FontWeight.w800))),
+                                  ),
+                                )),
+                              IconButton(
+                                onPressed: () async {
+                                  await _previewVoice(adhanVoice);
+                                  refresh(() {});
+                                },
+                                tooltip: previewingVoice == adhanVoice
+                                    ? 'إيقاف المعاينة' : 'تشغيل المعاينة',
+                                icon: Icon(previewingVoice == adhanVoice
+                                    ? Icons.stop_circle_rounded
+                                    : Icons.play_circle_fill_rounded,
+                                  color: _forest, size: 28)),
+                            ]),
+                            const Text('الصوتان محفوظان في التطبيق ويعملان دون إنترنت',
+                              maxLines: 1, style: TextStyle(
+                                fontSize: 10, color: Color(0xFF74664D))),
+                          ]),
+                      ),
+                      const SizedBox(height: 9),
+                      _settingsToggle(
+                        title: 'تذكير قبل الصلاة',
+                        subtitle: reminder == 0 ? 'متوقف' : 'قبل الأذان بـ $reminder دقيقة',
+                        icon: Icons.notifications_active_rounded,
+                        value: reminder != 0,
+                        onChanged: (enabled) async {
+                          await _setReminder(enabled ? 10 : 0);
+                          refresh(() {});
+                        }),
+                      _settingsToggle(
+                        title: 'متابعة الصلاة',
+                        subtitle: 'اسألني بعد الصلاة بـ 10 دقائق',
+                        icon: Icons.fact_check_rounded,
+                        value: followupEnabled,
+                        onChanged: (enabled) async {
+                          await _setFollowup(enabled);
+                          refresh(() {});
+                        }),
+                      _settingsToggle(
+                        title: 'قيام الليل',
+                        subtitle: 'تذكير لطيف بركعتين قبل النوم',
+                        icon: Icons.nights_stay_rounded,
+                        value: qiyamEnabled,
+                        onChanged: (enabled) async {
+                          await _setQiyam(enabled);
+                          refresh(() {});
+                        }),
+                      const SizedBox(height: 5),
+                      Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: _forest,
+                          borderRadius: BorderRadius.circular(15)),
+                        child: Row(children: [
+                          const SizedBox(width: 12),
+                          const Icon(Icons.place_outlined, color: _gold),
+                          const SizedBox(width: 6),
+                          const Expanded(child: Text('حساب المواقيت',
+                            style: TextStyle(color: Colors.white,
+                              fontWeight: FontWeight.w800, fontSize: 13))),
+                          DropdownButtonHideUnderline(child: DropdownButton<String>(
+                            value: methods.containsKey(method) ? method : 'egypt',
+                            dropdownColor: _forest,
+                            style: const TextStyle(color: Colors.white,
+                              fontSize: 13, fontWeight: FontWeight.w800),
+                            iconEnabledColor: _gold,
+                            items: methods.keys.map((v) => DropdownMenuItem(
+                              value: v,
+                              child: Text(v == 'egypt' ? 'مصر' : v,
+                                style: const TextStyle(color: Colors.white)))).toList(),
+                            onChanged: (v) async {
+                              if (v == null) return;
+                              await _setMethod(v);
+                              refresh(() {});
+                            })),
+                          const SizedBox(width: 12),
+                        ]),
+                      ),
+                      const Spacer(),
+                      Row(children: [
+                        Expanded(child: OutlinedButton.icon(
+                          onPressed: () => _openDiagnostics(refresh),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(43),
+                            foregroundColor: _forest,
+                            side: const BorderSide(color: _gold, width: 1.4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14))),
+                          icon: const Icon(Icons.verified_user_outlined, size: 18),
+                          label: const Text('فحص الإشعارات'))),
+                        const SizedBox(width: 9),
+                        Expanded(child: FilledButton.icon(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(43),
+                            backgroundColor: _forest,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14))),
+                          icon: const Icon(Icons.check_circle_outline, size: 18),
+                          label: const Text('تم')),
+                        ),
+                      ]),
+                    ]),
                   ),
                 ),
-                ListTile(
-                  title: const Text('طريقة حساب المواقيت',
-                    style: TextStyle(color: _forest, fontWeight: FontWeight.w800)),
-                  trailing: DropdownButton<String>(
-                    value: methods.containsKey(method) ? method : 'egypt',
-                    items: methods.entries.map((e) => DropdownMenuItem(
-                      value: e.key,
-                      child: Text(e.key == 'egypt' ? 'مصر' : e.key))).toList(),
-                    onChanged: (v) async {
-                      if (v == null) return;
-                      await _setMethod(v);
-                      refresh(() {});
-                    },
-                  ),
-                ),
-                const Divider(color: _gold, height: 28),
-                const Text('متابعة الصلاة وقيام الليل',
-                  style: TextStyle(color: _forest, fontSize: 18,
-                    fontWeight: FontWeight.w900)),
-                SwitchListTile.adaptive(
-                  title: const Text('اسألني بعد الصلاة بعشر دقائق',
-                    style: TextStyle(color: _forest,
-                      fontWeight: FontWeight.w800)),
-                  subtitle: const Text('سؤال لطيف: هل صليت؟ ويمكن إيقافه في أي وقت'),
-                  value: followupEnabled,
-                  onChanged: (enabled) async {
-                    await _setFollowup(enabled);
-                    refresh(() {});
-                  }),
-                SwitchListTile.adaptive(
-                  title: const Text('تذكير قيام الليل',
-                    style: TextStyle(color: _forest,
-                      fontWeight: FontWeight.w800)),
-                  subtitle: const Text('كل مساء بعد العشاء: لا تنسَ قيام الليل ولو ركعتين'),
-                  value: qiyamEnabled,
-                  onChanged: (enabled) async {
-                    await _setQiyam(enabled);
-                    refresh(() {});
-                  }),
-                OutlinedButton.icon(
-                  onPressed: _previewQiyam,
-                  icon: const Icon(Icons.nights_stay_outlined),
-                  label: const Text('تجربة إشعار قيام الليل')),
-                const Divider(color: _gold, height: 30),
-                const Text('حالة الإشعارات والاختبار',
-                  style: TextStyle(color: _forest, fontSize: 18,
-                    fontWeight: FontWeight.w900)),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Text(
-                    notificationStatus == null ? 'لم يتم فحص الإشعارات'
-                      : !notificationStatus!.enabled ? 'الإشعارات محظورة'
-                      : !notificationStatus!.exact ? 'التوقيت الدقيق غير مفعل؛ قد تتأخر التنبيهات'
-                      : notificationStatus!.pending == 0 ? 'لا توجد تنبيهات مجدولة'
-                      : 'تمت جدولة ${notificationStatus!.pending} إشعار؛ اختبر وصولها على هاتفك',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: _forest, fontSize: 15, fontWeight: FontWeight.w800)),
-                ),
-                Wrap(spacing: 10, runSpacing: 12,
-                  alignment: WrapAlignment.center, children: [
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      await _checkNotificationStatus();
-                      refresh(() {});
-                    },
-                    icon: const Icon(Icons.fact_check_outlined),
-                    label: const Text('فحص التنبيهات')),
-                  FilledButton.tonalIcon(
-                    onPressed: () async {
-                      await _enableNotifications();
-                      refresh(() {});
-                    },
-                    icon: const Icon(Icons.notifications_active_outlined),
-                    label: const Text('سماح الإشعارات')),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      await _enablePreciseReminders();
-                      refresh(() {});
-                    },
-                    icon: const Icon(Icons.alarm_on_outlined),
-                    label: const Text('التوقيت الدقيق')),
-                  OutlinedButton.icon(
-                    onPressed: _testNotification,
-                    icon: const Icon(Icons.send_outlined),
-                    label: const Text('اختبار فوري')),
-                  FilledButton.icon(
-                    onPressed: _testScheduledReminder,
-                    icon: const Icon(Icons.timer_outlined),
-                    label: const Text('اختبار بعد دقيقتين')),
-                ]),
-              ],
-            ),
-          ),
-        ),
-      )),
-    );
+              );
+            }),
+          ))),
+      ),
+    ).whenComplete(() async {
+      await adhanPreview.stop();
+      if (mounted) setState(() => previewingVoice = null);
+    });
   }
 
   Widget _compactTile(String prayer) {
