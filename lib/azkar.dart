@@ -79,8 +79,6 @@ int _pageForDhikr(Dhikr item) {
   return 1;
 }
 
-String _displayDhikr(Dhikr item) => item.text;
-
 class AzkarScreen extends StatelessWidget {
   const AzkarScreen({super.key});
 
@@ -398,20 +396,6 @@ class _AzkarReaderState extends State<AzkarReader> {
       ),
     );
   }
-
-  Widget _fittedDhikrText(Dhikr item) => LayoutBuilder(
-    builder: (context, size) => FittedBox(
-      fit: BoxFit.scaleDown,
-      child: SizedBox(
-        width: size.maxWidth.isFinite ? size.maxWidth : 300,
-        child: Text(_displayDhikr(item),
-          textDirection: TextDirection.rtl,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: _green, fontSize: 27,
-            height: 1.85, fontWeight: FontWeight.w600)),
-      ),
-    ));
 
   @override
   Widget build(BuildContext context) {
