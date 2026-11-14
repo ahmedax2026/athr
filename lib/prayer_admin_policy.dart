@@ -41,12 +41,7 @@ class PrayerAdminPolicy {
     'morningAzkarTime': '08:00', 'eveningAzkarTime': '18:00',
     'dailyDuaTime': '20:30', 'qiyamTime': '22:00',
   };
-  static bool validClock(String value) => RegExp(r'^(?:[01][0-9]|2[0-3]):[0-5][0-9]
-    final value = data[key]?.toString().trim() ?? '';
-    return value.isEmpty ? fallback : value;
-  }
-}
-).hasMatch(value);
+  static bool validClock(String value) => RegExp(r'^(?:[01][0-9]|2[0-3]):[0-5][0-9]$').hasMatch(value);
   String clock(String key) {
     final value = data[key]?.toString() ?? '';
     return validClock(value) ? value : clockDefaults[key] ?? '08:00';
