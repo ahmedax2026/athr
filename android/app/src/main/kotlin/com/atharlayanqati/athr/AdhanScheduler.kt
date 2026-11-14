@@ -12,6 +12,8 @@ object AdhanScheduler {
     private const val STORE = "adhan_background_alarms"
     private const val KEY = "alarms"
     private const val BASE = 46000
+    private const val CHECKIN_PREFS = "prayer_checkin_settings"
+    private const val CHECKIN_KEY = "enabled"
 
     private fun pending(context: Context, id: Int): PendingIntent {
         val intent = Intent(context, AdhanAlarmReceiver::class.java)
@@ -31,7 +33,7 @@ object AdhanScheduler {
             val at = (entry["at"] as? Number)?.toLong() ?: continue
             if (at <= System.currentTimeMillis()) continue
             val voice = entry["voice"] as? String ?: "adhan_makkah"
-            if (voice != "adhan_makkah" && voice != "adhan_afasy" && voice != "reminder") continue
+            if (voice != "adhan_makkah" && voice != "adhan_afasy" && voice != "reminder" && voice != "checkin") continue
             val id = index
             val prayer = entry["prayer"] as? String ?: ""
             val json = JSONObject().put("id", id).put("at", at).put("voice", voice).put("prayer", prayer)
@@ -39,6 +41,32 @@ object AdhanScheduler {
             set(context, id, at, voice, prayer)
         }
         prefs.edit().putString(KEY, stored.toString()).apply()
+    }
+
+    fun setCheckinEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(CHECKIN_PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean(CHECKIN_KEY, enabled).apply()
+        // Rebuild from the stored entries; this cancels disabled check-in alarms.
+        restoreAfterPreferenceChange(context)
+    }
+
+    fun checkinEnabled(context: Context): Boolean =
+        context.getSharedPreferences(CHECKIN_PREFS, Context.MODE_PRIVATE)
+            .getBoolean(CHECKIN_KEY, true)
+
+    private fun restoreAfterPreferenceChange(context: Context) {
+        val prefs = context.getSharedPreferences(STORE, Context.MODE_PRIVATE)
+        val entries = JSONArray(prefs.getString(KEY, "[]") ?: "[]")
+        val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        for (i in 0 until entries.length()) {
+            val item = entries.optJSONObject(i) ?: continue
+            val id = item.optInt("id", i)
+            manager.cancel(pending(context, id))
+            if (item.optLong("at") > System.currentTimeMillis()) {
+                set(context, id, item.optLong("at"),
+                    item.optString("voice", "adhan_makkah"), item.optString("prayer", ""))
+            }
+        }
     }
 
     fun restore(context: Context) {
@@ -54,6 +82,7 @@ object AdhanScheduler {
     }
 
     private fun set(context: Context, id: Int, at: Long, voice: String, prayer: String) {
+        if (voice == "checkin" && !checkinEnabled(context)) return
         val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, AdhanAlarmReceiver::class.java)
             .putExtra("voice", voice)
