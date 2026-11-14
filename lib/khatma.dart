@@ -237,11 +237,16 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
     setState(()=>busy=true);
     try {
       final members=await ref.collection('members').get();
-      final ids=members.docs.map((m)=>m.id).toList()..sort();
+      final ordered=members.docs.toList()..sort((a,b){ final c=((a.data()['slot'] as num?) ?? 0).compareTo((b.data()['slot'] as num?) ?? 0); return c != 0 ? c : a.id.compareTo(b.id); });
+      final ids=ordered.map((m)=>m.id).toList();
       final batch=FirebaseFirestore.instance.batch();
       if(d['distribution']=='auto'){
         for(var i=0;i<ids.length;i++){
-          batch.update(ref.collection('members').doc(ids[i]),{'parts':[for(var p=1;p<=30;p++)if((p-1)%ids.length==i)p]});
+          final base=30 ~/ ids.length;
+          final extra=30 % ids.length;
+          final start=1+i*base+min(i,extra);
+          final count=base+(i<extra?1:0);
+          batch.update(ref.collection('members').doc(ids[i]),{'parts':List<int>.generate(count,(j)=>start+j)});
         }
       }
       batch.update(ref,{'started':true});
@@ -336,7 +341,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
       if(!mounted)return;
       await showDialog<void>(context:context,builder:(ctx)=>AlertDialog(
         title:const Text('تقبل الله تلاوتك'),
-        content:Text('اللهم إني وهبت ثواب تلاوة هذا الجزء إلى $title، اللهم تقبله مني واغفر له وارحمه واجعل القرآن نورًا له.'),
+        content:Text('اللهم إني وهبت أجر وثواب هذه التلاوة إلى $title، اللهم تقبل مني.'),
         actions:[FilledButton(onPressed:()=>Navigator.pop(ctx),child:const Text('اللهم آمين'))]));
     }
   }
@@ -345,7 +350,10 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
       final m=ref.collection('members').doc(widget.uid);
       await FirebaseFirestore.instance.runTransaction((tx) async {
         final snap=await tx.get(m);
+        final room=await tx.get(ref);
+        if(room.data()?['started']!=true||room.data()?['closed']==true)throw StateError('closed or not started');
         if(!snap.exists||!List<int>.from(snap.data()?['parts']??[]).contains(part))throw StateError('not assigned');
+        if(List<int>.from(snap.data()?['completed']??[]).contains(part)==done)return;
         tx.update(m,{'completed':done?FieldValue.arrayUnion([part]):FieldValue.arrayRemove([part])});
         tx.update(ref,{'completedParts':done?FieldValue.arrayUnion([part]):FieldValue.arrayRemove([part])});
       });
@@ -477,7 +485,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
                       subtitle:Text('${_range(p)} • ${List<int>.from(mine['completed']??[]).contains(p)?'مكتمل':'بانتظار القراءة'}'),
                       trailing:Icon(List<int>.from(mine['completed']??[]).contains(p)?Icons.check_circle:Icons.menu_book,color:_green)),
                     Row(children:[
-                      Expanded(child:TextButton.icon(onPressed:started?()=>readPart(p):null,
+                      Expanded(child:TextButton.icon(onPressed:started&&!closed?()=>readPart(p):null,
                         icon:const Icon(Icons.menu_book),label:Text(List<int>.from(mine['completed']??[]).contains(p)?'إعادة القراءة':'قراءة الجزء'))),
                     ]),
                   ])),
