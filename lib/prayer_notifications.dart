@@ -88,6 +88,14 @@ class PrayerNotifications {
 
   /// A real device-level alarm test: succeeds even if the app is closed.
   /// Requires Android exact-alarm access to give a meaningful 2-minute check.
+  static Future<void> testFullAdhan(String voice) async {
+    await _ensureInitialized();
+    if (!(await _android?.canScheduleExactNotifications() ?? false)) {
+      throw StateError('فعّل التوقيت الدقيق أولًا');
+    }
+    await _adhanAlarmChannel.invokeMethod<void>('testAdhan', {'voice': voice});
+  }
+
   static Future<DateTime> scheduleTest({
     required tz.Location zone,
   }) async {
@@ -165,6 +173,7 @@ class PrayerNotifications {
             fullAdhanAlarms.add({
               'at': prayerTime.millisecondsSinceEpoch,
               'voice': choices.contains(chosen) ? chosen : 'adhan_makkah',
+              'prayer': name,
             });
           }
           await _plugin.zonedSchedule(
