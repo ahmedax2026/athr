@@ -273,363 +273,246 @@ class _CaseEditorScreenState extends State<CaseEditorScreen> {
   );
 }
 
-class PublicCasesScreen extends StatefulWidget {
+const _reliefGreen = Color(0xFF073E35);
+const _reliefGold = Color(0xFFC6A35F);
+const _reliefInk = Color(0xFF183C33);
+const _reliefCream = Color(0xFFF8F5EC);
+
+class PublicCasesScreen extends StatelessWidget {
   const PublicCasesScreen({super.key});
-  @override
-  State<PublicCasesScreen> createState() => _PublicCasesScreenState();
-}
 
-class _PublicCasesScreenState extends State<PublicCasesScreen> {
-  int current = 0;
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF7F1E6),
+    backgroundColor: _reliefCream,
     appBar: AppBar(
-      title: const Text('فك كرب', style: TextStyle(fontWeight: FontWeight.w900)),
-      centerTitle: true, backgroundColor: const Color(0xFF032D28),
-      foregroundColor: Colors.white),
-    body: SafeArea(child: LayoutBuilder(builder: (context, bounds) {
-      final compact = bounds.maxHeight < 580;
-      return Padding(
-        padding: EdgeInsets.fromLTRB(14, compact ? 6 : 12, 14, 8),
-        child: Column(children: [
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: compact ? 8 : 16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF032D28),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: const Color(0xFFD7B672), width: 1.5)),
-            child: Column(children: [
-              Icon(Icons.volunteer_activism_rounded,
-                color: const Color(0xFFD7B672), size: compact ? 24 : 33),
-              Text('فَإِنَّ مَعَ الْعُسْرِ يُسْرًا',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white,
-                  fontSize: compact ? 19 : 23, fontWeight: FontWeight.w900)),
-              const Text('ساهم في تفريج كرب محتاج، ولو بالقليل',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFFFBE9B9), fontSize: 12)),
-            ]),
-          ),
-          const SizedBox(height: 10),
-          const Align(alignment: Alignment.centerRight,
-            child: Text('حالات تحتاج دعمك',
-              style: TextStyle(color: Color(0xFF133C31),
-                fontSize: 19, fontWeight: FontWeight.w900))),
-          const SizedBox(height: 7),
-          Expanded(child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance.collection('cases')
-              .where('status', isEqualTo: 'published').snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return const Center(child: Text('تعذر تحميل الحالات. حاول لاحقًا'));
-              }
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final cases = snapshot.data!.docs;
-              if (cases.isEmpty) {
-                return const Center(child: Text(
-                  'لا توجد حالات منشورة حاليًا',
-                  style: TextStyle(color: Color(0xFF073E35),
-                    fontWeight: FontWeight.w800)));
-              }
-              return PageView.builder(
-                itemCount: cases.length,
-                onPageChanged: (i) => setState(() => current = i),
-                itemBuilder: (context, i) => _PremiumCasePreview(
-                  data: cases[i].data()),
-              );
-            },
-          )),
-          const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.symmetric(
-              horizontal: 12, vertical: compact ? 5 : 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF032D28),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFD7B672))),
-            child: Column(children: [
-              const Text('رُكن الدعاء',
-                style: TextStyle(color: Color(0xFFD7B672),
-                  fontSize: 16, fontWeight: FontWeight.w900)),
-              const Text('اللهم فرّج همّ كل مهموم ونفّس كرب كل مكروب',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 12)),
-              TextButton(
-                onPressed: () => Navigator.push(context,
-                  MaterialPageRoute<void>(builder: (_) =>
-                    const _ReliefDuaScreen())),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFFD7B672),
-                  minimumSize: const Size(0, 28),
-                  padding: EdgeInsets.zero),
-                child: const Text('اقرأ أدعية تفريج الكرب')),
-            ]),
-          ),
-        ]),
-      );
-    })),
-  );
-}
-
-class _PremiumCasePreview extends StatelessWidget {
-  const _PremiumCasePreview({required this.data});
-  final Map<String, dynamic> data;
-  @override
-  Widget build(BuildContext context) {
-    final goal = (data['goal'] as num?)?.toDouble() ?? 0;
-    final collected = (data['collected'] as num?)?.toDouble() ?? 0;
-    final progress = goal <= 0 ? 0.0 : (collected / goal).clamp(0.0, 1.0);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFD7B672), width: 1.5),
-        boxShadow: const [BoxShadow(color: Color(0x18032D28),
-          blurRadius: 13, offset: Offset(0, 5))]),
-      child: Column(children: [
-        Container(width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: const BoxDecoration(color: Color(0xFF073E35),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-          child: const Row(children: [
-            Icon(Icons.favorite_rounded, color: Color(0xFFD7B672)),
-            SizedBox(width: 9),
-            Expanded(child: Text('حالة تحتاج مساعدتك',
-              style: TextStyle(color: Colors.white,
-                fontSize: 16, fontWeight: FontWeight.w900))),
-          ])),
-        Expanded(child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Text((data['title'] ?? 'حالة مساعدة').toString(),
-                maxLines: 2, overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF133C31),
-                  fontSize: 19, fontWeight: FontWeight.w900)),
-              Text((data['details'] ?? '').toString(),
-                maxLines: 2, overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF526A61),
-                  fontSize: 12)),
-              Row(children: [
-                Expanded(child: Column(children: [
-                  const Text('تم جمعه', style: TextStyle(fontSize: 12)),
-                  FittedBox(child: Text('${collected.toStringAsFixed(0)} ج.م',
-                    style: const TextStyle(color: Color(0xFF073E35),
-                      fontSize: 19, fontWeight: FontWeight.w900))),
-                ])),
-                Expanded(child: Column(children: [
-                  const Text('الهدف', style: TextStyle(fontSize: 12)),
-                  FittedBox(child: Text('${goal.toStringAsFixed(0)} ج.م',
-                    style: const TextStyle(color: Color(0xFF133C31),
-                      fontSize: 19, fontWeight: FontWeight.w900))),
-                ])),
-              ]),
-              ClipRRect(borderRadius: BorderRadius.circular(9),
-                child: LinearProgressIndicator(
-                  value: progress, minHeight: 10,
-                  color: const Color(0xFF126653),
-                  backgroundColor: const Color(0xFFE8E1D5))),
-              Text('${(progress * 100).toStringAsFixed(0)}٪ مكتمل  •  '
-                'المتبقي ${(goal - collected).clamp(0, double.infinity).toStringAsFixed(0)} ج.م',
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11,
-                  color: Color(0xFF133C31), fontWeight: FontWeight.w800)),
-            ]),
-        )),
-        Padding(padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-          child: SizedBox(width: double.infinity, height: 43,
-            child: FilledButton.icon(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) =>
-                  _CaseDetailsScreen(data: data))),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF073E35),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12))),
-              icon: const Icon(Icons.favorite_border_rounded),
-              label: const Text('عرض التفاصيل والمساهمة',
-                style: TextStyle(fontWeight: FontWeight.w900))))),
-      ]),
-    );
-  }
-}
-
-class _CaseDetailsScreen extends StatelessWidget {
-  const _CaseDetailsScreen({required this.data});
-  final Map<String, dynamic> data;
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF7F1E6),
-    appBar: AppBar(title: const Text('تفاصيل الحالة'),
-      backgroundColor: const Color(0xFF032D28), foregroundColor: Colors.white),
-    body: ListView(padding: const EdgeInsets.all(14),
-      children: [_PublicCaseCard(data: data)]),
-  );
-}
-
-class _ReliefDuaScreen extends StatelessWidget {
-  const _ReliefDuaScreen();
-  static const prayers = [
-    ('دعاء الكرب', 'لا إله إلا الله العظيم الحليم، لا إله إلا الله رب العرش العظيم، لا إله إلا الله رب السماوات ورب الأرض ورب العرش الكريم.'),
-    ('دعاء الهم والحزن', 'اللهم إني أعوذ بك من الهم والحزن، والعجز والكسل، والبخل والجبن، وضلع الدين وغلبة الرجال.'),
-    ('دعاء ذي النون', 'لا إله إلا أنت سبحانك إني كنت من الظالمين.'),
-    ('دعاء التيسير', 'اللهم لا سهل إلا ما جعلته سهلاً، وأنت تجعل الحزن إذا شئت سهلاً.'),
-  ];
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF7F1E6),
-    appBar: AppBar(title: const Text('أدعية تفريج الكرب'),
-      backgroundColor: const Color(0xFF032D28), foregroundColor: Colors.white),
-    body: PageView.builder(
-      itemCount: prayers.length,
-      itemBuilder: (context, i) => Center(child: Container(
-        margin: const EdgeInsets.all(18),
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(color: Colors.white,
-          borderRadius: BorderRadius.circular(23),
-          border: Border.all(color: const Color(0xFFD7B672), width: 1.5)),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.auto_awesome_rounded,
-            color: Color(0xFFD7B672), size: 32),
-          const SizedBox(height: 14),
-          Text(prayers[i].$1, textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF073E35),
-              fontSize: 21, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 16),
-          Text(prayers[i].$2, textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF133C31),
-              fontSize: 18, height: 1.8)),
-          const SizedBox(height: 16),
-          const Text('اسحب لقراءة الدعاء التالي',
-            style: TextStyle(color: Color(0xFF526A61), fontSize: 12)),
-        ]),
-      )),
+      title: const Text('فك كرب',
+        style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
+      centerTitle: true,
+      backgroundColor: _reliefGreen,
+      foregroundColor: Colors.white,
     ),
+    body: SafeArea(child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('cases')
+        .where('status', isEqualTo: 'published').snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('تعذر تحميل الحالات، حاول مرة أخرى',
+            style: TextStyle(color: _reliefInk)));
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator(color: _reliefGreen));
+        }
+        final cases = snapshot.data!.docs;
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 17),
+              decoration: BoxDecoration(
+                color: _reliefGreen,
+                borderRadius: BorderRadius.circular(19)),
+              child: const Row(children: [
+                Icon(Icons.volunteer_activism_rounded,
+                  color: _reliefGold, size: 29),
+                SizedBox(width: 13),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('فَإِنَّ مَعَ الْعُسْرِ يُسْرًا',
+                      style: TextStyle(color: Colors.white,
+                        fontSize: 20, fontWeight: FontWeight.w800)),
+                    SizedBox(height: 4),
+                    Text('ساهم في تفريج كرب محتاج ولو بالقليل',
+                      style: TextStyle(color: Color(0xFFF0DFBC), fontSize: 12)),
+                  ],
+                )),
+              ]),
+            ),
+            const SizedBox(height: 20),
+            const Text('الحالات المتاحة',
+              style: TextStyle(color: _reliefInk,
+                fontSize: 19, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 11),
+            if (cases.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 28),
+                child: Center(child: Text('لا توجد حالات منشورة حاليًا',
+                  style: TextStyle(color: _reliefInk)))),
+            for (final doc in cases) _ReliefCaseCard(data: doc.data()),
+            const SizedBox(height: 7),
+            Container(
+              padding: const EdgeInsets.all(17),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAEFE7),
+                borderRadius: BorderRadius.circular(17)),
+              child: const Column(children: [
+                Row(children: [
+                  Icon(Icons.favorite_outline_rounded, color: _reliefGreen),
+                  SizedBox(width: 9),
+                  Text('رُكن الدعاء',
+                    style: TextStyle(color: _reliefGreen,
+                      fontSize: 17, fontWeight: FontWeight.w800)),
+                ]),
+                SizedBox(height: 9),
+                Text('اللهم فرّج همّ كل مهموم، ونفّس كرب كل مكروب',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: _reliefInk,
+                    fontSize: 15, height: 1.6)),
+              ]),
+            ),
+          ],
+        );
+      },
+    )),
   );
 }
 
-class _PublicCaseCard extends StatelessWidget {
-  const _PublicCaseCard({required this.data});
+class _ReliefCaseCard extends StatelessWidget {
+  const _ReliefCaseCard({required this.data});
   final Map<String, dynamic> data;
 
-  Widget _paymentTile(BuildContext context, String title, String value, IconData icon) {
-    return Card(
-      margin: const EdgeInsets.only(top: 10),
-      elevation: 0,
-      color: const Color(0xFFE4F2E6),
+  Future<void> _copy(BuildContext context, String label, String value) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('تم نسخ $label')));
+  }
+
+  Widget _payment(BuildContext context, String title, String value,
+      IconData icon) => Padding(
+    padding: const EdgeInsets.only(top: 9),
+    child: Material(
+      color: const Color(0xFFEDF3EC),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () async {
-          await Clipboard.setData(ClipboardData(text: value));
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('تم نسخ $title بنجاح')));
-        },
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _copy(context, title, value),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Row(children: [
-            Icon(icon, size: 30),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-              const SizedBox(height: 4),
-              SelectableText(value, textDirection: TextDirection.ltr,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            ])),
-            const Icon(Icons.copy_rounded),
+            Icon(icon, color: _reliefGreen, size: 21),
+            const SizedBox(width: 10),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(
+                  color: _reliefInk, fontSize: 13,
+                  fontWeight: FontWeight.w700)),
+                const SizedBox(height: 3),
+                Text(value, textDirection: TextDirection.ltr,
+                  textAlign: TextAlign.left,
+                  style: const TextStyle(color: _reliefGreen,
+                    fontSize: 16, fontWeight: FontWeight.w800)),
+              ],
+            )),
+            const Icon(Icons.copy_rounded, color: _reliefGreen, size: 19),
           ]),
         ),
       ),
-    );
-  }
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     final goal = (data['goal'] as num?)?.toDouble() ?? 0;
     final collected = (data['collected'] as num?)?.toDouble() ?? 0;
     final fraction = goal <= 0 ? 0.0 : (collected / goal).clamp(0.0, 1.0);
-    final imageUrl = (data['imageUrl'] ?? '').toString().trim();
+    final remaining = (goal - collected).clamp(0.0, double.infinity);
+    final title = (data['title'] ?? 'حالة مساعدة').toString();
+    final details = (data['details'] ?? '').toString();
     final vodafone = (data['vodafoneCash'] ?? '').toString().trim();
     final instapay = (data['instapay'] ?? '').toString().trim();
     final other = (data['payment'] ?? '').toString().trim();
-    final validImage = Uri.tryParse(imageUrl);
-    final showImage = validImage != null && validImage.scheme == 'https' && validImage.host.isNotEmpty;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      color: Colors.white,
-      elevation: 0,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        side: const BorderSide(color: Color(0xFFD7B672), width: 1.5),
-        borderRadius: BorderRadius.circular(22)),
-      child: Padding(padding: const EdgeInsets.all(18), child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          if (showImage) ...[
-            ClipRRect(borderRadius: BorderRadius.circular(14),
-              child: Image.network(imageUrl, height: 210, fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const SizedBox(
-                  height: 100, child: Center(child: Icon(Icons.broken_image_outlined))))),
-            const SizedBox(height: 14),
-          ],
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFF032D28),
-              borderRadius: BorderRadius.circular(15)),
-            child: Column(children: [
-              const Icon(Icons.volunteer_activism_rounded,
-                color: Color(0xFFD7B672), size: 30),
-              const SizedBox(height: 6),
-              Text((data['title'] ?? '').toString(),
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white,
-                  fontSize: 22, fontWeight: FontWeight.w900)),
-            ]),
-          ),
-          const SizedBox(height: 10),
-          Text((data['details'] ?? '').toString(),
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.6)),
-          const SizedBox(height: 18),
-          LinearProgressIndicator(value: fraction, minHeight: 12,
-            color: const Color(0xFF126653),
-            backgroundColor: const Color(0xFFE8E1D5),
-            borderRadius: BorderRadius.circular(12)),
-          const SizedBox(height: 12),
-          Text('تم جمع: ${collected.toStringAsFixed(0)} ج.م من ${goal.toStringAsFixed(0)} ج.م',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 5),
-          Text('المتبقي: ${(goal - collected).clamp(0, double.infinity).toStringAsFixed(0)} ج.م',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-          Text('نسبة الإنجاز: ${(fraction * 100).toStringAsFixed(0)}%',
-            style: const TextStyle(fontWeight: FontWeight.w700)),
-          const Divider(height: 30),
-          const Text('طرق المساهمة',
-            style: TextStyle(color: Color(0xFF073E35),
-              fontSize: 20, fontWeight: FontWeight.w900)),
-          if (vodafone.isNotEmpty)
-            _paymentTile(context, 'فودافون كاش', vodafone, Icons.phone_android),
-          if (instapay.isNotEmpty)
-            _paymentTile(context, 'إنستا باي', instapay, Icons.account_balance_wallet_outlined),
-          if (other.isNotEmpty) ...[
+    final imageUrl = (data['imageUrl'] ?? '').toString().trim();
+    final uri = Uri.tryParse(imageUrl);
+    final hasImage = uri != null && uri.scheme == 'https' && uri.host.isNotEmpty;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 13),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: const Color(0xFFE6D8B7)),
+        boxShadow: const [BoxShadow(color: Color(0x0B073E35),
+          blurRadius: 12, offset: Offset(0, 3))]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (hasImage) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(imageUrl, height: 135, fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const SizedBox.shrink())),
             const SizedBox(height: 12),
-            SelectableText(other, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          ],
+          Row(children: [
+            const Icon(Icons.favorite_rounded, color: _reliefGold, size: 21),
+            const SizedBox(width: 8),
+            Expanded(child: Text(title,
+              style: const TextStyle(color: _reliefGreen,
+                fontSize: 19, fontWeight: FontWeight.w800))),
+          ]),
+          if (details.trim().isNotEmpty) ...[
+            const SizedBox(height: 9),
+            Text(details, style: const TextStyle(
+              color: _reliefInk, fontSize: 14, height: 1.6)),
+          ],
+          const SizedBox(height: 15),
+          Row(children: [
+            Expanded(child: _amount('تم جمعه', collected)),
+            Expanded(child: _amount('الهدف', goal)),
+          ]),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: fraction, minHeight: 8,
+              backgroundColor: const Color(0xFFEAE5DB),
+              color: const Color(0xFF16735C))),
+          const SizedBox(height: 9),
+          Text('${(fraction * 100).toStringAsFixed(0)}٪ مكتمل  •  '
+            'المتبقي ${remaining.toStringAsFixed(0)} ج.م',
+            style: const TextStyle(color: _reliefInk,
+              fontSize: 13, fontWeight: FontWeight.w700)),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 13),
+            child: Divider(height: 1, color: Color(0xFFE7E4DC))),
+          const Text('طرق المساهمة',
+            style: TextStyle(color: _reliefGreen,
+              fontSize: 16, fontWeight: FontWeight.w800)),
+          if (vodafone.isNotEmpty)
+            _payment(context, 'فودافون كاش', vodafone, Icons.phone_android_rounded),
+          if (instapay.isNotEmpty)
+            _payment(context, 'إنستا باي', instapay,
+              Icons.account_balance_wallet_outlined),
+          if (other.isNotEmpty) ...[
+            const SizedBox(height: 9),
+            SelectableText(other, style: const TextStyle(
+              color: _reliefInk, fontSize: 14, height: 1.5)),
           ],
           if (vodafone.isEmpty && instapay.isEmpty && other.isEmpty)
-            const Text('لم تُحدد طرق التبرع بعد'),
-          const SizedBox(height: 14),
-          const Text('يرجى التأكد من بيانات التحويل قبل إرسال أي مبلغ.',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('لم تُحدد طرق المساهمة بعد',
+                style: TextStyle(color: _reliefInk))),
+          const SizedBox(height: 11),
+          const Text('تأكد من بيانات التحويل قبل إرسال أي مبلغ',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFF53665C), fontSize: 11)),
         ],
-      )),
+      ),
     );
   }
+
+  Widget _amount(String label, double amount) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: const TextStyle(
+        color: Color(0xFF53665C), fontSize: 12)),
+      const SizedBox(height: 4),
+      Text('${amount.toStringAsFixed(0)} ج.م',
+        style: const TextStyle(color: _reliefGreen,
+          fontSize: 18, fontWeight: FontWeight.w800)),
+    ],
+  );
 }
