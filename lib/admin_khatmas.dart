@@ -22,6 +22,44 @@ class AdminKhatmasScreen extends StatelessWidget {
     }
   }
 
+  Future<void> remove(BuildContext context, DocumentReference<Map<String, dynamic>> ref, String title) async {
+    final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('حذف الختمة نهائيًا؟'),
+      content: Text('سيتم حذف ختمة «$title» وسجلات المشاركين وتذكيراتها نهائيًا. لا يمكن التراجع عن هذا الإجراء.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true),
+          style: FilledButton.styleFrom(backgroundColor: Colors.red.shade800, foregroundColor: Colors.white),
+          child: const Text('حذف نهائي')),
+      ],
+    ));
+    if (yes != true || !context.mounted) return;
+    try {
+      final current = await ref.get(const GetOptions(source: Source.server));
+      if (!current.exists) return;
+      if (current.data()?['closed'] != true) {
+        await ref.update({'closed': true, 'closedAt': FieldValue.serverTimestamp()});
+      }
+      // Closing first prevents joins, progress updates and new reminders.
+      // Firestore does not cascade deletes; clear both known subcollections.
+      for (final name in ['members', 'reminders']) {
+        while (true) {
+          final rows = await ref.collection(name).limit(100).get(const GetOptions(source: Source.server));
+          if (rows.docs.isEmpty) break;
+          final batch = FirebaseFirestore.instance.batch();
+          for (final row in rows.docs) {
+            batch.delete(row.reference);
+          }
+          await batch.commit();
+        }
+      }
+      await ref.delete();
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حذف الختمة نهائيًا')));
+    } catch (_) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر إكمال الحذف. قد تكون الختمة أُغلقت؛ تحقق من الصلاحيات والاتصال ثم أعد المحاولة.')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('إدارة الختمات')),
@@ -33,7 +71,7 @@ class AdminKhatmasScreen extends StatelessWidget {
         final docs = snap.data!.docs;
         if (docs.isEmpty) return const Center(child: Text('لا توجد ختمات'));
         return ListView(padding: const EdgeInsets.all(16), children: [
-          const Text('عرض حتى 100 ختمة وإدارة إغلاقها دون حذف بياناتها.'),
+          const Text('عرض حتى 100 ختمة. يمكنك إغلاق الختمة أو حذفها نهائيًا.'),
           for (final doc in docs) Card(child: ExpansionTile(
             title: Text((doc.data()['title'] ?? 'ختمة').toString()),
             subtitle: Text('المشاركون: ${doc.data()['memberCount'] ?? 0} • ${doc.data()['closed'] == true ? 'مغلقة' : 'مفتوحة'}'),
@@ -53,6 +91,9 @@ class AdminKhatmasScreen extends StatelessWidget {
               ),
               if (doc.data()['closed'] != true)
                 OutlinedButton(onPressed: () => close(context, doc.reference), child: const Text('إغلاق الختمة')),
+              TextButton.icon(onPressed: () => remove(context, doc.reference, (doc.data()['title'] ?? 'ختمة').toString()),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                icon: const Icon(Icons.delete_forever_outlined), label: const Text('حذف نهائي')),
             ],
           )),
         ]);
