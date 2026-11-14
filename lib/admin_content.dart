@@ -13,7 +13,7 @@ class AdminContentEditor extends StatefulWidget {
 
 class _AdminContentEditorState extends State<AdminContentEditor> {
   final Map<String, TextEditingController> controllers = {};
-  bool _isSwitch(String key) => key == 'enabled' || key == 'showPhoto' || key.startsWith('show_') || key == 'showMemorial';
+  bool _isSwitch(String key) => key == 'enabled' || key == 'showPhoto' || key.startsWith('show_') || key.startsWith('allow') || key == 'showMemorial';
   bool loading = true;
   bool saving = false;
   String? error;
@@ -54,6 +54,14 @@ class _AdminContentEditorState extends State<AdminContentEditor> {
 
   Future<void> save() async {
     if (loading || saving) return;
+    if (controllers.containsKey('followupMinutes')) {
+      final raw = controllers['followupMinutes']!.text.trim();
+      final minutes = int.tryParse(raw);
+      if (raw.isNotEmpty && (minutes == null || minutes < 5 || minutes > 120)) {
+        setState(() => error = 'أدخل مدة صحيحة من 5 إلى 120 دقيقة.');
+        return;
+      }
+    }
     setState(() { saving = true; error = null; });
     try {
       final data = <String, dynamic>{
