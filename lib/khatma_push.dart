@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'khatma.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class KhatmaPush {
   static final navigator = GlobalKey<NavigatorState>();
@@ -25,6 +26,11 @@ class KhatmaPush {
       _queue = _queue.then((_) => _register(FirebaseAuth.instance.currentUser)).catchError((Object _) {});
     });
     FirebaseMessaging.onMessageOpenedApp.listen(_open);
+    FirebaseMessaging.onMessage.listen((message) async {
+      if(message.data['type']!='khatma_reminder')return;
+      final plugin=FlutterLocalNotificationsPlugin();
+      try { await plugin.show(id:8000+(message.messageId??'').hashCode.abs()%10000,title:message.notification?.title??'تذكير بالختمة',body:message.notification?.body??'لا تنس إكمال وردك',notificationDetails:const NotificationDetails(android:AndroidNotificationDetails('athr_khatma','تذكيرات الختمات',importance:Importance.high,priority:Priority.high))); } catch (_) { }
+    });
     unawaited(FirebaseMessaging.instance.getInitialMessage().then((m) {
       if (m != null) _open(m);
     }).catchError((Object _) {}));
@@ -52,6 +58,14 @@ class KhatmaPush {
     navigator.currentState!.push(MaterialPageRoute<void>(
       builder: (_) => Directionality(textDirection: TextDirection.rtl,
         child: KhatmaDetailsScreen(id: room, uid: user.uid))));
+  }
+
+  static Future<void> enable() async {
+    final permission=await FirebaseMessaging.instance.requestPermission();
+    if(permission.authorizationStatus!=AuthorizationStatus.authorized && permission.authorizationStatus!=AuthorizationStatus.provisional)throw StateError('اسمح بالإشعارات في إعدادات الهاتف');
+    final user=FirebaseAuth.instance.currentUser;
+    if(user==null)throw StateError('سجل الدخول أولًا');
+    await _register(user);
   }
 
   static Future<void> registerCurrent() async {

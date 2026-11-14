@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'admin_content.dart';
 import 'admin_adhan.dart';
+import 'admin_analytics.dart';
 import 'admin_khatmas.dart';
 import 'admin_restore.dart';
 import 'dynamic_sections.dart';
@@ -98,6 +99,7 @@ class AdminDashboardScreen extends StatelessWidget {
           builder: (context, snapshot) {
             final cases = snapshot.data?.docs ?? [];
             return ListView(padding: const EdgeInsets.all(16), children: [
+              Card(child: ListTile(leading:const Icon(Icons.analytics_outlined),title:const Text('إحصائيات التطبيق'),subtitle:const Text('المستخدمون الجدد والنشطون'),onTap:()=>Navigator.of(context).push(MaterialPageRoute<void>(builder:(_)=>const AdminAnalyticsScreen())))),
               Card(child: ListTile(
                 leading: const Icon(Icons.dashboard_customize_outlined),
                 title: const Text('إضافة وإدارة الأقسام'),

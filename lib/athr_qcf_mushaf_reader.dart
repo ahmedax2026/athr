@@ -86,7 +86,7 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
       ..hideCurrentSnackBar()
       ..showSnackBar(const SnackBar(
         content: Text(
-          'انتهت صفحات الجزء الحالي. ارجع إلى قائمة الأجزاء واختر الجزء التالي.',
+          'انتهت صفحات الجزء الحالي. اضغط زر إتمام القراءة لتسجيل الإنجاز.',
           textDirection: TextDirection.rtl,
         ),
         duration: Duration(seconds: 3),
@@ -252,6 +252,14 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
                     },
                   ),
                 ),
+                if (_isLimitedReading && _page == widget.lastPage)
+                  Padding(padding: const EdgeInsets.fromLTRB(12,4,12,4), child: SizedBox(width: double.infinity, child: FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: _green, foregroundColor: _gold),
+                    onPressed: () async {
+                      final confirmed=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('إتمام قراءة الجزء'),content:const Text('هل أتممت قراءة هذا الجزء كاملًا؟'),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('إلغاء')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('تأكيد'))]));
+                      if(confirmed==true && mounted)Navigator.of(context).pop(true);
+                    },icon:const Icon(Icons.check_circle_outline),label:const Text('لقد أتممت قراءة هذا الجزء',style:TextStyle(fontWeight:FontWeight.w900)),
+                  ))),
                 SafeArea(
                   top: false,
                   child: Padding(

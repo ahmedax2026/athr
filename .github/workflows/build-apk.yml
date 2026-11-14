@@ -10,6 +10,7 @@ on:
       - feature/super-admin-from-verified-43547502262
       - feature/performance-from-43552005755
       - feature/unified-admin-release
+      - feature/unified-verified-upgrades
 
 concurrency:
   group: athr-build-${{ github.ref }}
@@ -111,7 +112,7 @@ jobs:
       - name: Build signed release APK for local device testing
         env:
           ATHR_LOCAL_TEST_SIGNING: 'true'
-        run: flutter build apk --release --target-platform android-arm64
+        run: flutter build apk --release --target-platform android-arm,android-arm64,android-x64
 
       - name: Verify APK signature and ABI before publishing
         run: |
@@ -121,12 +122,12 @@ jobs:
           APKSIGNER=$(find "$SDK_ROOT/build-tools" -name apksigner -type f | sort -V | tail -1)
           test -n "$APKSIGNER"
           "$APKSIGNER" verify --verbose --print-certs "$APK"
-          python3 -c 'import zipfile; z=zipfile.ZipFile("build/app/outputs/flutter-apk/app-release.apk"); assert z.testzip() is None; assert "lib/arm64-v8a/libflutter.so" in z.namelist(); assert "lib/arm64-v8a/libapp.so" in z.namelist()'
+          python3 -c 'import zipfile; z=zipfile.ZipFile("build/app/outputs/flutter-apk/app-release.apk"); assert z.testzip() is None; assert "lib/arm64-v8a/libflutter.so" in z.namelist(); assert all("lib/"+abi+"/libapp.so" in z.namelist() for abi in ["armeabi-v7a","arm64-v8a","x86_64"])'
 
       - name: Upload performance release APK
         uses: actions/upload-artifact@v4
         with:
-          name: athr-unified-arm64-release
+          name: athr-unified-universal-release
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
