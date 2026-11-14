@@ -584,8 +584,11 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: _forest, fontSize: 15, fontWeight: FontWeight.w800)),
                 ),
+                if (notificationStatus?.unrestrictedBattery == false)
+                  const Padding(padding: EdgeInsets.all(8), child: Text('تحسين البطارية قد يؤخر الأذان على بعض الهواتف. اسمح بالعمل في الخلفية من إعدادات الهاتف.', textAlign: TextAlign.center, style: TextStyle(color: _forest))),
                 Wrap(spacing: 10, runSpacing: 12,
                   alignment: WrapAlignment.center, children: [
+                  OutlinedButton.icon(onPressed: () async { await PrayerNotifications.openBatterySettings(); }, icon: const Icon(Icons.battery_charging_full), label: const Text('إعدادات البطارية')),
                   OutlinedButton.icon(
                     onPressed: () async {
                       await _checkNotificationStatus();
@@ -614,7 +617,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                   FilledButton.icon(
                     onPressed: _testScheduledReminder,
                     icon: const Icon(Icons.timer_outlined),
-                    label: const Text('اختبار بعد دقيقتين')),
+                    label: Text(adhanEnabled ? 'اختبار الأذان الكامل' : 'اختبار بعد دقيقتين')),
                 ]),
               ],
             ),
