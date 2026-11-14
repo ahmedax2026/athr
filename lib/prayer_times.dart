@@ -824,37 +824,60 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                 Container(
                   width: double.infinity,
                   padding: EdgeInsets.symmetric(
-                    horizontal: 12, vertical: tight ? 7 : 14),
+                    horizontal: 13, vertical: tight ? 7 : 11),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [
-                      Color(0xFF146853), Color(0xFF063D33), Color(0xFF032C27)]),
-                    border: Border.all(color: _gold),
-                    borderRadius: BorderRadius.circular(22)),
+                    color: const Color(0xFF06372F),
+                    border: Border.all(color: _gold, width: 1.7),
+                    borderRadius: BorderRadius.circular(21),
+                    boxShadow: const [BoxShadow(
+                      color: Color(0x3000221B), blurRadius: 10,
+                      offset: Offset(0, 4))]),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const Icon(Icons.location_on_outlined,
-                        color: _gold, size: 17),
-                      const SizedBox(width: 4),
+                      const Icon(Icons.location_on_rounded,
+                        color: Color(0xFFFFE0A1), size: 18),
+                      const SizedBox(width: 5),
                       Flexible(child: Text(city, maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white,
-                          fontSize: 13, fontWeight: FontWeight.w800))),
+                        style: const TextStyle(
+                          color: Colors.white, fontSize: 15,
+                          fontWeight: FontWeight.w900))),
                       IconButton(onPressed: _useGps,
+                        tooltip: 'تحديث الموقع',
                         icon: const Icon(Icons.my_location_rounded,
-                          color: _gold, size: 18),
-                        tooltip: 'موقعي الحالي',
-                        visualDensity: VisualDensity.compact),
+                          color: Color(0xFFFFE0A1), size: 21),
+                        constraints: const BoxConstraints(
+                          minWidth: 36, minHeight: 36),
+                        padding: const EdgeInsets.all(4)),
                     ]),
-                    Text(nextTime == null ? 'حدد المدينة لعرض المواقيت'
-                      : 'الصلاة القادمة: $nextName • ${_clock(nextTime)}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: _gold, fontSize: 13,
-                        fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF145C4D),
+                        border: Border.all(
+                          color: const Color(0xFFFFE0A1), width: .8),
+                        borderRadius: BorderRadius.circular(11)),
+                      child: Text(
+                        nextTime == null
+                          ? 'حدد المدينة لعرض المواقيت'
+                          : 'الصلاة القادمة: $nextName • ${_clock(nextTime)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white, fontSize: 14,
+                          fontWeight: FontWeight.w900)),
+                    ),
+                    SizedBox(height: tight ? 3 : 6),
                     FittedBox(child: Text(_remaining(),
                       textDirection: TextDirection.ltr,
-                      style: TextStyle(color: Colors.white,
-                        fontSize: tight ? 29 : 38,
-                        fontWeight: FontWeight.w900, letterSpacing: 2))),
+                      style: TextStyle(
+                        color: const Color(0xFFFFE0A1),
+                        fontSize: tight ? 32 : 42,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2))),
                   ]),
                 ),
                 if (error != null)
