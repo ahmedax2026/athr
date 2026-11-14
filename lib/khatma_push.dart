@@ -46,7 +46,9 @@ class KhatmaPush {
     final user = FirebaseAuth.instance.currentUser;
     final room = message.data['roomId'];
     if (user == null || message.data['recipientId'] != user.uid ||
-        room is! String || !RegExp(r'^[A-Za-z0-9_-]{1,128}
+        room is! String || !RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(room)) {
+      return;
+    }
     navigator.currentState!.push(MaterialPageRoute<void>(
       builder: (_) => Directionality(textDirection: TextDirection.rtl,
         child: KhatmaDetailsScreen(id: room, uid: user.uid))));
@@ -72,60 +74,6 @@ class KhatmaPush {
         permission.authorizationStatus != AuthorizationStatus.provisional) {
       return;
     }
-    final token = await messaging.getToken();
-    if (token == null || FirebaseAuth.instance.currentUser?.uid != user.uid) return;
-    await FirebaseFirestore.instance.collection('push_devices').doc(user.uid).set({
-      'token': token, 'updatedAt': FieldValue.serverTimestamp(),
-    });
-    await prefs.setString('khatma_push_uid', user.uid);
-  }
-
-  static Future<String> remind(String roomId, String recipientId) async {
-    final user = FirebaseAuth.instance.currentUser;
-    final token = await user?.getIdToken();
-    if (user == null || token == null) return 'auth_required';
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 12);
-    try {
-      final req = await client.postUrl(Uri.parse('https://athr-notifications.ahmedax0100.workers.dev/remind'));
-      req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      req.headers.contentType = ContentType.json;
-      req.write(jsonEncode({'roomId': roomId, 'recipientId': recipientId, 'senderId': user.uid}));
-      final resp = await req.close().timeout(const Duration(seconds: 25));
-      final result = jsonDecode(await resp.transform(utf8.decoder).join().timeout(const Duration(seconds: 10)));
-      if (result is Map && result['sent'] == true) return 'sent';
-      if (result is Map && result['recorded'] == true) return 'recorded';
-      return result is Map ? (result['error'] ?? 'failed').toString() : 'failed';
-    } finally {
-      client.close(force: true);
-    }
-  }
-}
-).hasMatch(room)) {
-      return;
-    }
-    navigator.currentState!.push(MaterialPageRoute<void>(
-      builder: (_) => Directionality(textDirection: TextDirection.rtl,
-        child: KhatmaDetailsScreen(id: room, uid: user.uid))));
-  }
-
-  static Future<void> registerCurrent() async {
-    _queue = _queue.then((_) => _register(FirebaseAuth.instance.currentUser)).catchError((Object _) {});
-    await _queue;
-  }
-
-  static Future<void> _register(User? user) async {
-    if (!Platform.isAndroid) return;
-    final messaging = FirebaseMessaging.instance;
-    final prefs = await SharedPreferences.getInstance();
-    final previous = prefs.getString('khatma_push_uid');
-    if (previous != null && previous != user?.uid) {
-      await messaging.deleteToken();
-      await prefs.remove('khatma_push_uid');
-    }
-    if (user == null || FirebaseAuth.instance.currentUser?.uid != user.uid) return;
-    final permission = await messaging.getNotificationSettings();
-    if (permission.authorizationStatus != AuthorizationStatus.authorized &&
-        permission.authorizationStatus != AuthorizationStatus.provisional) return;
     final token = await messaging.getToken();
     if (token == null || FirebaseAuth.instance.currentUser?.uid != user.uid) return;
     await FirebaseFirestore.instance.collection('push_devices').doc(user.uid).set({
