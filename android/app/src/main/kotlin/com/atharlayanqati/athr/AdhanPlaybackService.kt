@@ -31,7 +31,8 @@ class AdhanPlaybackService : Service() {
         val stop = PendingIntent.getService(this, 87,
             Intent(this, AdhanPlaybackService::class.java).setAction("STOP"),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val notification = Notification.Builder(this, channel)
+        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, channel) else Notification.Builder(this)
+        val notification = builder
             .setSmallIcon(applicationInfo.icon)
             .setContentTitle("أثر لا ينقطع • حان وقت الصلاة")
             .setContentText("الأذان يعمل الآن • اضغط إيقاف لإنهائه")
@@ -79,6 +80,7 @@ class AdhanPlaybackService : Service() {
         try {
             val descriptor = resources.openRawResourceFd(res)
             val media = MediaPlayer()
+            media.setWakeMode(this, android.os.PowerManager.PARTIAL_WAKE_LOCK)
             media.setAudioAttributes(AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_ALARM)
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
