@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _green = Color(0xFF073E35);
 const _gold = Color(0xFFD6B56C);
-const _ibrahim = 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا صَلَّيْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ.\n\nاللَّهُمَّ بَارِكْ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا بَارَكْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ.';
+const _ibrahim = 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ كَمَا صَلَّيْتَ عَلَى إِبْرَاهِيمَ وَآلِ إِبْرَاهِيمَ، وَبَارِكْ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ كَمَا بَارَكْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ فِي الْعَالَمِينَ إِنَّكَ حَمِيدٌ مَجِيدٌ';
 // Strip Arabic vowel marks, shadda and tanween from tasbeeh labels.
 String _plain(String value) => value.replaceAll(RegExp(r'[\u064B-\u065F\u0670\u06D6-\u06ED]'), '').trim();
 
@@ -51,7 +51,16 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
         _custom = custom;
         _counts = raw.map((key, value) => MapEntry(key, (value as num).toInt()));
         final saved = prefs.getString(_key('selected'));
-        if (saved != null && [..._defaults, ...custom].contains(saved)) _selected = saved;
+        // Preserve previous prayer count and selection when replacing its text.
+        const formerPrayerPrefix = 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا صَلَّيْتَ';
+        final savedOldIbrahim = saved != null && saved.startsWith(formerPrayerPrefix);
+        if (savedOldIbrahim) {
+          _counts[_ibrahim] = _counts[_ibrahim] ?? _counts[saved] ?? 0;
+          _counts.remove(saved);
+          _selected = _ibrahim;
+        } else if (saved != null && [..._defaults, ...custom].contains(saved)) {
+          _selected = saved;
+        }
         _goal = prefs.getInt(_key('goal')) ?? 33;
         _loaded = true;
       });
@@ -187,6 +196,28 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
                       final diameter = (inner.maxWidth * .66)
                           .clamp(120.0, 240.0);
                       return Column(children: [
+                        if (_selected == _ibrahim)
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxHeight: area.maxHeight < 580 ? 118 : 160),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: SizedBox(
+                                  width: inner.maxWidth - 28,
+                                  child: Text(_ibrahim,
+                                    textDirection: TextDirection.rtl,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Color(0xFFFFE6AB),
+                                      fontSize: 18,
+                                      height: 1.65,
+                                      fontWeight: FontWeight.w600)),
+                                ),
+                              ),
+                            ),
+                          ),
                         Expanded(child: Center(
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
@@ -211,7 +242,7 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
                                       fit: BoxFit.scaleDown,
                                       child: SizedBox(
                                         width: diameter - 43,
-                                        child: Text(_plain(_selected),
+                                        child: Text(_selected == _ibrahim ? 'الصَّلَاةُ الإِبْرَاهِيمِيَّةُ' : _plain(_selected),
                                           textDirection: TextDirection.rtl,
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
