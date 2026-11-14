@@ -239,7 +239,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
     setState(()=>busy=true);
     try {
       final members=await ref.collection('members').get();
-      final ordered=members.docs.toList()..sort((a,b){ final c=((a.data()['slot'] as num?) ?? 0).compareTo((b.data()['slot'] as num?) ?? 0); return c != 0 ? c : a.id.compareTo(b.id); });
+      final ordered=members.docs.toList()..sort((a,b){ final c=((a.data()['slot'] as num?) ?? 0).compareTo((b.data()['slot'] as num?) ?? 0); return c != 0 ? c.toInt() : a.id.compareTo(b.id); });
       final ids=ordered.map((m)=>m.id).toList();
       final batch=FirebaseFirestore.instance.batch();
       if(d['distribution']=='auto'){
