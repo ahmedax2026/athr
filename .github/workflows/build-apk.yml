@@ -9,6 +9,7 @@ on:
       - feature/qcf-quran-005
       - feature/super-admin-from-verified-43547502262
       - feature/performance-from-43552005755
+      - feature/unified-admin-release
 
 permissions:
   contents: read
@@ -47,6 +48,11 @@ jobs:
           python3 -m pip install --quiet Pillow
           python3 tool/normalize_azkar_images.py
 
+      - name: Optimize build-only assets and validate audio duration
+        run: |
+          command -v ffmpeg >/dev/null || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+          python3 tool/optimize_build_assets.py
+
       - name: Verify every adhkar entry has an offline image
         run: |
           python3 - <<'PY'
@@ -61,14 +67,6 @@ jobs:
                   assert (Path('assets/azkar') / filename).stat().st_size > 1000, filename
           print('Verified every adhkar entry maps to a real offline image')
           PY
-
-      - name: Upload adhkar images for visual review
-        uses: actions/upload-artifact@v4
-        with:
-          name: athr-azkar-images
-          path: assets/azkar/
-          if-no-files-found: error
-          retention-days: 14
 
       - name: Install complete adhan recordings for native background playback
         run: python3 tool/install_adhan_android.py
@@ -106,24 +104,14 @@ jobs:
       - name: Run tests
         run: flutter test
 
-      - name: Build installable debug APK
-        run: flutter build apk --debug
-
       - name: Build release APK for real-device performance comparison
         run: flutter build apk --release --target-platform android-arm64
 
       - name: Upload performance release APK
         uses: actions/upload-artifact@v4
         with:
-          name: athr-performance-arm64-release
+          name: athr-unified-arm64-release
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: athr-android-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
