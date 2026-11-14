@@ -66,6 +66,11 @@ service cloud.firestore {
           && (next.size() == old.size() + 1 && after.size() == before.size() + 1
               || next.size() == old.size() - 1 && after.size() == before.size() - 1);
       }
+      allow get, list: if isAdmin();
+      allow update: if isAdmin() && active()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closed','closedAt'])
+        && request.resource.data.closed == true
+        && request.resource.data.closedAt == request.time;
       allow get: if signedIn() && (resource.data.privacy == 'public'
         || member() || (resource.data.privacy == 'private' && resource.data.code == khatmaId));
       allow list: if signedIn() && (resource.data.privacy == 'public'
@@ -139,6 +144,7 @@ service cloud.firestore {
         function owner() { return signedIn() && request.auth.uid == memberId; }
         function host() { return signedIn() && parent().creatorId == request.auth.uid; }
         function activeParent() { return parent().get('closed', false) == false; }
+        allow get, list: if isAdmin();
         allow get, list: if signedIn() && (parent().privacy == 'public'
           || request.auth.uid in parent().memberIds);
         allow create: if activeParent() && owner()
