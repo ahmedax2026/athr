@@ -40,6 +40,11 @@ jobs:
       - name: Rebuild adhkar image index from approved uploaded files
         run: python3 tool/sync_azkar_manifest.py
 
+      - name: Convert adhkar assets to verified lossless WebP
+        run: |
+          python3 -m pip install --quiet Pillow
+          python3 tool/normalize_azkar_images.py
+
       - name: Verify every adhkar entry has an offline image
         run: |
           python3 - <<'PY'
