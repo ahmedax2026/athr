@@ -6,7 +6,7 @@ import 'athr_qcf_mushaf_reader.dart';
 
 const _green = Color(0xFF073E35);
 const _gold = Color(0xFFD6B56C);
-const _paper = Color(0xFFFFF8E9);
+const _paper = Color(0xFFF1E3C6);
 
 class Dhikr {
   const Dhikr(this.text, this.target, this.source);
@@ -359,62 +359,40 @@ class _AzkarReaderState extends State<AzkarReader> {
 
   Widget _dhikrCard(Dhikr item, int itemIndex) {
     final surah = _quranSurah(item);
-    final isFour = item.source == 'سورة البقرة: 255' ||
-        item.source == 'سورة الإخلاص' ||
-        item.source == 'سورة الفلق' ||
-        item.source == 'سورة الناس';
     final asset = _imageFor(itemIndex);
-    final title = item.source == 'سورة البقرة: 255'
-        ? 'آية الكرسي' : item.source;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF6E5),
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: _gold, width: 1.8),
+        color: _paper,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: _gold, width: 1.5),
         boxShadow: [BoxShadow(
-          color: _green.withValues(alpha: .15),
-          blurRadius: 18, offset: const Offset(0, 6))]),
+          color: _green.withValues(alpha: .11),
+          blurRadius: 12, offset: const Offset(0, 4))]),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 9),
+        padding: const EdgeInsets.fromLTRB(6, 6, 6, 5),
         child: Column(children: [
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            const Icon(Icons.auto_awesome_rounded, color: _gold, size: 18),
-            const SizedBox(width: 8),
-            Flexible(child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(title,
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: _green, fontSize: 18, fontWeight: FontWeight.w900)))),
-            const SizedBox(width: 8),
-            const Icon(Icons.auto_awesome_rounded, color: _gold, size: 18),
-          ]),
-          const Divider(color: _gold, thickness: 1, height: 13),
           Expanded(child: Center(
-            child: isFour && asset != null
+            child: asset != null
                 ? Image.asset(asset,
                     fit: BoxFit.contain,
                     width: double.infinity,
                     height: double.infinity,
                     filterQuality: FilterQuality.high,
-                    errorBuilder: (_, error, stack) =>
-                        _fittedDhikrText(item))
+                    errorBuilder: (_, error, stack) => _fittedDhikrText(item))
                 : _fittedDhikrText(item),
           )),
-          const SizedBox(height: 5),
           if (surah != null)
-            SizedBox(height: 28,
+            SizedBox(height: 30,
               child: TextButton.icon(
                 onPressed: () => _openMushaf(item),
                 style: TextButton.styleFrom(
                   foregroundColor: _green,
                   padding: EdgeInsets.zero,
                   visualDensity: VisualDensity.compact),
-                icon: const Icon(Icons.menu_book_outlined, size: 17),
-                label: const Text('فتح في المصحف',
-                  style: TextStyle(fontSize: 12)),
+                icon: const Icon(Icons.menu_book_outlined, size: 16),
+                label: const Text('عرض في المصحف',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
               )),
         ]),
       ),
@@ -503,33 +481,39 @@ class _AzkarReaderState extends State<AzkarReader> {
                     ),
                   ),
                   SizedBox(height: compact ? 4 : 7),
-                  InkWell(
-                    onTap: _tap,
-                    borderRadius: BorderRadius.circular(25),
-                    child: Container(
-                      width: double.infinity,
-                      height: compact ? 53 : 65,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [
-                          Color(0xFF0F6A53), Color(0xFF04372E)]),
-                        border: Border.all(color: _gold, width: 1.5),
-                        borderRadius: BorderRadius.circular(21)),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(done ? Icons.check_circle : Icons.touch_app,
-                            color: _gold, size: 24),
-                          const SizedBox(width: 12),
-                          Text('$count / ${item.target}',
-                            style: const TextStyle(color: Colors.white,
-                              fontSize: 23, fontWeight: FontWeight.w900)),
-                          const SizedBox(width: 12),
-                          Text(done ? 'اكتمل الذكر' : 'اضغط للتسبيح',
-                            style: const TextStyle(
-                              color: _gold, fontWeight: FontWeight.w800)),
-                        ]),
+                  Center(child: Semantics(
+                    button: true,
+                    label: done ? 'اكتمل الذكر' : 'اضغط لتسجيل تسبيحة',
+                    value: '$count من ${item.target}',
+                    child: InkWell(
+                      onTap: done ? null : _tap,
+                      borderRadius: BorderRadius.circular(40),
+                      child: Container(
+                        width: compact ? 68 : 78,
+                        height: compact ? 68 : 78,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _green,
+                          border: Border.all(color: _gold, width: 2.4),
+                          boxShadow: [BoxShadow(
+                            color: _green.withValues(alpha: .24),
+                            blurRadius: 12, offset: const Offset(0, 4))]),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(done ? Icons.check_rounded
+                              : Icons.touch_app_rounded,
+                              color: _gold, size: compact ? 17 : 20),
+                            Text('$count / ${item.target}',
+                              style: const TextStyle(color: Colors.white,
+                                fontSize: 15, fontWeight: FontWeight.w900)),
+                          ]),
+                      ),
                     ),
-                  ),
+                  )),
+                  Center(child: Text(done ? 'اكتمل الذكر' : 'اضغط على السبحة للذكر',
+                    style: const TextStyle(color: _green,
+                      fontSize: 12, fontWeight: FontWeight.w800))),
                   SizedBox(height: compact ? 5 : 8),
                   Row(children: [
                     Expanded(child: OutlinedButton.icon(
