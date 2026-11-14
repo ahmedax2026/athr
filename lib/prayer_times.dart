@@ -87,6 +87,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   bool busy = true;
   String? error;
   DateTime now = DateTime.now();
+  final _clockTick = ValueNotifier<int>(0);
   String? _displayedPrayerDay;
   bool _refreshingPrayerDay = false;
   Timer? timer;
@@ -116,7 +117,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     tzdata.initializeTimeZones();
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() => now = DateTime.now());
+      now = DateTime.now();
+      _clockTick.value++;
       if (_displayedPrayerDay != null && _displayedPrayerDay != _dayStamp) {
         _refreshPrayerDay();
       }
@@ -129,6 +131,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     timer?.cancel();
+    _clockTick.dispose();
     _previewFinished?.cancel();
     adhanPreview.dispose();
     super.dispose();
@@ -1204,13 +1207,15 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                           fontWeight: FontWeight.w900)),
                     ),
                     SizedBox(height: tight ? 3 : 6),
-                    FittedBox(child: Text(_remaining(),
+                    FittedBox(child: ValueListenableBuilder<int>(
+                      valueListenable: _clockTick,
+                      builder: (context, tick, child) => Text(_remaining(),
                       textDirection: TextDirection.ltr,
                       style: TextStyle(
                         color: const Color(0xFFFFE0A1),
                         fontSize: tight ? 32 : 42,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: 2))),
+                        letterSpacing: 2)))),
                   ]),
                 ),
                 if (error != null)
