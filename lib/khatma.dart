@@ -246,7 +246,7 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
         for(var i=0;i<ids.length;i++){
           final base=30 ~/ ids.length;
           final extra=30 % ids.length;
-          final start=1+i*base+min(i,extra);
+          final int start=1+i*base+(i<extra?i:extra);
           final count=base+(i<extra?1:0);
           batch.update(ref.collection('members').doc(ids[i]),{'parts':List<int>.generate(count,(j)=>start+j)});
         }
