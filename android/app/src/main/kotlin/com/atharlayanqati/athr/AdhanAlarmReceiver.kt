@@ -17,6 +17,11 @@ class AdhanAlarmReceiver : BroadcastReceiver() {
         val lateBy = System.currentTimeMillis() - scheduledAt
         if (scheduledAt <= 0L || lateBy > 90_000L || lateBy < -30_000L) return
         val voice = intent.getStringExtra("voice") ?: "adhan_makkah"
+        if (voice == "checkin") {
+            PrayerCheckinReceiver.show(context,
+                intent.getStringExtra("prayer") ?: "", scheduledAt)
+            return
+        }
         val service = Intent(context, AdhanPlaybackService::class.java)
             .putExtra("voice", voice)
             .putExtra("prayer", intent.getStringExtra("prayer") ?: "")
