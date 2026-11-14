@@ -1386,7 +1386,11 @@ class _AdhanVoicePickerState extends State<_AdhanVoicePicker> {
       if (url != null) await AdhanCatalog.download(item['id']!, url);
       if (mounted) Navigator.pop(context, item);
     } catch (e) {
-      if (mounted) setState(() => _selectionError = 'تعذر حفظ الصوت للعمل دون إنترنت: $e');
+      if (mounted) {
+        setState(() => _selectionError = e is StateError && e.message == 'file too large'
+          ? 'حجم الأذان يتجاوز 50 ميجابايت. اختر تسجيلًا أقل حجمًا.'
+          : 'تعذر حفظ الصوت للعمل دون إنترنت. تحقق من الاتصال وصلاحية الملف ثم أعد المحاولة.');
+      }
     } finally {
       if (mounted) setState(() => _selecting = null);
     }

@@ -71,12 +71,12 @@ class AdhanCatalog {
         await response.listen((_) {}).cancel();
       }
       if (response.statusCode != 200) throw StateError('HTTP ${response.statusCode}');
-      if (response.contentLength > 15 * 1024 * 1024) throw StateError('file too large');
+      if (response.contentLength > 50 * 1024 * 1024) throw StateError('file too large');
       sink = partial.openWrite();
       var size = 0;
       await for (final chunk in response.timeout(const Duration(seconds: 20))) {
         size += chunk.length;
-        if (size > 15 * 1024 * 1024) throw StateError('file too large');
+        if (size > 50 * 1024 * 1024) throw StateError('file too large');
         sink.add(chunk);
       }
       await sink.close();

@@ -79,7 +79,7 @@ class _AdminAdhanScreenState extends State<AdminAdhanScreen> {
       message(switch (reason) {
         'limit' => 'وصلت إلى الحد الأقصى: 20 صوتًا إضافيًا.',
         'redirect' => 'الرابط يعيد التوجيه إلى عنوان غير آمن أو غير صالح.',
-        'file too large' => 'حجم الصوت يتجاوز 15 ميجابايت.',
+        'file too large' => 'حجم الصوت يتجاوز 50 ميجابايت.',
         'invalid audio' || 'invalid MP3' => 'الملف ليس تسجيل MP3 صالحًا (من ثانية إلى 10 دقائق).',
         _ => reason.startsWith('HTTP ') ? 'خادم الصوت رفض التحميل ($reason).' : 'تعذر التحقق من ملف الصوت.',
       });
