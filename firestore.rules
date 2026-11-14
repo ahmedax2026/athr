@@ -99,6 +99,40 @@ service cloud.firestore {
           && request.resource.data.closed == true
           && request.resource.data.closedAt == request.time));
       allow delete: if false;
+      // Merge this match into the deployed /khatmas/{khatmaId} block.
+      match /reminders/{recipientId} {
+        function room() {
+          return get(/databases/$(database)/documents/khatmas/$(khatmaId)).data;
+        }
+        function host() {
+          return signedIn() && request.auth.uid == room().creatorId;
+        }
+        function recipient() {
+          return signedIn() && request.auth.uid == recipientId
+            && recipientId in room().memberIds;
+        }
+        function pending() {
+          let m = get(/databases/$(database)/documents/khatmas/$(khatmaId)/members/$(recipientId)).data;
+          return m.parts is list && m.completed is list
+            && !m.completed.hasAll(m.parts);
+        }
+        function validReminder() {
+          return host() && room().started == true
+            && room().get('closed', false) == false
+            && recipientId != request.auth.uid
+            && recipientId in room().memberIds && pending()
+            && request.resource.data.keys().hasOnly(['sentAt', 'senderId'])
+            && request.resource.data.senderId == request.auth.uid
+            && request.resource.data.sentAt == request.time;
+        }
+        allow get: if host() || recipient();
+        allow list: if false;
+        allow create: if validReminder();
+        allow update: if validReminder()
+          && resource.data.sentAt is timestamp
+          && request.time >= resource.data.sentAt + duration.value(12, 'h');
+        allow delete: if false;
+      }
       match /members/{memberId} {
         function pp() { return /databases/$(database)/documents/khatmas/$(khatmaId); }
         function parent() { return get(pp()).data; }
