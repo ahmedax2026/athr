@@ -12,6 +12,7 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <service android:name=".AdhanPlaybackService" android:exported="false" android:foregroundServiceType="mediaPlayback"/>
+        <receiver android:name=".PrayerCheckinReceiver" android:exported="false"/>
         <receiver android:name=".AdhanAlarmReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
