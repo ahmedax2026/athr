@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'admin_and_cases.dart';
 import 'quran.dart';
 import 'khatma.dart';
+import 'khatma_push.dart';
 import 'tasbeeh.dart';
 import 'azkar.dart';
 import 'settings_and_relief.dart';
@@ -28,6 +29,7 @@ Future<void> main() async {
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     try {
       await Firebase.initializeApp();
+      KhatmaPush.start();
     } catch (error) {
       debugPrint('Firebase initialization failed: $error');
     }
@@ -74,6 +76,7 @@ class _AthrAppState extends State<AthrApp> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
+    navigatorKey: KhatmaPush.navigator,
     title: 'أثر لا ينقطع',
     debugShowCheckedModeBanner: false,
     theme: _theme(Brightness.light),
@@ -338,7 +341,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) { _permission(); _refreshConfig(); });
+    WidgetsBinding.instance.addPostFrameCallback((_) { KhatmaPush.homeReady(); _permission(); _refreshConfig(); });
   }
   Future<void> _permission() async {
     try {
@@ -351,6 +354,7 @@ class _HomeScreenState extends State<HomeScreen> {
         await PrayerNotifications.requestNotificationPermission();
       }
       if ((await PrayerNotifications.status()).enabled) {
+        if (Firebase.apps.isNotEmpty) unawaited(KhatmaPush.registerCurrent());
         if (!mounted) return;
         _scheduleRefresh?.cancel();
         _scheduleRefresh = Timer(const Duration(milliseconds: 700), () async {
