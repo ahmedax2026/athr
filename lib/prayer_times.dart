@@ -528,6 +528,25 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     if (mounted) setState(() => customVoices = items);
   }
 
+  String _voiceLabel(String id) => voiceNames[id] ??
+      customVoices.where((v) => v['id'] == id).map((v) => v['name'].toString()).firstOrNull ?? 'صوت الأذان المختار';
+
+  Future<void> _openVoicePicker() async {
+    if (downloadingVoice || !mounted) return;
+    final chosen = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _cream,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (_) => _AdhanVoicePicker(selected: adhanVoice),
+    );
+    if (chosen == null || !mounted) return;
+    final id = chosen;
+    await _loadCustomVoices();
+    if (!mounted) return;
+    await _selectCatalogVoice(id);
+  }
+
   Future<void> _selectCatalogVoice(String id) async {
     if (!mounted || downloadingVoice) return;
     setState(() => downloadingVoice = true);
@@ -944,51 +963,39 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                                 fontSize: 14, fontWeight: FontWeight.w900)),
                             const SizedBox(height: 6),
                             Row(children: [
-                              Expanded(child: LayoutBuilder(builder: (context, limits) => SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(children: [
-                              for (final entry in <String, String>{...voiceNames, for (final voice in customVoices) voice['id'].toString(): voice['name'].toString()}.entries)
-                                SizedBox(width: limits.maxWidth / 2, child: Padding(
-                                  padding: const EdgeInsets.only(left: 6),
-                                  child: FilledButton(
-                                    onPressed: downloadingVoice ? null : () async {
-                                      final pending = _selectCatalogVoice(entry.key);
-                                      if (ctx.mounted) refresh(() {});
-                                      await pending;
-                                      if (ctx.mounted) refresh(() {});
-                                    },
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: adhanVoice == entry.key
-                                          ? _forest : const Color(0xFFEDE2C7),
-                                      foregroundColor: adhanVoice == entry.key
-                                          ? Colors.white : _forest,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12)),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 4, vertical: 9)),
-                                    child: FittedBox(fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        entry.key == 'adhan_makkah'
-                                            ? 'الحرم المكي' : entry.key == 'adhan_afasy' ? 'العفاسي' : entry.value,
-                                        style: const TextStyle(
-                                          fontSize: 13, fontWeight: FontWeight.w800))),
+                              Expanded(child: Material(
+                                color: _forest,
+                                borderRadius: BorderRadius.circular(12),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: downloadingVoice ? null : () async {
+                                    await _openVoicePicker();
+                                    if (ctx.mounted) refresh(() {});
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+                                    child: Row(children: [
+                                      const Icon(Icons.graphic_eq_rounded, color: _gold, size: 19),
+                                      const SizedBox(width: 8),
+                                      Expanded(child: Text(_voiceLabel(adhanVoice),
+                                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900))),
+                                      const Icon(Icons.keyboard_arrow_down_rounded, color: _gold),
+                                    ]),
                                   ),
-                                )),
-                                ])))),
+                                ),
+                              )),
                               IconButton(
                                 onPressed: downloadingVoice ? null : () async {
                                   await _previewVoice(adhanVoice);
-                                  refresh(() {});
+                                  if (ctx.mounted) refresh(() {});
                                 },
-                                tooltip: previewingVoice == adhanVoice
-                                    ? 'إيقاف المعاينة' : 'تشغيل المعاينة',
-                                icon: Icon(previewingVoice == adhanVoice
-                                    ? Icons.stop_circle_rounded
-                                    : Icons.play_circle_fill_rounded,
+                                tooltip: previewingVoice == adhanVoice ? 'إيقاف المعاينة' : 'تشغيل المعاينة',
+                                icon: Icon(previewingVoice == adhanVoice ? Icons.stop_circle_rounded : Icons.play_circle_fill_rounded,
                                   color: _forest, size: 28)),
                             ]),
-                            Text(downloadingVoice ? 'جارٍ تنزيل الصوت...' : 'مرّر الأصوات أفقيًا • تعمل دون إنترنت بعد التحميل',
-                              maxLines: 1, style: const TextStyle(
+                            Text(downloadingVoice ? 'جارٍ تنزيل الصوت...' : 'اضغط السهم لاختيار المؤذن • يعمل دون إنترنت بعد التحميل',
+                              maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(
                                 fontSize: 10, color: Color(0xFF74664D))),
                           ]),
                       ),
@@ -1365,5 +1372,121 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
             );
           })),
     );
+  }
+}
+
+class _AdhanVoicePicker extends StatefulWidget {
+  const _AdhanVoicePicker({required this.selected});
+  final String selected;
+  @override
+  State<_AdhanVoicePicker> createState() => _AdhanVoicePickerState();
+}
+
+class _AdhanVoicePickerState extends State<_AdhanVoicePicker> {
+  final _player = AudioPlayer();
+  StreamSubscription<void>? _finished;
+  List<Map<String, dynamic>> _voices = [];
+  bool _loading = true;
+  bool _startingPreview = false;
+  String _query = '';
+  String? _playing;
+  @override
+  void initState() {
+    super.initState();
+    _finished = _player.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _playing = null);
+    });
+    _load();
+  }
+  Future<void> _load() async {
+    final voices = await AdhanCatalog.load();
+    if (mounted) setState(() { _voices = voices; _loading = false; });
+  }
+  Future<void> _preview(String id, String? url) async {
+    if (_startingPreview) return;
+    setState(() => _startingPreview = true);
+    try {
+      final wasPlaying = _playing == id;
+      await _player.stop();
+      if (!mounted) return;
+      setState(() => _playing = null);
+      if (wasPlaying) return;
+      if (url == null) {
+        await _player.play(AssetSource('adhan/$id.mp3'));
+      } else {
+        try {
+          await _player.play(UrlSource(url)).timeout(const Duration(seconds: 20));
+        } catch (_) {
+          await _player.stop();
+          final path = await AdhanCatalog.download(id, url);
+          if (!mounted) return;
+          await _player.play(DeviceFileSource(path));
+        }
+      }
+      if (mounted) setState(() => _playing = id);
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذرت المعاينة. تحقق من الاتصال والرابط.')));
+    } finally {
+      if (mounted) setState(() => _startingPreview = false);
+    }
+  }
+  @override
+  void dispose() {
+    _finished?.cancel();
+    _player.dispose();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) {
+    final entries = <Map<String, String>>[
+      for (final item in AdhanCatalog.builtIn.entries) {'id': item.key, 'name': item.value},
+      for (final item in _voices) {'id': item['id'].toString(), 'name': item['name'].toString(), 'url': item['url'].toString()},
+    ].where((item) => item['name']!.contains(_query.trim())).toList();
+    return Directionality(textDirection: TextDirection.rtl, child: SafeArea(
+      child: Padding(padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        child: FractionallySizedBox(heightFactor: .78, child: Column(children: [
+          const SizedBox(height: 12),
+          Container(width: 42, height: 4, decoration: BoxDecoration(color: _gold, borderRadius: BorderRadius.circular(8))),
+          const Padding(padding: EdgeInsets.all(16), child: Row(children: [
+            Icon(Icons.graphic_eq_rounded, color: _forest, size: 28),
+            SizedBox(width: 10),
+            Expanded(child: Text('اختر صوت المؤذن', style: TextStyle(color: _forest, fontWeight: FontWeight.w900, fontSize: 22))),
+          ])),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: TextField(
+            style: const TextStyle(color: _forest, fontWeight: FontWeight.w700),
+            onChanged: (value) => setState(() => _query = value),
+            decoration: InputDecoration(hintText: 'ابحث باسم المؤذن', hintStyle: const TextStyle(color: _forest),
+              prefixIcon: const Icon(Icons.search_rounded, color: _forest), filled: true, fillColor: const Color(0xFFFFFCF3),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: _gold))),
+          )),
+          const SizedBox(height: 10),
+          if (_loading) const LinearProgressIndicator(color: _forest, backgroundColor: _gold),
+          Expanded(child: ListView.separated(padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
+            itemCount: entries.length, separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final item = entries[index], id = item['id']!;
+              final active = widget.selected == id, playing = _playing == id;
+              return Material(
+                color: active ? _forest : const Color(0xFFFFFCF3),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: const BorderSide(color: _gold)),
+                child: ListTile(
+                  onTap: _startingPreview ? null : () => Navigator.pop(context, id),
+                  leading: Icon(active ? Icons.check_circle_rounded : Icons.music_note_rounded, color: active ? _gold : _forest),
+                  title: Text(item['name']!, style: TextStyle(color: active ? Colors.white : _forest, fontWeight: FontWeight.w900)),
+                  subtitle: Text(active ? 'الصوت الحالي' : item['url'] == null ? 'محفوظ في التطبيق' : 'تحميل عند الاختيار',
+                    style: TextStyle(color: active ? _gold : const Color(0xFF74664D), fontSize: 11)),
+                  trailing: IconButton(
+                    onPressed: _startingPreview ? null : () => _preview(id, item['url']),
+                    tooltip: playing ? 'إيقاف المعاينة' : 'معاينة',
+                    icon: Icon(playing ? Icons.stop_circle_rounded : Icons.play_circle_fill_rounded,
+                      color: active ? _gold : _forest, size: 30)),
+                ),
+              );
+            },
+          )),
+        ])),
+      ),
+    ));
   }
 }
