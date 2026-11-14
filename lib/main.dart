@@ -9,6 +9,7 @@ import 'khatma.dart';
 import 'tasbeeh.dart';
 import 'azkar.dart';
 import 'settings_and_relief.dart';
+import 'notification_access.dart';
 
 const emerald = Color(0xFF073E35);
 const deep = Color(0xFF052B27);
@@ -365,7 +366,9 @@ class HomeScreen extends StatelessWidget {
                     ]),
                   ]),
                 ),
-                const SizedBox(height: 7),
+                const SizedBox(height: 12),
+                const NotificationAccessCard(promptOnFirstHome: true),
+                const SizedBox(height: 12),
                 Text('أبواب الخير', style: TextStyle(color: fg, fontSize: 22, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 5),
                 LiveContentText(document: 'home', field: 'tagline', fallback: 'نورٌ يبقى، ودعاءٌ يصل.', style: TextStyle(color: secondary, fontSize: 14)),
