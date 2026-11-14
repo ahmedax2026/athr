@@ -97,78 +97,105 @@ class AzkarScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: _paper,
     appBar: AppBar(
-      title: const Text('الأذكار', style: TextStyle(fontWeight: FontWeight.bold)),
+      title: const Text('روضة الأذكار',
+        style: TextStyle(fontWeight: FontWeight.w900)),
+      centerTitle: true,
       backgroundColor: _green,
-      foregroundColor: Colors.white),
-    body: ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft,
-              colors: [Color(0xFF0D5A4A), Color(0xFF032B25)]),
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: _gold, width: 1.5),
-            boxShadow: [BoxShadow(color: _green.withValues(alpha: .25), blurRadius: 22, offset: const Offset(0, 9))]),
-          child: const Column(children: [
-            Icon(Icons.auto_awesome_rounded, color: _gold, size: 33),
-            SizedBox(height: 10),
-            Text('ألا بذكر الله تطمئن القلوب',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 23,
-                fontWeight: FontWeight.w700)),
-            SizedBox(height: 5),
-            Text('أذكار يومك في مكان واحد',
-              style: TextStyle(color: _gold, fontSize: 14)),
-          ]),
-        ),
-        const SizedBox(height: 14),
-        for (final entry in _groups.entries)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 13),
-            child: Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              elevation: 3,
-              shadowColor: _green.withValues(alpha: .15),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(18),
-                onTap: () => Navigator.push(context,
-                  MaterialPageRoute<void>(builder: (_) =>
-                    AzkarReader(title: entry.key, items: entry.value))),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: _gold.withValues(alpha: .65)),
-                    borderRadius: BorderRadius.circular(24)),
-                  child: Row(children: [
-                    Container(
-                      width: 52, height: 52,
-                      decoration: const BoxDecoration(
-                        color: _green, shape: BoxShape.circle),
-                      child: Icon(_icon(entry.key), color: _gold, size: 27)),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(entry.key, style: const TextStyle(
-                          color: _green, fontSize: 19,
-                          fontWeight: FontWeight.w900)),
-                        const SizedBox(height: 2),
-                        Text('${entry.value.length} أذكار',
-                          style: const TextStyle(color: Color(0xFF837C6D),
-                            fontSize: 13)),
-                      ])),
-                    const Icon(Icons.chevron_left, color: _green),
-                  ]),
-                ),
-              ),
-            ),
-          ),
-      ],
+      foregroundColor: Colors.white,
     ),
+    body: SafeArea(child: LayoutBuilder(builder: (context, bounds) {
+      final compact = bounds.maxHeight < 520;
+      return Padding(
+        padding: EdgeInsets.fromLTRB(12, compact ? 7 : 14, 12, 10),
+        child: Column(children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(vertical: compact ? 9 : 16, horizontal: 12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF146651), Color(0xFF073E35), Color(0xFF022E29)],
+                begin: Alignment.topRight, end: Alignment.bottomLeft),
+              border: Border.all(color: _gold, width: 1.5),
+              borderRadius: BorderRadius.circular(21),
+              boxShadow: [BoxShadow(
+                color: _green.withValues(alpha: .16), blurRadius: 15,
+                offset: const Offset(0, 6))]),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.auto_awesome_rounded, size: compact ? 20 : 28,
+                color: _gold),
+              const SizedBox(height: 4),
+              Text('ألا بذكر الله تطمئن القلوب',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white,
+                  fontSize: compact ? 17 : 21,
+                  fontWeight: FontWeight.w900)),
+              const Text('اختر وردك اليومي',
+                style: TextStyle(color: _gold, fontSize: 12)),
+            ]),
+          ),
+          const SizedBox(height: 10),
+          Expanded(child: GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.15),
+            itemCount: _groups.length,
+            itemBuilder: (context, i) {
+              final entry = _groups.entries.elementAt(i);
+              return Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(22),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(22),
+                  onTap: () => Navigator.push(context,
+                    MaterialPageRoute<void>(builder: (_) =>
+                      AzkarReader(title: entry.key, items: entry.value))),
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: i.isEven
+                            ? [const Color(0xFF105B49), const Color(0xFF04362F)]
+                            : [const Color(0xFF0B493E), const Color(0xFF022F2A)],
+                        begin: Alignment.topRight,
+                        end: Alignment.bottomLeft),
+                      border: Border.all(color: _gold, width: 1.25),
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [BoxShadow(
+                        color: _green.withValues(alpha: .18),
+                        blurRadius: 12, offset: const Offset(0, 5))]),
+                    child: LayoutBuilder(builder: (context, tile) {
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(_icon(entry.key),
+                            size: (tile.maxHeight * .26).clamp(22.0, 36.0),
+                            color: _gold),
+                          SizedBox(height: compact ? 4 : 7),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(entry.key,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.white,
+                                  fontWeight: FontWeight.w900, fontSize: 17)),
+                            )),
+                          SizedBox(height: compact ? 2 : 5),
+                          Text('${entry.value.length} أذكار',
+                            style: const TextStyle(color: _gold, fontSize: 11)),
+                        ],
+                      );
+                    }),
+                  ),
+                ),
+              );
+            },
+          )),
+        ]),
+      );
+    })),
   );
 }
 
