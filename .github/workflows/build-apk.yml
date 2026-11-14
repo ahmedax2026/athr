@@ -7,6 +7,7 @@ on:
       - main
       - feature/qcf-lite-from-stable
       - feature/qcf-quran-005
+      - feature/super-admin-from-verified-43547502262
 
 permissions:
   contents: read
