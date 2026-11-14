@@ -44,6 +44,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   bool busy = true;
   String? error;
   DateTime now = DateTime.now();
+  String? _displayedPrayerDay;
+  bool _refreshingPrayerDay = false;
   Timer? timer;
   tz.Location? zone;
   Map<String, DateTime> today = {};
@@ -72,6 +74,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => now = DateTime.now());
+      if (_displayedPrayerDay != null && _displayedPrayerDay != _dayStamp) {
+        _refreshPrayerDay();
+      }
       if (nextTime != null && !now.isBefore(nextTime!)) _compute();
     });
     _load();
@@ -90,6 +95,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
     _checkNotificationStatus();
+    if (_displayedPrayerDay != _dayStamp) _refreshPrayerDay();
     if (latitude != null && zone != null) {
       _compute();
       _schedule();
@@ -303,12 +309,29 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
         '${day.day.toString().padLeft(2, '0')}';
   }
 
+  Future<void> _refreshPrayerDay() async {
+    if (_refreshingPrayerDay || !mounted) return;
+    _refreshingPrayerDay = true;
+    try {
+      await _loadCompletedPrayers();
+      if (mounted && latitude != null && zone != null) _compute();
+    } finally {
+      _refreshingPrayerDay = false;
+    }
+  }
+
   Future<void> _loadCompletedPrayers() async {
     final prefs = await SharedPreferences.getInstance();
+    final day = _dayStamp;
+    final loaded = <String, bool>{};
     for (final name in names.where((v) => v != 'الشروق')) {
-      prayedToday[name] = prefs.getBool('prayer_done_${_dayStamp}_$name') ?? false;
+      loaded[name] = prefs.getBool('prayer_done_${day}_$name') ?? false;
     }
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {
+      prayedToday..clear()..addAll(loaded);
+      _displayedPrayerDay = day;
+    });
   }
 
   Future<void> _markPrayer(String name) async {
