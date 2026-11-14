@@ -1,0 +1,51 @@
+name: Generate Google Play icon from original father photo
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/generate-play-icon.yml'
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate exact-photo icon
+        run: |
+          python -m pip install --quiet pillow
+          python - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont, ImageOps
+          import os
+          S=512
+          im=Image.new('RGB',(S,S),(4,48,40))
+          d=ImageDraw.Draw(im)
+          for y in range(S):
+              t=y/S
+              d.line((0,y,S,y),fill=(int(4+8*t),int(58-21*t),int(48-12*t)))
+          gold=(221,181,102)
+          d.rounded_rectangle((12,12,500,500),radius=66,outline=gold,width=7)
+          d.rounded_rectangle((24,24,488,488),radius=58,outline=(100,83,49),width=2)
+          photo=Image.open('assets/images/father.jpg').convert('RGB')
+          # Preserve the entire original photograph; do not retouch the face.
+          photo.thumbnail((400,348),Image.Resampling.LANCZOS)
+          x=(S-photo.width)//2
+          y=32+(348-photo.height)//2
+          im.paste(photo,(x,y))
+          d=ImageDraw.Draw(im)
+          d.rounded_rectangle((34,384,478,476),radius=22,fill=(3,55,45),outline=gold,width=4)
+          fonts=['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf','/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf']
+          font=ImageFont.truetype(next(f for f in fonts if os.path.exists(f)),43)
+          title='أثر لا ينتهي'
+          box=d.textbbox((0,0),title,font=font,direction='rtl')
+          tw=box[2]-box[0]
+          d.text(((S-tw)//2,398),title,font=font,fill=(255,221,145),direction='rtl',stroke_width=0)
+          os.makedirs('assets/store',exist_ok=True)
+          im.save('assets/store/play_icon_512.png',optimize=True)
+          PY
+      - name: Commit generated icon
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/store/play_icon_512.png
+          git diff --cached --quiet || (git commit -m "Add Google Play icon with original father photo" && git push)
