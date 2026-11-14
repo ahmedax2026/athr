@@ -148,16 +148,25 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
                         key: ValueKey(_selected),
                         initialValue: _selected,
                         isExpanded: true,
+                        dropdownColor: const Color(0xFFFFFCF3),
+                        iconEnabledColor: _green,
+                        style: const TextStyle(color: _green, fontSize: 15, fontWeight: FontWeight.w900),
                         decoration: const InputDecoration(
                           labelText: 'اختر الذكر',
+                          labelStyle: TextStyle(color: _green, fontWeight: FontWeight.w900, fontSize: 15),
+                          floatingLabelStyle: TextStyle(color: _green, fontWeight: FontWeight.w900),
+                          filled: true,
+                          fillColor: Color(0xFFFFFCF3),
+                          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _gold, width: 1.6), borderRadius: BorderRadius.all(Radius.circular(13))),
+                          focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: _green, width: 2), borderRadius: BorderRadius.all(Radius.circular(13))),
                           isDense: true,
-                          border: OutlineInputBorder(),
                           contentPadding: EdgeInsets.symmetric(
                             horizontal: 10, vertical: 10)),
                         items: [..._defaults, ..._custom].map((v) => DropdownMenuItem(
                           value: v,
                           child: Text(v == _ibrahim ? 'الصلاة الإبراهيمية كاملة' : _plain(v),
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: _green, fontWeight: FontWeight.w800)),
                         )).toList(),
                         onChanged: (value) {
                           if (value == null) return;
@@ -173,7 +182,7 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
                       IconButton(
                         onPressed: _addCustom,
                         tooltip: 'إضافة ذكر',
-                        icon: const Icon(Icons.add_circle_outline, color: _green)),
+                        icon: const Icon(Icons.add_circle, color: _green, size: 32)),
                       if (_custom.contains(_selected))
                         IconButton(
                           onPressed: _deleteCustom,
@@ -246,9 +255,9 @@ class _TasbeehScreenState extends State<TasbeehScreen> {
                                           textDirection: TextDirection.rtl,
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
-                                            color: const Color(0xFFFFE6AB),
+                                            color: const Color(0xFFFFEDBA),
                                             fontSize: isLong ? 20 : 27,
-                                            fontWeight: FontWeight.w700,
+                                            fontWeight: FontWeight.w900,
                                             height: 1.3)),
                                       ),
                                     )),
