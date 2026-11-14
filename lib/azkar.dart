@@ -134,13 +134,14 @@ class AzkarScreen extends StatelessWidget {
             ]),
           ),
           const SizedBox(height: 10),
-          Expanded(child: GridView.builder(
+          Expanded(child: LayoutBuilder(builder: (context, grid) =>
+            GridView.builder(
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
-              childAspectRatio: 1.15),
+              mainAxisExtent: (grid.maxHeight - 20) / 3),
             itemCount: _groups.length,
             itemBuilder: (context, i) {
               final entry = _groups.entries.elementAt(i);
@@ -192,7 +193,7 @@ class AzkarScreen extends StatelessWidget {
                 ),
               );
             },
-          )),
+          ))),
         ]),
       );
     })),
