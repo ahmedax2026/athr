@@ -18,6 +18,14 @@ class MainActivity : FlutterActivity() {
                     } catch (e: Exception) {
                         result.error("ADHAN_ALARM", e.message, null)
                     }
+                } else if (call.method == "setCheckinsEnabled") {
+                    val enabled = call.argument<Boolean>("enabled")
+                    if (enabled == null) {
+                        result.error("ARGUMENT", "Missing enabled flag", null)
+                    } else {
+                        AdhanScheduler.setCheckinEnabled(this, enabled)
+                        result.success(true)
+                    }
                 } else result.notImplemented()
             }
     }
