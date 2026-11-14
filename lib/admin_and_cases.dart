@@ -12,6 +12,24 @@ import 'dynamic_sections.dart';
 
 const adminUid = '7g22L1RQBEcN7JtAYqv92J0qiAs2';
 
+/// Reuse the existing Firebase session whenever the administrator returns.
+class AdminSessionScreen extends StatelessWidget {
+  const AdminSessionScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<User?>(
+    stream: FirebaseAuth.instance.authStateChanges(),
+    initialData: FirebaseAuth.instance.currentUser,
+    builder: (context, snapshot) {
+      if (snapshot.data?.uid == adminUid) return const AdminDashboardScreen();
+      if (snapshot.connectionState == ConnectionState.waiting && snapshot.data == null) {
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      }
+      return const AdminLoginScreen();
+    },
+  );
+}
+
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
   @override
@@ -43,9 +61,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         throw Exception('هذا الحساب لا يملك صلاحية الإدارة');
       }
       if (!mounted) return;
-      await Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(builder: (_) => const AdminDashboardScreen()),
-      );
+      // AdminSessionScreen observes FirebaseAuth and opens the dashboard.
+      // Do not replace the route: navigating back must preserve the session.
     } catch (e) {
       if (mounted) setState(() => error = 'تعذّر تسجيل الدخول. راجع بيانات الحساب وصلاحياته.');
     } finally {
@@ -83,6 +100,7 @@ class AdminDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => StreamBuilder<User?>(
     stream: FirebaseAuth.instance.authStateChanges(),
+    initialData: FirebaseAuth.instance.currentUser,
     builder: (context, snapshot) {
       if (snapshot.data?.uid != adminUid) {
         return const Scaffold(body: Center(child: Text('غير مصرح بالدخول إلى لوحة الإدارة')));
@@ -91,8 +109,18 @@ class AdminDashboardScreen extends StatelessWidget {
         appBar: AppBar(title: const Text('Super Admin'), actions: [
           IconButton(tooltip: 'تسجيل الخروج', icon: const Icon(Icons.logout),
             onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) Navigator.of(context).pop();
+              final confirm = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+                title: const Text('تسجيل الخروج من الإدارة؟'),
+                content: const Text('يمكنك الرجوع للرئيسية دون تسجيل الخروج إذا أردت متابعة إدارة التطبيق لاحقًا.'),
+                actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                  FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تسجيل الخروج'))],
+              ));
+              if (confirm != true || !context.mounted) return;
+              try {
+                await FirebaseAuth.instance.signOut();
+              } catch (_) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر تسجيل الخروج. حاول مرة أخرى.')));
+              }
             }),
         ]),
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(

@@ -421,7 +421,11 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             tooltip: 'دخول الإدارة',
             onPressed: () async {
-              await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AdminLoginScreen()));
+              if (Firebase.apps.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('خدمات الإدارة لم تتهيأ بعد. حاول مرة أخرى.')));
+                return;
+              }
+              await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AdminSessionScreen()));
               await _refreshConfig();
             },
             icon: const Icon(Icons.admin_panel_settings_outlined),
