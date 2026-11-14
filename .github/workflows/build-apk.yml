@@ -42,9 +42,6 @@ jobs:
           python3 -m pip install --quiet Pillow
           python3 tool/bundle_azkar_cards.py
 
-      - name: Bundle attributed adhan audio samples
-        run: python3 tool/bundle_adhan_audio.py
-
       - name: Install complete adhan recordings for native background playback
         run: python3 tool/install_adhan_android.py
 
