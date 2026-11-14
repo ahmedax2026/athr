@@ -10,7 +10,6 @@ class AppSettingsScreen extends StatefulWidget {
 }
 
 class _AppSettingsScreenState extends State<AppSettingsScreen> {
-  final _prefs = SharedPreferencesAsync();
   final Map<String, bool> _values = {};
   bool _ready = false;
   static const _items = [
@@ -28,15 +27,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   }
 
   Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
     for (final item in _items) {
-      _values[item.$1] = await _prefs.getBool(item.$1) ?? (item.$1 == 'prayer_checkin_enabled');
+      _values[item.$1] = prefs.getBool(item.$1) ?? (item.$1 == 'prayer_checkin_enabled');
     }
     if (mounted) setState(() => _ready = true);
   }
 
   Future<void> _change(String key, bool value) async {
     setState(() => _values[key] = value);
-    await _prefs.setBool(key, value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
     if (key == 'prayer_checkin_enabled') {
       try {
         await PrayerNotifications.setCheckinsEnabled(value);
