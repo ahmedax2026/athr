@@ -53,7 +53,13 @@ for group_index, group in enumerate(data):
         filename = f"dhikr_{len(seen):02d}.webp"
         seen[content] = filename
         paths.append(filename)
-        title = item["source"] if item["source"].startswith("سورة") else "ذِكْرٌ وَدُعَاءٌ"
+        is_short_surah = item["source"] in {"سورة الإخلاص", "سورة الفلق", "سورة الناس"}
+        is_verse = item["source"] == "سورة البقرة: 255"
+        title = ("آية الكرسي" if is_verse
+                 else item["source"] if item["source"].startswith("سورة")
+                 else "ذِكْرٌ وَدُعَاءٌ")
+        if is_verse:
+            content = content.split(": ", 1)[1]
         width = 1200
         scratch = Image.new("RGB", (width, 20), "#F1E3C6")
         draw = ImageDraw.Draw(scratch)
@@ -70,14 +76,19 @@ for group_index, group in enumerate(data):
             body_font = font(40)
             lines = lines_of(content, draw, body_font, width - 120)
         line_height = int(body_font.size * 1.8)
-        height = max(520, 260 + line_height * len(lines) + 125)
+        extra = 130 if is_short_surah else 0
+        height = max(520, 260 + extra + line_height * len(lines) + 125)
         card = Image.new("RGB", (width, height), "#F1E3C6")
         d = ImageDraw.Draw(card)
         ink = "#241F18"
         d.line((18, 17, width-18, 17), fill="#AF9980", width=2)
         d.text((width//2, 54), title, fill=ink, font=font(54), anchor="mt", direction="rtl")
         d.line((18, 148, width-18, 148), fill="#AF9980", width=2)
-        top = 205 + max(0, (height - 340 - line_height * len(lines))//2)
+        if is_short_surah:
+            d.text((width//2, 183), "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+                   fill=ink, font=font(56), anchor="mt", direction="rtl")
+        top = 205 + extra + max(
+            0, (height - 340 - extra - line_height * len(lines))//2)
         for line in lines:
             d.text((width//2, top), line, fill=ink, font=body_font, anchor="mt", direction="rtl")
             top += line_height
