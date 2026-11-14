@@ -2,6 +2,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'prayer_admin_policy.dart';
+import 'adhan_catalog.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 /// Prayer notification diagnostics. Sound of the full adhan is deliberately
@@ -226,7 +227,8 @@ class PrayerNotifications {
     final policy = await PrayerAdminPolicy.load();
     final useAdhan = (preferences.getBool('adhan') ?? false) && policy.allows('allowAdhan');
     final normalVoice = preferences.getString('adhan_voice') ?? 'adhan_makkah';
-    const choices = {'adhan_makkah', 'adhan_afasy'};
+    final normalAvailable = await AdhanCatalog.availableVoice(normalVoice);
+    final fajrAvailable = await AdhanCatalog.availableVoice(preferences.getString('adhan_fajr_voice') ?? normalVoice);
     NotificationDetails detailsFor(String name) {
       // Full recordings are played by a native foreground playback service;
       // keep this notification silent to avoid duplicate competing audio.
@@ -270,12 +272,10 @@ class PrayerNotifications {
         if (prayerTime == null) continue;
         if (prayerTime.isAfter(now)) {
           if (useAdhan) {
-            final chosen = name == 'الفجر'
-                ? (preferences.getString('adhan_fajr_voice') ?? normalVoice)
-                : normalVoice;
+            final chosen = name == 'الفجر' ? fajrAvailable : normalAvailable;
             fullAdhanAlarms.add({
               'at': prayerTime.millisecondsSinceEpoch,
-              'voice': choices.contains(chosen) ? chosen : 'adhan_makkah',
+              'voice': chosen,
             });
           }
           await _plugin.zonedSchedule(
