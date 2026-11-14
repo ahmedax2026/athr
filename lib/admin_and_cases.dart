@@ -511,7 +511,7 @@ class _ReliefDuaScreen extends StatelessWidget {
           const Text('اسحب لقراءة الدعاء التالي',
             style: TextStyle(color: Color(0xFF526A61), fontSize: 12)),
         ]),
-      ))),
+      )),
     ),
   );
 }
