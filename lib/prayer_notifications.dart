@@ -10,8 +10,9 @@ class PrayerNotificationStatus {
     required this.enabled,
     required this.exact,
     required this.pending,
+    this.unrestrictedBattery = false,
   });
-  final bool enabled, exact;
+  final bool enabled, exact, unrestrictedBattery;
   final int pending;
 }
 
@@ -50,6 +51,7 @@ class PrayerNotifications {
     final pending = await _plugin.pendingNotificationRequests();
     return PrayerNotificationStatus(
       enabled: enabled, exact: exact,
+      unrestrictedBattery: await _adhanAlarmChannel.invokeMethod<bool>('batteryStatus') ?? false,
       pending: pending.where((entry) => entry.id >= 1000 && entry.id < 3000).length,
     );
   }
@@ -65,6 +67,10 @@ class PrayerNotifications {
     if (await _android?.canScheduleExactNotifications() ?? false) return true;
     await _android?.requestExactAlarmsPermission();
     return await _android?.canScheduleExactNotifications() ?? false;
+  }
+
+  static Future<void> openBatterySettings() async {
+    await _adhanAlarmChannel.invokeMethod<void>('batterySettings');
   }
 
   static Future<void> openNotificationSettings() async {
@@ -126,6 +132,7 @@ class PrayerNotifications {
   }) async {
     await _ensureInitialized();
     if (!(await _android?.areNotificationsEnabled() ?? false)) {
+      await _adhanAlarmChannel.invokeMethod<void>('schedule', <Map<String, Object>>[]);
       throw StateError('إشعارات التطبيق مقفولة. افتح إعدادات الإشعارات واسمح بها.');
     }
     // Don't erase unrelated notifications from other parts of the app.
