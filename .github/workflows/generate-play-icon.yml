@@ -27,19 +27,11 @@ jobs:
           d.rounded_rectangle((12,12,500,500),radius=66,outline=gold,width=7)
           d.rounded_rectangle((24,24,488,488),radius=58,outline=(100,83,49),width=2)
           photo=Image.open('assets/images/father.jpg').convert('RGB')
-          # Preserve the entire original photograph; do not retouch the face.
-          photo.thumbnail((400,348),Image.Resampling.LANCZOS)
-          x=(S-photo.width)//2
-          y=32+(348-photo.height)//2
-          im.paste(photo,(x,y))
-          d=ImageDraw.Draw(im)
-          d.rounded_rectangle((34,384,478,476),radius=22,fill=(3,55,45),outline=gold,width=4)
-          fonts=['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf','/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf']
-          font=ImageFont.truetype(next(f for f in fonts if os.path.exists(f)),43)
-          title='أثر لا ينقطع'
-          box=d.textbbox((0,0),title,font=font,direction='rtl')
-          tw=box[2]-box[0]
-          d.text(((S-tw)//2,398),title,font=font,fill=(255,221,145),direction='rtl',stroke_width=0)
+          # Original photograph, no text, no alterations to facial features.
+          photo=ImageOps.contain(photo,(512,512),method=Image.Resampling.LANCZOS)
+          bg=Image.new('RGB',(512,512),(4,48,40))
+          bg.paste(photo,((512-photo.width)//2,(512-photo.height)//2))
+          im=bg
           os.makedirs('assets/store',exist_ok=True)
           im.save('assets/store/play_icon_512.png',optimize=True)
           PY
