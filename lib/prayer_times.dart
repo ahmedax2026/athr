@@ -87,6 +87,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   };
   PrayerNotificationStatus? notificationStatus;
   bool checkingNotifications = false;
+  bool _gpsRunning = false;
+  bool _locationSettingsPending = false;
+  VoidCallback? _refreshDiagnostics;
   bool busy = true;
   String? error;
   DateTime now = DateTime.now();
@@ -143,7 +146,11 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
-    _checkNotificationStatus();
+    unawaited(_checkNotificationStatus());
+    if (_locationSettingsPending) {
+      _locationSettingsPending = false;
+      unawaited(_useGps(automatic: true, allowSettings: false));
+    }
     if (_displayedPrayerDay != _dayStamp) _refreshPrayerDay();
     if (latitude != null && zone != null) {
       _compute();
@@ -261,8 +268,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     if (mounted) setState(() => busy = false);
   }
 
-  Future<void> _useGps({bool automatic = false}) async {
-    if (!mounted) return;
+  Future<void> _useGps({bool automatic = false, bool allowSettings = true}) async {
+    if (!mounted || _gpsRunning) return;
+    _gpsRunning = true;
     final hasCachedLocation = latitude != null && longitude != null;
     // Automatic refresh is always silent, including on first use.
     // Manual location changes may show their own loading indication.
@@ -270,25 +278,29 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       setState(() { busy = true; error = null; });
     }
     try {
-      // If there is no saved coordinate, use Android's last known fix
-      // immediately, even when the phone has no internet connection.
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied && allowSettings) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (!mounted) return;
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        if (permission == LocationPermission.deniedForever && !automatic && allowSettings) {
+          _locationSettingsPending = true;
+          await Geolocator.openAppSettings();
+        }
+        throw StateError('لم يُسمح بالوصول للموقع');
+      }
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        if (allowSettings) {
+          _locationSettingsPending = true;
+          await Geolocator.openLocationSettings();
+        }
+        return;
+      }
       if (automatic && !hasCachedLocation) {
         final last = await Geolocator.getLastKnownPosition();
         if (!mounted) return;
-        if (last != null) {
-          await _storePosition(last.latitude, last.longitude, 'آخر موقع معروف');
-        }
-      }
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        throw StateError('فعّل خدمة الموقع في الهاتف أولًا');
-      }
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        throw StateError('اسمح للتطبيق بالوصول للموقع، أو اختر مدينة يدويًا');
+        if (last != null) await _storePosition(last.latitude, last.longitude, 'آخر موقع معروف');
       }
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
@@ -323,9 +335,12 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
         if (!automatic) {
           error = e.toString();
         } else if (latitude == null || longitude == null) {
-          error = 'حدد موقعك مرة واحدة لعرض المواقيت دون إنترنت بعد ذلك.';
+          error = 'يمكنك السماح بالموقع لحساب المواقيت تلقائيًا أو اختيار مدينة.';
         }
       });
+    } finally {
+      _gpsRunning = false;
+      if (mounted && busy) setState(() => busy = false);
     }
   }
 
@@ -471,7 +486,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     setState(() => checkingNotifications = true);
     try {
       final status = await PrayerNotifications.status();
-      if (mounted) setState(() => notificationStatus = status);
+      if (mounted) {
+        setState(() => notificationStatus = status);
+        _refreshDiagnostics?.call();
+      }
     } catch (e) {
       if (mounted) setState(() => error = 'تعذر فحص الإشعارات: $e');
     } finally {
@@ -667,6 +685,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, repaint) {
+          _refreshDiagnostics = () { if (dialogContext.mounted) { repaint(() {}); refresh(() {}); } };
           Future<void> update() async {
             try {
               final latest = await PrayerNotifications.status();
@@ -798,7 +817,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
           );
         },
       ),
-    );
+    ).whenComplete(() => _refreshDiagnostics = null);
     unawaited(_checkNotificationStatus());
   }
 

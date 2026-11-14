@@ -68,7 +68,7 @@ object AdhanScheduler {
         val request = PendingIntent.getBroadcast(context, BASE + id, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         if (Build.VERSION.SDK_INT >= 31 && !alarm.canScheduleExactAlarms()) {
-            alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, request)
+            if (voice == "reminder" || voice == "qiyam") alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, request)
         } else if (voice != "reminder" && voice != "qiyam") {
             val show = PendingIntent.getActivity(context, 45999, Intent(context, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             alarm.setAlarmClock(AlarmManager.AlarmClockInfo(at, show), request)

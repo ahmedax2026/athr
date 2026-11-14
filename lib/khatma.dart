@@ -408,10 +408,34 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
       if(!mounted)return;
       final title=(await ref.get()).data()?['title']?.toString()??'صاحب الختمة';
       if(!mounted)return;
-      await showDialog<void>(context:context,builder:(ctx)=>AlertDialog(
-        title:const Text('تقبل الله تلاوتك'),
-        content:Text('اللهم إني وهبت أجر وثواب هذه التلاوة إلى $title، اللهم تقبل مني.'),
-        actions:[FilledButton(onPressed:()=>Navigator.pop(ctx),child:const Text('اللهم آمين'))]));
+      await showDialog<void>(context:context,builder:(ctx)=>Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 430),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(begin: Alignment.topRight,end: Alignment.bottomLeft,colors:[Color(0xFF176451),Color(0xFF06372F)]),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color:const Color(0xFFD6B56C),width:1.7),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: SingleChildScrollView(child: Column(mainAxisSize:MainAxisSize.min,children:[
+            const Icon(Icons.volunteer_activism_rounded,color:Color(0xFFFFD77A),size:48),
+            const SizedBox(height:12),
+            const Text('تقبّل الله تلاوتك',textAlign:TextAlign.center,style:TextStyle(color:Color(0xFFFFD77A),fontSize:26,fontWeight:FontWeight.w900)),
+            const SizedBox(height:8),
+            const Text('تم تسجيل إتمام الجزء',textAlign:TextAlign.center,style:TextStyle(color:Color(0xFFE6D8B6),fontSize:14,fontWeight:FontWeight.w700)),
+            const SizedBox(height:18),
+            const Divider(color:Color(0xFFD6B56C)),
+            const Text('اللهم إني وهبت أجر وثواب هذه التلاوة إلى',textAlign:TextAlign.center,style:TextStyle(color:Color(0xFFFFF5DA),fontSize:22,fontWeight:FontWeight.w900,height:1.7)),
+            const SizedBox(height:12),
+            Text(title,textAlign:TextAlign.center,style:const TextStyle(color:Color(0xFFFFD77A),fontSize:24,fontWeight:FontWeight.w900,height:1.4)),
+            const SizedBox(height:12),
+            const Text('اللهم تقبّل مني',textAlign:TextAlign.center,style:TextStyle(color:Color(0xFFFFF5DA),fontSize:20,fontWeight:FontWeight.w900)),
+            const SizedBox(height:22),
+            SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:const Color(0xFFFFD77A),foregroundColor:const Color(0xFF06372F),padding:const EdgeInsets.symmetric(vertical:14)),onPressed:()=>Navigator.pop(ctx),child:const Text('اللهم آمين',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900)))),
+          ])),
+        ),
+      ));
     }
   }
   Future<bool> complete(int part,bool done) async {

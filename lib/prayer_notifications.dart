@@ -61,10 +61,11 @@ class PrayerNotifications {
     await _ensureInitialized();
     final enabled = await _android?.areNotificationsEnabled() ?? false;
     final exact = await _android?.canScheduleExactNotifications() ?? false;
+    final unrestrictedBattery = await _adhanAlarmChannel.invokeMethod<bool>('batteryStatus') ?? false;
     final pending = await _plugin.pendingNotificationRequests();
     return PrayerNotificationStatus(
       enabled: enabled, exact: exact,
-      unrestrictedBattery: await _adhanAlarmChannel.invokeMethod<bool>('batteryStatus') ?? false,
+      unrestrictedBattery: unrestrictedBattery,
       pending: pending.where((entry) => entry.id >= 1000 && entry.id < 4000).length,
     );
   }
@@ -287,6 +288,7 @@ class PrayerNotifications {
             fullAdhanAlarms.add({
               'at': prayerTime.millisecondsSinceEpoch,
               'voice': chosen,
+              'prayer': name,
             });
           }
           await _plugin.zonedSchedule(
