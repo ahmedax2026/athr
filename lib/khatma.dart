@@ -334,24 +334,20 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
         final parts = List<int>.from(data['parts'] ?? []);
         final done = List<int>.from(data['completed'] ?? []);
         if (parts.every(done.contains)) continue;
-        final reminder = ref.collection('reminders').doc(member.id);
-        final written = await FirebaseFirestore.instance.runTransaction((tx) async {
-          final existing = await tx.get(reminder);
-          final last = existing.data()?['sentAt'];
-          if (last is Timestamp &&
-              DateTime.now().difference(last.toDate()).inHours < 12) {
-            return false;
+        try {
+          final result = await KhatmaPush.remind(widget.id, member.id);
+          if (result == 'sent') {
+            sent++;
+          } else if (result == 'recorded') {
+            recorded++;
+          } else {
+            skipped++;
           }
-          tx.set(reminder, {
-            'sentAt': FieldValue.serverTimestamp(),
-            'senderId': widget.uid,
-          });
-          return true;
-        });
-        if (written) sent++;
+        } catch (_) {
+          skipped++;
+        }
       }
-      message(sent == 0 ? 'لا يوجد مشاركون يحتاجون تذكيرًا الآن، أو تم تذكيرهم مؤخرًا.'
-          : 'تم تسجيل تذكير داخل التطبيق لـ $sent مشارك.');
+      message('تم قبول إرسال إشعار لـ $sent مشارك، وتسجيل $recorded تذكير داخل التطبيق فقط، وتخطي $skipped (قد يكون السبب عدم تسجيل الجهاز أو مدة الانتظار أو خطأ الاتصال).');
     } catch (_) {
       message('تعذر تسجيل التذكير. تحقق من الاتصال وقواعد Firestore.');
     } finally {
