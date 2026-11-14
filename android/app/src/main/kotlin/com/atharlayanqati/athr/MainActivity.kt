@@ -29,28 +29,20 @@ class MainActivity : FlutterActivity() {
                         if (call.method == "voicePath") {
                             result.success(file.absolutePath)
                         } else {
-                            val extractor = android.media.MediaExtractor()
-                            try {
-                                java.io.FileInputStream(file.absolutePath + ".part").use { input ->
-                                    extractor.setDataSource(input.fd)
-                                }
-                                var valid = false
-                                for (i in 0 until extractor.trackCount) {
-                                    val format = extractor.getTrackFormat(i)
-                                    val mime = format.getString(android.media.MediaFormat.KEY_MIME)
-                                    val duration = if (format.containsKey(android.media.MediaFormat.KEY_DURATION))
-                                        format.getLong(android.media.MediaFormat.KEY_DURATION) else 0L
-                                    if (mime == "audio/mpeg" && (duration == 0L || duration in 1000000L..600000000L)) {
-                                        valid = true
-                                        break
+                            // Validate with the same decoder used for actual scheduled playback.
+                            Thread {
+                                val valid = try {
+                                    val media = android.media.MediaPlayer()
+                                    try {
+                                        media.setDataSource(file.absolutePath + ".part")
+                                        media.prepare()
+                                        media.duration in 1000..600000
+                                    } finally {
+                                        media.release()
                                     }
-                                }
-                                result.success(valid)
-                            } catch (_: Exception) {
-                                result.success(false)
-                            } finally {
-                                extractor.release()
-                            }
+                                } catch (_: Exception) { false }
+                                runOnUiThread { result.success(valid) }
+                            }.start()
                         }
                     }
                 } else if (call.method == "testAdhan") {

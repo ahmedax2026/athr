@@ -533,7 +533,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
 
   Future<void> _openVoicePicker() async {
     if (downloadingVoice || !mounted) return;
-    final chosen = await showModalBottomSheet<String>(
+    await adhanPreview.stop();
+    if (!mounted) return;
+    setState(() => previewingVoice = null);
+    final chosen = await showModalBottomSheet<Map<String, String>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: _cream,
@@ -541,44 +544,24 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       builder: (_) => _AdhanVoicePicker(selected: adhanVoice),
     );
     if (chosen == null || !mounted) return;
-    final id = chosen;
-    await _loadCustomVoices();
-    if (!mounted) return;
-    await _selectCatalogVoice(id);
-  }
-
-  Future<void> _selectCatalogVoice(String id) async {
-    if (!mounted || downloadingVoice) return;
+    final id = chosen['id']!;
     setState(() => downloadingVoice = true);
     try {
-      if (AdhanCatalog.validId.hasMatch(id)) {
-        final item = customVoices.firstWhere((v) => v['id'] == id);
-        await AdhanCatalog.download(id, item['url'].toString());
-      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('adhan_voice', id);
+      await prefs.setString('adhan_fajr_voice', id);
       if (!mounted) return;
-      await _setVoice('adhan_voice', id);
-      if (!mounted) return;
-      await _setVoice('adhan_fajr_voice', id);
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تنزيل الصوت: $e')));
+      setState(() {
+        adhanVoice = id;
+        fajrVoice = id;
+        if (chosen['url'] != null) {
+          customVoices = [...customVoices.where((v) => v['id'] != id), Map<String, dynamic>.from(chosen)];
+        }
+      });
+      await _schedule();
     } finally {
       if (mounted) setState(() => downloadingVoice = false);
     }
-  }
-
-  Future<void> _setVoice(String key, String value) async {
-    // Immediate visual selection; audio is played only by the preview button.
-    if (!mounted) return;
-    setState(() {
-      if (key == 'adhan_voice') {
-        adhanVoice = value;
-      } else {
-        fajrVoice = value;
-      }
-    });
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(key, value);
-    unawaited(_schedule());
   }
 
   Future<void> _previewVoice(String voice, {bool forcePlay = false}) async {
@@ -1390,6 +1373,24 @@ class _AdhanVoicePickerState extends State<_AdhanVoicePicker> {
   bool _startingPreview = false;
   String _query = '';
   String? _playing;
+  String? _selecting;
+  String? _selectionError;
+  Future<void> _select(Map<String, String> item) async {
+    if (_startingPreview || _selecting != null) return;
+    setState(() { _selecting = item['id']; _selectionError = null; });
+    try {
+      await _player.stop();
+      if (!mounted) return;
+      setState(() => _playing = null);
+      final url = item['url'];
+      if (url != null) await AdhanCatalog.download(item['id']!, url);
+      if (mounted) Navigator.pop(context, item);
+    } catch (e) {
+      if (mounted) setState(() => _selectionError = 'تعذر حفظ الصوت للعمل دون إنترنت: $e');
+    } finally {
+      if (mounted) setState(() => _selecting = null);
+    }
+  }
   @override
   void initState() {
     super.initState();
@@ -1463,7 +1464,9 @@ class _AdhanVoicePickerState extends State<_AdhanVoicePicker> {
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: _gold))),
           )),
           const SizedBox(height: 10),
-          if (_loading) const LinearProgressIndicator(color: _forest, backgroundColor: _gold),
+          if (_loading || _selecting != null) const LinearProgressIndicator(color: _forest, backgroundColor: _gold),
+          if (_selecting != null) const Padding(padding: EdgeInsets.all(8), child: Text('جارٍ حفظ الأذان على الجهاز...', style: TextStyle(color: _forest, fontWeight: FontWeight.bold))),
+          if (_selectionError != null) Padding(padding: const EdgeInsets.all(8), child: Text(_selectionError!, style: const TextStyle(color: _forest, fontWeight: FontWeight.bold))),
           Expanded(child: ListView.separated(padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
             itemCount: entries.length, separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
@@ -1473,13 +1476,14 @@ class _AdhanVoicePickerState extends State<_AdhanVoicePicker> {
                 color: active ? _forest : const Color(0xFFFFFCF3),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: const BorderSide(color: _gold)),
                 child: ListTile(
-                  onTap: _startingPreview ? null : () => Navigator.pop(context, id),
-                  leading: Icon(active ? Icons.check_circle_rounded : Icons.music_note_rounded, color: active ? _gold : _forest),
+                  onTap: _startingPreview || _selecting != null ? null : () => _select(item),
+                  leading: IconButton(onPressed: _startingPreview || _selecting != null ? null : () => _select(item),
+                    tooltip: 'اختيار المؤذن', icon: Icon(active ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, color: active ? _gold : _forest)),
                   title: Text(item['name']!, style: TextStyle(color: active ? Colors.white : _forest, fontWeight: FontWeight.w900)),
                   subtitle: Text(active ? 'الصوت الحالي' : item['url'] == null ? 'محفوظ في التطبيق' : 'تحميل عند الاختيار',
                     style: TextStyle(color: active ? _gold : const Color(0xFF74664D), fontSize: 11)),
                   trailing: IconButton(
-                    onPressed: _startingPreview ? null : () => _preview(id, item['url']),
+                    onPressed: _startingPreview || _selecting != null ? null : () => _preview(id, item['url']),
                     tooltip: playing ? 'إيقاف المعاينة' : 'معاينة',
                     icon: Icon(playing ? Icons.stop_circle_rounded : Icons.play_circle_fill_rounded,
                       color: active ? _gold : _forest, size: 30)),

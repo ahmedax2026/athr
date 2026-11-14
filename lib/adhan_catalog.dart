@@ -58,6 +58,8 @@ class AdhanCatalog {
       for (var redirects = 0; ; redirects++) {
         final request = await client.getUrl(uri).timeout(const Duration(seconds: 20));
         request.followRedirects = false;
+        request.headers.set(HttpHeaders.userAgentHeader, 'Mozilla/5.0 (Android) Athr Audio');
+        request.headers.set(HttpHeaders.acceptHeader, 'audio/mpeg, audio/*, */*');
         response = await request.close().timeout(const Duration(seconds: 20));
         if (![301, 302, 303, 307, 308].contains(response.statusCode)) break;
         final location = response.headers.value(HttpHeaders.locationHeader);
