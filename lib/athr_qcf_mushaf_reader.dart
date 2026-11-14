@@ -105,7 +105,7 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
 
   Future<void> _openIndex() async {
     final picked = await Navigator.of(context).push<int>(
-      MaterialPageRoute(builder: (_) => const _QcfMushafIndex()));
+      MaterialPageRoute(builder: (_) => const QcfMushafIndex()));
     if (picked == null || !mounted) return;
     if (picked < widget.firstPage || picked > widget.lastPage) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -286,14 +286,14 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
   }
 }
 
-class _QcfMushafIndex extends StatefulWidget {
-  const _QcfMushafIndex();
+class QcfMushafIndex extends StatefulWidget {
+  const QcfMushafIndex({super.key});
 
   @override
-  State<_QcfMushafIndex> createState() => _QcfMushafIndexState();
+  State<QcfMushafIndex> createState() => QcfMushafIndexState();
 }
 
-class _QcfMushafIndexState extends State<_QcfMushafIndex> {
+class QcfMushafIndexState extends State<QcfMushafIndex> {
   static const _green = Color(0xFF073E35);
   static const _beige = Color(0xFFF7F1E4);
   static const _juzPages = <int>[
