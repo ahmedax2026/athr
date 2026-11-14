@@ -32,6 +32,7 @@ Future<void> main() async {
       await Firebase.initializeApp();
       KhatmaPush.start();
       unawaited(AdhanCatalog.prefetch());
+      unawaited(AzkarCatalog.refresh());
     } catch (error) {
       debugPrint('Firebase initialization failed: $error');
     }
@@ -358,6 +359,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       unawaited(_refreshDaily());
       unawaited(AdhanCatalog.prefetch());
+      unawaited(AzkarCatalog.refresh());
     }
   }
   Future<void> _refreshDaily() async {
@@ -444,6 +446,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               await _refreshConfig();
               unawaited(_refreshDaily());
               unawaited(AdhanCatalog.prefetch());
+              unawaited(AzkarCatalog.refresh());
             },
             icon: const Icon(Icons.admin_panel_settings_outlined),
           ),

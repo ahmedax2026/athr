@@ -1,3 +1,8 @@
+import 'dart:async';
+import 'dart:typed_data';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,7 +14,10 @@ const _gold = Color(0xFFD6B56C);
 const _paper = Color(0xFFF1E3C6);
 
 class Dhikr {
-  const Dhikr(this.text, this.target, this.source);
+  const Dhikr(this.text, this.target, this.source, {this.assetIndex, this.image, this.id});
+  final int? assetIndex;
+  final String? image;
+  final String? id;
   final String text;
   final int target;
   final String source;
@@ -52,6 +60,79 @@ const _groups = <String, List<Dhikr>>{
     Dhikr('رَبِّ اغْفِرْ لِي وَلِوَالِدَيَّ وَلِلْمُؤْمِنِينَ يَوْمَ يَقُومُ الْحِسَابُ', 1, 'سورة إبراهيم: 41'),
   ],
 };
+
+/// Each group is independently versioned; a valid cached group is never
+/// replaced by an incomplete response. Original bundled cards remain usable.
+class AzkarCatalog {
+  static final groups = ValueNotifier<Map<String, List<Dhikr>>>(_defaults());
+  static Map<String, List<Dhikr>> _defaults() => {
+    for (final entry in _groups.entries) entry.key: [
+      for (final pair in entry.value.asMap().entries)
+        Dhikr(pair.value.text, pair.value.target, pair.value.source, assetIndex: pair.key, id: 'original_${pair.key}'),
+    ],
+  };
+  static String docId(String title) => 'azkar_group_${_groups.keys.toList().indexOf(title)}';
+  static List<Map<String, dynamic>> encode(List<Dhikr> items) => [
+    for (final item in items) {'id': item.id, 'text': item.text, 'target': item.target,
+      'source': item.source, if (item.assetIndex != null) 'assetIndex': item.assetIndex,
+      if (item.image != null) 'image': item.image},
+  ];
+  static List<Dhikr>? decode(dynamic raw, String title) {
+    if (raw is! List || raw.isEmpty || raw.length > 60) return null;
+    final items = <Dhikr>[], seen = <String>{};
+    for (final row in raw) {
+      if (row is! Map) return null;
+      final id = row['id'], text = row['text'], target = row['target'], source = row['source'];
+      final asset = row['assetIndex'], image = row['image'];
+      if (id is! String || id.length > 80 || !seen.add(id) || text is! String ||
+          text.trim().isEmpty || text.length > 4000 || target is! int || target < 1 || target > 1000 ||
+          source is! String || source.length > 300) return null;
+      if (asset != null && (asset is! int || asset < 0 || asset >= _groups[title]!.length)) return null;
+      if (image != null) {
+        if (image is! String || image.length > 150000) return null;
+        try {
+          final bytes = base64Decode(image);
+          if (bytes.length < 3 || bytes[0] != 255 || bytes[1] != 216 || bytes[2] != 255) return null;
+        } catch (_) { return null; }
+      }
+      items.add(Dhikr(text, target, source, id: id, assetIndex: asset as int?, image: image as String?));
+    }
+    return items;
+  }
+  static Future<void>? _refreshing;
+  static Future<void> refresh() => _refreshing ??= _refresh().whenComplete(() => _refreshing = null);
+  static Future<void> _refresh() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = _defaults();
+      for (final title in _groups.keys) {
+        try {
+          final raw = prefs.getString(docId(title));
+          if (raw != null) {
+            final items = decode(jsonDecode(raw), title);
+            if (items != null) cached[title] = items;
+          }
+        } catch (_) {}
+      }
+      groups.value = cached;
+      if (Firebase.apps.isEmpty) return;
+      for (final title in _groups.keys) {
+        try {
+          final snap = await FirebaseFirestore.instance.collection('content').doc(docId(title)).get()
+              .timeout(const Duration(seconds: 4));
+          final data = snap.data();
+          if (data == null || data['published'] != true) continue;
+          final items = decode(data['items'], title);
+          if (items == null) continue;
+          final payload = jsonEncode(encode(items));
+          if (prefs.getString(docId(title)) == payload) continue;
+          await prefs.setString(docId(title), payload);
+          groups.value = {...groups.value, title: items};
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+}
 
 int? _quranSurah(Dhikr item) {
   if (item.source == 'سورة الإخلاص') return 112;
@@ -101,7 +182,7 @@ class AzkarScreen extends StatelessWidget {
       backgroundColor: _green,
       foregroundColor: Colors.white,
     ),
-    body: SafeArea(child: LayoutBuilder(builder: (context, bounds) {
+    body: ValueListenableBuilder<Map<String, List<Dhikr>>>(valueListenable: AzkarCatalog.groups, builder: (context, groups, _) => SafeArea(child: LayoutBuilder(builder: (context, bounds) {
       final compact = bounds.maxHeight < 520;
       return Padding(
         padding: EdgeInsets.fromLTRB(12, compact ? 7 : 14, 12, 10),
@@ -140,9 +221,9 @@ class AzkarScreen extends StatelessWidget {
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
               mainAxisExtent: (grid.maxHeight - 20) / 3),
-            itemCount: _groups.length,
+            itemCount: groups.length,
             itemBuilder: (context, i) {
-              final entry = _groups.entries.elementAt(i);
+              final entry = groups.entries.elementAt(i);
               return Material(
                 color: Colors.transparent,
                 borderRadius: BorderRadius.circular(22),
@@ -194,7 +275,7 @@ class AzkarScreen extends StatelessWidget {
           ))),
         ]),
       );
-    })),
+    }))),
   );
 }
 
@@ -214,6 +295,7 @@ class _AzkarReaderState extends State<AzkarReader> {
   final PageController _pages = PageController();
   List<List<String>> imageManifest = const [];
   String get key => 'azkar_${widget.title}';
+  String _countKey(int i) => widget.items[i].id ?? 'original_$i';
 
   @override
   void initState() { super.initState(); _load(); }
@@ -244,7 +326,8 @@ class _AzkarReaderState extends State<AzkarReader> {
     if (!mounted) return;
     setState(() {
       imageManifest = cards;
-      counts = data.map((k, v) => MapEntry(k, (v as num).toInt()));
+      counts = {for (final entry in data.entries) if (entry.value is num)
+        int.tryParse(entry.key) != null ? 'original_${entry.key}' : entry.key: (entry.value as num).toInt()};
       index = resetEligible ? 0 : (prefs.getInt('${key}_index') ?? 0)
           .clamp(0, widget.items.length - 1);
       loaded = true;
@@ -320,13 +403,13 @@ class _AzkarReaderState extends State<AzkarReader> {
   void _tap() {
     final currentIndex = index;
     final item = widget.items[currentIndex];
-    final current = counts['$currentIndex'] ?? 0;
+    final current = counts[_countKey(currentIndex)] ?? 0;
     if (current >= item.target) return;
-    setState(() => counts['$currentIndex'] = current + 1);
+    setState(() => counts[_countKey(currentIndex)] = current + 1);
     _save();
     if (current + 1 == item.target &&
         widget.items.asMap().entries.every(
-          (entry) => (counts['${entry.key}'] ?? 0) >= entry.value.target)) {
+          (entry) => (counts[_countKey(entry.key)] ?? 0) >= entry.value.target)) {
       Future<void>.delayed(const Duration(milliseconds: 450), () {
         if (mounted) _showCompletion();
       });
@@ -351,9 +434,18 @@ class _AzkarReaderState extends State<AzkarReader> {
     final groupIndex = _groups.keys.toList().indexOf(widget.title);
     if (groupIndex < 0 || groupIndex >= imageManifest.length) return null;
     final images = imageManifest[groupIndex];
-    if (itemIndex < 0 || itemIndex >= images.length) return null;
-    return 'assets/azkar/${images[itemIndex]}';
+    final original = widget.items[itemIndex].assetIndex;
+    if (original == null || original < 0 || original >= images.length) return null;
+    return 'assets/azkar/${images[original]}';
   }
+
+  Widget _dhikrText(Dhikr item) => SingleChildScrollView(
+    padding: const EdgeInsets.all(12), child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Text(item.text, textAlign: TextAlign.center, style: const TextStyle(color: _green, fontSize: 25, height: 1.8, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 12),
+      Text(item.source, textAlign: TextAlign.center, style: const TextStyle(color: _green, fontSize: 13)),
+    ]),
+  );
 
   Widget _dhikrCard(Dhikr item, int itemIndex) {
     final surah = _quranSurah(item);
@@ -371,14 +463,14 @@ class _AzkarReaderState extends State<AzkarReader> {
         padding: const EdgeInsets.fromLTRB(6, 6, 6, 5),
         child: Column(children: [
           Expanded(child: Center(
-            child: asset != null
-                ? Image.asset(asset,
-                    fit: BoxFit.contain,
-                    width: double.infinity,
-                    height: double.infinity,
-                    filterQuality: FilterQuality.high,
-                    errorBuilder: (_, error, stack) => const Center(child: Text('تعذّر عرض صورة الذكر', style: TextStyle(color: _green, fontWeight: FontWeight.w700))))
-                : const Center(child: Text('الصورة غير متاحة', style: TextStyle(color: _green))),
+            child: item.image != null
+                ? Image.memory(base64Decode(item.image!), fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => _dhikrText(item))
+                : asset != null
+                ? Image.asset(asset, fit: BoxFit.contain, width: double.infinity,
+                    height: double.infinity, filterQuality: FilterQuality.high,
+                    errorBuilder: (_, _, _) => _dhikrText(item))
+                : _dhikrText(item),
           )),
           if (surah != null)
             SizedBox(height: 30,
@@ -400,10 +492,10 @@ class _AzkarReaderState extends State<AzkarReader> {
   @override
   Widget build(BuildContext context) {
     final item = widget.items[index];
-    final count = counts['$index'] ?? 0;
+    final count = counts[_countKey(index)] ?? 0;
     final done = count >= item.target;
     final completed = widget.items.asMap().entries.where((entry) =>
-        (counts['${entry.key}'] ?? 0) >= entry.value.target).length;
+        (counts[_countKey(entry.key)] ?? 0) >= entry.value.target).length;
     return Scaffold(
       backgroundColor: _paper,
       appBar: AppBar(
@@ -538,4 +630,171 @@ class _AzkarReaderState extends State<AzkarReader> {
             })),
     );
   }
+}
+
+class AdminAzkarScreen extends StatefulWidget {
+  const AdminAzkarScreen({super.key});
+  @override
+  State<AdminAzkarScreen> createState() => _AdminAzkarScreenState();
+}
+class _AdminAzkarScreenState extends State<AdminAzkarScreen> {
+  String group = _groups.keys.first;
+  List<Dhikr> items = [];
+  bool busy = true;
+  String? error;
+  @override
+  void initState() { super.initState(); _load(); }
+  Future<void> _load() async {
+    setState(() { busy = true; error = null; });
+    try {
+      final snap = await FirebaseFirestore.instance.collection('content').doc(AzkarCatalog.docId(group)).get();
+      final data = snap.data();
+      final decoded = AzkarCatalog.decode(data?['items'], group);
+      if (!mounted) return;
+      setState(() => items = List.of(decoded ?? AzkarCatalog._defaults()[group]!));
+    } catch (_) {
+      if (mounted) setState(() => error = 'تعذر تحميل الأذكار. أعد المحاولة قبل الحفظ.');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+  Future<void> _edit([int? index]) async {
+    final old = index == null ? null : items[index];
+    final result = await showDialog<Dhikr>(context: context, builder: (_) => _AzkarEditDialog(item: old));
+    if (result == null || !mounted) return;
+    setState(() {
+      if (index == null) { items.add(result); } else { items[index] = result; }
+    });
+  }
+  Future<void> _save() async {
+    final data = AzkarCatalog.encode(items);
+    if (AzkarCatalog.decode(data, group) == null || utf8.encode(jsonEncode(data)).length > 850000) {
+      setState(() => error = 'القسم يحتاج ذكرًا واحدًا على الأقل، وحجم الصور الإجمالي يجب ألا يتجاوز الحد المتاح.');
+      return;
+    }
+    setState(() { busy = true; error = null; });
+    try {
+      await FirebaseFirestore.instance.collection('content').doc(AzkarCatalog.docId(group)).set({
+        'published': true, 'items': data, 'updatedAt': FieldValue.serverTimestamp(),
+      });
+      unawaited(AzkarCatalog.refresh());
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نشر تحديث الأذكار')));
+    } catch (_) {
+      if (mounted) setState(() => error = 'تعذر حفظ التحديث');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('إدارة الأذكار')),
+    body: Column(children: [
+      Padding(padding: const EdgeInsets.all(12), child: DropdownButtonFormField<String>(
+        initialValue: group, decoration: const InputDecoration(labelText: 'القسم', border: OutlineInputBorder()),
+        items: [for (final name in _groups.keys) DropdownMenuItem(value: name, child: Text(name))],
+        onChanged: busy ? null : (name) async {
+          if (name == null || name == group) return;
+          final confirm = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+            title: const Text('تغيير القسم؟'), content: const Text('أي تعديلات لم تحفظها ستفقد.'),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('متابعة'))],
+          ));
+          if (confirm != true || !mounted) return;
+          group = name;
+          await _load();
+        },
+      )),
+      if (busy) const LinearProgressIndicator(),
+      if (error != null) Padding(padding: const EdgeInsets.all(12), child: Text(error!, style: const TextStyle(color: Colors.red))),
+      Expanded(child: ReorderableListView.builder(
+        padding: const EdgeInsets.all(12), itemCount: items.length,
+        onReorder: (from, to) {
+          if (busy) return;
+          setState(() { if (to > from) to--; final item = items.removeAt(from); items.insert(to, item); });
+        },
+        itemBuilder: (context, i) => Card(key: ValueKey(items[i].id), child: ListTile(
+          title: Text(items[i].text, maxLines: 2, overflow: TextOverflow.ellipsis),
+          subtitle: Text('${items[i].target} تكرار • ${items[i].source}'),
+          onTap: busy ? null : () => _edit(i),
+          leading: IconButton(icon: const Icon(Icons.delete_outline), onPressed: busy || items.length <= 1 ? null : () async {
+            final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+              title: const Text('حذف الذكر من القائمة؟'), actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف')),
+              ],
+            ));
+            if (yes == true && mounted) setState(() => items.removeAt(i));
+          }),
+        )),
+      )),
+      SafeArea(child: Padding(padding: const EdgeInsets.all(12), child: Row(children: [
+        Expanded(child: OutlinedButton.icon(onPressed: busy || items.length >= 60 ? null : () => _edit(),
+          icon: const Icon(Icons.add), label: const Text('إضافة ذكر'))),
+        const SizedBox(width: 8),
+        Expanded(child: FilledButton(onPressed: busy || items.isEmpty ? null : _save, child: const Text('حفظ ونشر'))),
+      ]))),
+    ]),
+  );
+}
+class _AzkarEditDialog extends StatefulWidget {
+  const _AzkarEditDialog({this.item});
+  final Dhikr? item;
+  @override
+  State<_AzkarEditDialog> createState() => _AzkarEditDialogState();
+}
+class _AzkarEditDialogState extends State<_AzkarEditDialog> {
+  late final text = TextEditingController(text: widget.item?.text ?? '');
+  late final source = TextEditingController(text: widget.item?.source ?? '');
+  late final target = TextEditingController(text: (widget.item?.target ?? 1).toString());
+  late String? image = widget.item?.image;
+  late int? asset = widget.item?.assetIndex;
+  bool picking = false;
+  String? error;
+  Future<void> _pick() async {
+    setState(() { picking = true; error = null; });
+    try {
+      final file = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1400, maxHeight: 1400, imageQuality: 65);
+      if (file == null || !mounted) return;
+      final Uint8List bytes = await file.readAsBytes();
+      if (!mounted) return;
+      if (bytes.length > 110000 || bytes.length < 3 || bytes[0] != 255 || bytes[1] != 216 || bytes[2] != 255) {
+        setState(() => error = 'اختر صورة JPEG أصغر من 110 كيلوبايت بعد الضغط');
+        return;
+      }
+      setState(() { image = base64Encode(bytes); asset = null; });
+    } catch (_) {
+      if (mounted) setState(() => error = 'تعذر اختيار الصورة');
+    } finally {
+      if (mounted) setState(() => picking = false);
+    }
+  }
+  @override
+  void dispose() { text.dispose(); source.dispose(); target.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('بيانات الذكر'),
+    content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      TextField(controller: text, maxLines: 5, maxLength: 4000, decoration: const InputDecoration(labelText: 'نص الذكر'),
+        onChanged: (_) { if (asset != null || image != null) setState(() { asset = null; image = null; }); }),
+      TextField(controller: source, maxLength: 300, decoration: const InputDecoration(labelText: 'المصدر')),
+      TextField(controller: target, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'عدد التكرارات')),
+      if (image != null) Image.memory(base64Decode(image!), height: 120, fit: BoxFit.contain),
+      if (asset != null) const Text('الصورة الأصلية محفوظة'),
+      OutlinedButton.icon(onPressed: picking ? null : _pick, icon: const Icon(Icons.image_outlined), label: const Text('اختيار صورة')),
+      if (image != null || asset != null) TextButton(onPressed: picking ? null : () => setState(() { image = null; asset = null; }), child: const Text('حذف الصورة وعرض النص')),
+      if (error != null) Text(error!, style: const TextStyle(color: Colors.red)),
+    ])),
+    actions: [
+      TextButton(onPressed: picking ? null : () => Navigator.pop(context), child: const Text('إلغاء')),
+      FilledButton(onPressed: picking ? null : () {
+        final count = int.tryParse(target.text.trim());
+        if (text.text.trim().isEmpty || count == null || count < 1 || count > 1000) {
+          setState(() => error = 'أدخل النص وعدد تكرارات من 1 إلى 1000');
+          return;
+        }
+        Navigator.pop(context, Dhikr(text.text.trim(), count, source.text.trim(),
+          id: widget.item?.id ?? 'custom_${DateTime.now().microsecondsSinceEpoch}', assetIndex: asset, image: image));
+      }, child: const Text('اعتماد')),
+    ],
+  );
 }

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'admin_content.dart';
+import 'azkar.dart';
 import 'admin_adhan.dart';
 import 'admin_broadcast.dart';
 import 'admin_analytics.dart';
@@ -148,6 +149,12 @@ class AdminDashboardScreen extends StatelessWidget {
                 title: const Text('إدارة الختمات والمشاركين'),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
                   builder: (_) => const AdminKhatmasScreen())),
+              )),
+              Card(child: ListTile(
+                leading: const Icon(Icons.auto_awesome_outlined),
+                title: const Text('إدارة الأذكار'),
+                subtitle: const Text('النصوص والصور والتكرارات والترتيب'),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AdminAzkarScreen())),
               )),
               Card(child: ListTile(
                 leading: const Icon(Icons.library_music_outlined),
