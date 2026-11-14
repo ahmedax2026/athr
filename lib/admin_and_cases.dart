@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'admin_content.dart';
+import 'admin_restore.dart';
+import 'dynamic_sections.dart';
 
 const adminUid = '7g22L1RQBEcN7JtAYqv92J0qiAs2';
 
@@ -82,7 +84,7 @@ class AdminDashboardScreen extends StatelessWidget {
         return const Scaffold(body: Center(child: Text('غير مصرح بالدخول إلى لوحة الإدارة')));
       }
       return Scaffold(
-        appBar: AppBar(title: const Text('لوحة الإدارة'), actions: [
+        appBar: AppBar(title: const Text('Super Admin'), actions: [
           IconButton(tooltip: 'تسجيل الخروج', icon: const Icon(Icons.logout),
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
@@ -96,6 +98,18 @@ class AdminDashboardScreen extends StatelessWidget {
             if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
             final cases = snapshot.data!.docs;
             return ListView(padding: const EdgeInsets.all(16), children: [
+              Card(child: ListTile(
+                leading: const Icon(Icons.dashboard_customize_outlined),
+                title: const Text('إضافة وإدارة الأقسام'),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const DynamicSectionsAdmin())),
+              )),
+              Card(child: ListTile(
+                leading: const Icon(Icons.restore),
+                title: const Text('النسخ الاحتياطية والاستعادة'),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const AdminRestoreScreen())),
+              )),
               const Text('التحكم في التطبيق', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               Card(child: ListTile(
