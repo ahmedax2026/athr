@@ -33,6 +33,7 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
   int? _bookmark;
   bool _eyeComfort = false;
   bool _dark = false;
+  DateTime? _lastBoundaryAlert;
 
   @override
   void initState() {
@@ -75,6 +76,12 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
 
   void _showPartBoundary() {
     if (!mounted) return;
+    final now = DateTime.now();
+    if (_lastBoundaryAlert != null &&
+        now.difference(_lastBoundaryAlert!) < const Duration(seconds: 2)) {
+      return;
+    }
+    _lastBoundaryAlert = now;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(const SnackBar(
@@ -215,17 +222,28 @@ class _AthrQcfMushafReaderState extends State<AthrQcfMushafReader> {
                                 theme: theme,
                                 onPageChanged: _onPage,
                               )
-                            : PageView.builder(
-                                controller: _controller,
-                                itemCount:
-                                    widget.lastPage - widget.firstPage + 1,
-                                onPageChanged: (index) =>
-                                    _onPage(widget.firstPage + index),
-                                itemBuilder: (context, index) => QcfPage(
-                                  pageNumber: widget.firstPage + index,
-                                  sp: 0.82,
-                                  h: 1.14,
-                                  theme: theme,
+                            : NotificationListener<OverscrollNotification>(
+                                onNotification: (notification) {
+                                  if (_page == widget.firstPage ||
+                                      _page == widget.lastPage) {
+                                    WidgetsBinding.instance.addPostFrameCallback(
+                                      (_) => _showPartBoundary(),
+                                    );
+                                  }
+                                  return false;
+                                },
+                                child: PageView.builder(
+                                  controller: _controller,
+                                  itemCount:
+                                      widget.lastPage - widget.firstPage + 1,
+                                  onPageChanged: (index) =>
+                                      _onPage(widget.firstPage + index),
+                                  itemBuilder: (context, index) => QcfPage(
+                                    pageNumber: widget.firstPage + index,
+                                    sp: 0.82,
+                                    h: 1.14,
+                                    theme: theme,
+                                  ),
                                 ),
                               ),
                       );
