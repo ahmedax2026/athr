@@ -524,7 +524,7 @@ class _PublicCaseCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(top: 10),
       elevation: 0,
-      color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.45),
+      color: const Color(0xFFE4F2E6),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: () async {
@@ -564,8 +564,12 @@ class _PublicCaseCard extends StatelessWidget {
     final showImage = validImage != null && validImage.scheme == 'https' && validImage.host.isNotEmpty;
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
+      color: Colors.white,
+      elevation: 0,
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: Color(0xFFD7B672), width: 1.5),
+        borderRadius: BorderRadius.circular(22)),
       child: Padding(padding: const EdgeInsets.all(18), child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           if (showImage) ...[
@@ -575,13 +579,29 @@ class _PublicCaseCard extends StatelessWidget {
                   height: 100, child: Center(child: Icon(Icons.broken_image_outlined))))),
             const SizedBox(height: 14),
           ],
-          Text((data['title'] ?? '').toString(),
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF032D28),
+              borderRadius: BorderRadius.circular(15)),
+            child: Column(children: [
+              const Icon(Icons.volunteer_activism_rounded,
+                color: Color(0xFFD7B672), size: 30),
+              const SizedBox(height: 6),
+              Text((data['title'] ?? '').toString(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white,
+                  fontSize: 22, fontWeight: FontWeight.w900)),
+            ]),
+          ),
           const SizedBox(height: 10),
           Text((data['details'] ?? '').toString(),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.6)),
           const SizedBox(height: 18),
           LinearProgressIndicator(value: fraction, minHeight: 12,
+            color: const Color(0xFF126653),
+            backgroundColor: const Color(0xFFE8E1D5),
             borderRadius: BorderRadius.circular(12)),
           const SizedBox(height: 12),
           Text('تم جمع: ${collected.toStringAsFixed(0)} ج.م من ${goal.toStringAsFixed(0)} ج.م',
@@ -592,7 +612,9 @@ class _PublicCaseCard extends StatelessWidget {
           Text('نسبة الإنجاز: ${(fraction * 100).toStringAsFixed(0)}%',
             style: const TextStyle(fontWeight: FontWeight.w700)),
           const Divider(height: 30),
-          const Text('طرق التبرع', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+          const Text('طرق المساهمة',
+            style: TextStyle(color: Color(0xFF073E35),
+              fontSize: 20, fontWeight: FontWeight.w900)),
           if (vodafone.isNotEmpty)
             _paymentTile(context, 'فودافون كاش', vodafone, Icons.phone_android),
           if (instapay.isNotEmpty)
