@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_access.dart';
+import 'prayer_notifications.dart';
 
 class AppSettingsScreen extends StatefulWidget {
   const AppSettingsScreen({super.key});
@@ -13,6 +14,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   final Map<String, bool> _values = {};
   bool _ready = false;
   static const _items = [
+    ('prayer_checkin_enabled', 'متابعة الصلاة بعد نصف ساعة', 'هل صليت؟ مع زرّي نعم، صليت / ليس بعد داخل الإشعار', Icons.task_alt_rounded),
     ('adhan', 'تشغيل الأذان', 'التفضيل محفوظ؛ تشغيل الأذان التلقائي قيد التطوير', Icons.volume_up_outlined),
     ('reminders', 'تذكيرات الأذكار', 'الإشعارات المجدولة قيد التطوير', Icons.notifications_outlined),
     ('daily_prayer', 'الدعاء اليومي', 'تفضيل محفوظ للتخصيص في تحديث قادم', Icons.favorite_outline),
@@ -27,7 +29,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
 
   Future<void> _load() async {
     for (final item in _items) {
-      _values[item.$1] = await _prefs.getBool(item.$1) ?? false;
+      _values[item.$1] = await _prefs.getBool(item.$1) ?? (item.$1 == 'prayer_checkin_enabled');
     }
     if (mounted) setState(() => _ready = true);
   }
@@ -35,6 +37,31 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   Future<void> _change(String key, bool value) async {
     setState(() => _values[key] = value);
     await _prefs.setBool(key, value);
+    if (key == 'prayer_checkin_enabled') {
+      try {
+        await PrayerNotifications.setCheckinsEnabled(value);
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('تعذر تحديث تنبيهات متابعة الصلاة: $error')));
+        }
+      }
+    }
+  }
+
+  Future<void> _tryCheckin() async {
+    try {
+      await PrayerNotifications.testCheckin();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('تم إرسال إشعار تجريبي باسم صلاة الظهر، افتح لوحة الإشعارات.')));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('تعذر اختبار الإشعار: $error')));
+      }
+    }
   }
 
   @override
@@ -62,6 +89,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                   onChanged: (value) => _change(item.$1, value),
                 ),
             ]),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _tryCheckin,
+            icon: const Icon(Icons.notification_add_outlined),
+            label: const Text('تجربة إشعار «هل صليت؟» الآن'),
           ),
           const SizedBox(height: 18),
           const Text('تنبيه: مفاتيح الأذان والإشعارات والاهتزاز تحفظ رغبتك فقط حاليًا؛ لن تصدر صوتًا أو إشعارات حتى نكمل تنفيذ تلك الميزات.',
