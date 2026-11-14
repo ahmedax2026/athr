@@ -328,8 +328,6 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
     final finished=await Navigator.push<bool>(context,MaterialPageRoute<bool>(
       builder:(_)=>KhatmaPartReader(part:part,initialPage:last,onPage:(p)=>prefs.setInt(key,p))));
     if(finished==true){
-      final current=await ref.collection('members').doc(widget.uid).get();
-      if(List<int>.from(current.data()?['completed']??[]).contains(part))return;
       if(!await complete(part,true))return;
       if(!mounted)return;
       final title=(await ref.get()).data()?['title']?.toString()??'صاحب الختمة';
@@ -344,8 +342,14 @@ class _KhatmaDetailsScreenState extends State<KhatmaDetailsScreen> {
     try {
       final m=ref.collection('members').doc(widget.uid);
       await FirebaseFirestore.instance.runTransaction((tx) async {
+        final khatma=await tx.get(ref);
         final snap=await tx.get(m);
-        if(!snap.exists||!List<int>.from(snap.data()?['parts']??[]).contains(part))throw StateError('not assigned');
+        if(!khatma.exists || khatma.data()?['started'] != true ||
+            khatma.data()?['closed'] == true) throw StateError('inactive');
+        if(!snap.exists || !List<int>.from(snap.data()?['parts']??[]).contains(part)) {
+          throw StateError('not assigned');
+        }
+        if(List<int>.from(snap.data()?['completed']??[]).contains(part) == done) return;
         tx.update(m,{'completed':done?FieldValue.arrayUnion([part]):FieldValue.arrayRemove([part])});
         tx.update(ref,{'completedParts':done?FieldValue.arrayUnion([part]):FieldValue.arrayRemove([part])});
       });
