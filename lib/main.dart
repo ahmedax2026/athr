@@ -438,8 +438,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: LayoutBuilder(builder: (context, size) {
           // Account for the scroll view's 18px padding on both sides.
           final availableWidth = size.maxWidth - 36;
-          final maxWidth = availableWidth > 650 ? 650.0 : availableWidth;
-          final tileWidth = (maxWidth - 24) / 3;
+          final maxWidth = availableWidth > 1100 ? 1100.0 : availableWidth;
+          final columns = maxWidth >= 850 ? 5 : maxWidth >= 650 ? 4 : 3;
+          final tileWidth = (maxWidth - 12 * (columns - 1)) / columns;
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
             child: Center(child: SizedBox(width: maxWidth, child: Column(

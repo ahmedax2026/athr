@@ -597,7 +597,11 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       return;
     }
     try {
-      await PrayerNotifications.scheduleTest(zone: zone!);
+      if (adhanEnabled) {
+        await PrayerNotifications.testFullAdhan(adhanVoice);
+      } else {
+        await PrayerNotifications.scheduleTest(zone: zone!);
+      }
       await _checkNotificationStatus();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -725,6 +729,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                 style: TextStyle(color: Color(0xFF68756B),
                   fontSize: 12, fontWeight: FontWeight.w700)),
             ]),
+            scrollable: true,
             content: SizedBox(width: 355, child: Column(
               mainAxisSize: MainAxisSize.min, children: [
                 stateRow('السماح بالإشعارات',
@@ -735,6 +740,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                   notificationStatus?.exact,
                   Icons.alarm_rounded,
                   'يساعد في وصول التنبيه بدقة'),
+                stateRow('العمل في الخلفية', notificationStatus?.unrestrictedBattery, Icons.battery_charging_full, 'اختر البطارية ثم بدون قيود إن كان متاحًا'),
+                if(notificationStatus?.unrestrictedBattery != true)
+                  OutlinedButton.icon(onPressed: () async { await PrayerNotifications.openBatterySettings(); }, icon:const Icon(Icons.settings_outlined), label:const Text('إعدادات البطارية')),
                 const SizedBox(height: 8),
                 if (notificationStatus?.enabled != true)
                   SizedBox(width: double.infinity,
@@ -779,7 +787,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _forest,
                       side: const BorderSide(color: _gold)),
-                    child: const Text('بعد دقيقتين'))),
+                    child: Text(adhanEnabled ? 'اختبار الأذان' : 'بعد دقيقتين'))),
                 ]),
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),

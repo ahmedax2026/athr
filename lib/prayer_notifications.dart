@@ -12,8 +12,9 @@ class PrayerNotificationStatus {
     required this.enabled,
     required this.exact,
     required this.pending,
+    this.unrestrictedBattery = false,
   });
-  final bool enabled, exact;
+  final bool enabled, exact, unrestrictedBattery;
   final int pending;
 }
 
@@ -63,6 +64,7 @@ class PrayerNotifications {
     final pending = await _plugin.pendingNotificationRequests();
     return PrayerNotificationStatus(
       enabled: enabled, exact: exact,
+      unrestrictedBattery: await _adhanAlarmChannel.invokeMethod<bool>('batteryStatus') ?? false,
       pending: pending.where((entry) => entry.id >= 1000 && entry.id < 4000).length,
     );
   }
@@ -76,13 +78,13 @@ class PrayerNotifications {
   static Future<bool> requestExactPermission() async {
     await _ensureInitialized();
     if (await _android?.canScheduleExactNotifications() ?? false) return true;
-    await _android?.requestExactAlarmsPermission();
+    await _adhanAlarmChannel.invokeMethod<void>('exactSettings');
     return await _android?.canScheduleExactNotifications() ?? false;
   }
 
   static Future<void> openNotificationSettings() async {
     await _ensureInitialized();
-    await _android?.openAppNotificationSettings();
+    await _adhanAlarmChannel.invokeMethod<void>('notificationSettings');
   }
 
   /// Separate notification IDs keep optional daily content independent from
@@ -161,6 +163,15 @@ class PrayerNotifications {
 
   /// A real device-level alarm test: succeeds even if the app is closed.
   /// Requires Android exact-alarm access to give a meaningful 2-minute check.
+  static Future<void> openBatterySettings() async {
+    await _adhanAlarmChannel.invokeMethod<void>('batterySettings');
+  }
+
+  static Future<void> testFullAdhan(String voice) async {
+    if (!(await _android?.canScheduleExactNotifications() ?? false)) throw StateError('فعّل التوقيت الدقيق أولًا');
+    await _adhanAlarmChannel.invokeMethod<void>('testAdhan', {'voice':voice});
+  }
+
   static Future<DateTime> scheduleTest({
     required tz.Location zone,
   }) async {

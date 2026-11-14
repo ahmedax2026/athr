@@ -53,15 +53,25 @@ object AdhanScheduler {
         }
     }
 
+    fun test(context: Context, voice: String) {
+        val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        check(Build.VERSION.SDK_INT < 31 || alarm.canScheduleExactAlarms()) { "Exact alarm permission required" }
+        set(context, 9999, System.currentTimeMillis() + 120000L, voice, "تجربة الأذان")
+    }
+
     private fun set(context: Context, id: Int, at: Long, voice: String, prayer: String) {
         val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, AdhanAlarmReceiver::class.java)
             .putExtra("voice", voice)
             .putExtra("prayer", prayer)
+            .putExtra("scheduledAt", at)
         val request = PendingIntent.getBroadcast(context, BASE + id, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         if (Build.VERSION.SDK_INT >= 31 && !alarm.canScheduleExactAlarms()) {
             alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, request)
+        } else if (voice != "reminder" && voice != "qiyam") {
+            val show = PendingIntent.getActivity(context, 45999, Intent(context, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            alarm.setAlarmClock(AlarmManager.AlarmClockInfo(at, show), request)
         } else {
             alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, request)
         }

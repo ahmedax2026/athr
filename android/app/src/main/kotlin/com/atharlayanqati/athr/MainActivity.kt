@@ -42,6 +42,26 @@ class MainActivity : FlutterActivity() {
                             }
                         }
                     }
+                } else if (call.method == "testAdhan") {
+                    try {
+                        AdhanScheduler.test(this, call.argument<String>("voice") ?: "adhan_makkah")
+                        result.success(true)
+                    } catch (e: Exception) { result.error("ADHAN_TEST", e.message, null) }
+                } else if (call.method == "batteryStatus") {
+                    val power = getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+                    result.success(power.isIgnoringBatteryOptimizations(packageName))
+                } else if (call.method == "batterySettings" || call.method == "exactSettings" || call.method == "notificationSettings") {
+                    try {
+                        val uri = android.net.Uri.parse("package:$packageName")
+                        val fallback = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, uri)
+                        val target = when {
+                            call.method == "exactSettings" && android.os.Build.VERSION.SDK_INT >= 31 -> android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, uri)
+                            call.method == "notificationSettings" && android.os.Build.VERSION.SDK_INT >= 26 -> android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName)
+                            else -> fallback
+                        }
+                        try { startActivity(target) } catch (_: android.content.ActivityNotFoundException) { startActivity(fallback) }
+                        result.success(true)
+                    } catch (e: Exception) { result.error("SETTINGS", e.message, null) }
                 } else result.notImplemented()
             }
     }
